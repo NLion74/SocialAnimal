@@ -8,35 +8,59 @@ Friends can view shared calendars directly inside the app, or export them as an 
 
 ---
 
+![Main page](assets/main-page.png)
+
+---
+
 ## Current State - v0.1.0
 
 This is an early release. Current features include:
 
 - **Friend system** - send, accept, and decline friend requests
-- **Auth & admin** - login system with admin settings
+- **Auth & admin** - login system with admin settings, invite-only or open registration, salted password hashing
 - **Calendar import** - import any ICS/iCal feed by URL (Google Calendar, Apple, Outlook, Fastmail, etc.)
 - **Calendar export** - export shared calendars as ICS links for use in any calendar client
-- **Sync jobs** - calendars sync automatically on a configurable interval
-- **Calendar view** - month, week, and day views showing your events and friends events side-by-side
+- **Sync jobs** - calendars sync automatically on a configurable interval (in minutes)
+- **Calendar view** - month, week, and day views showing your events and friends' events side-by-side
 - **Permission system** - control per-calendar, per-friend what level of detail is shared:
     - 🔴 **Busy only** - time blocks visible, no details
     - 🟡 **Titles only** - event names visible, no description or location
     - 🟢 **Full details** - everything visible
+- **Profile & settings** - change password, set default sharing permissions and other preferences
+
+|                                    |                                                |
+| ---------------------------------- | ---------------------------------------------- |
+| ![Dashboard](assets/dashboard.png) | ![Share with menu](assets/share-with-menu.png) |
+| _Calendar dashboard_               | _Per-friend sharing controls_                  |
+| ![Profile](assets/profile.png)     | ![Calendar](assets/calendar.png)               |
+| _Profile settings_                 | _Calendar view_                                |
+
+---
 
 ## Roadmap
 
-- Support for dedicated calendar provider imports (Google Calendar, Proton Calendar, Apple Calendar, etc.)
-- Possibly additional export modes - research ongoing
-- Possibly a way of excluding singular events or changing their permission individually
+- [ ] API tests
+- [ ] Better calendar view with hourly time grid
+- [ ] Edit added calendars
+- [ ] Google Calendar provider
+- [ ] Proton Calendar provider
+- [ ] Apple Calendar provider
+- [ ] CalDAV support
+- [ ] Research and add other common calendar providers
+- [ ] Per-event permission overrides or event exclusions
+- [ ] GitHub Actions workflow for publishing Docker image
+- [ ] Better admin management
+- [ ] Mobile view optimisation
+
+---
 
 ## Getting Started
 
-```bash
-# Clone the repo
-curl -O github.com/NLion74/SocialAnimal/refs/heads/main/docker-compose.yml
+Pull the compose file and start:
 
-# Start all services
-docker-compose -f docker-compose.yml up
+```bash
+curl -O https://raw.githubusercontent.com/NLion74/SocialAnimal/refs/heads/main/docker-compose.yml
+docker-compose up
 ```
 
 ---
@@ -46,15 +70,11 @@ docker-compose -f docker-compose.yml up
 This project is in early development and contributions are very much appreciated! Feel free to open issues, suggest features, or submit pull requests.
 
 ```bash
-# Clone the repo
-git clone https://github.com/your-org/socialanimal.git
-cd socialanimal
+git clone https://github.com/NLion74/SocialAnimal.git
+cd SocialAnimal
 
-# Start all services
 docker-compose -f dev-docker-compose.yml up --build
 ```
 
 Frontend: http://localhost:3001  
-Backend API: http://localhost:3000 or http://localhost:3001/api
-
----
+Backend API: http://localhost:3001/api
