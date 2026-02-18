@@ -33,10 +33,10 @@ This is an early release. Current features include:
 
 ```bash
 # Clone the repo
-curl -O github.com/NLion74/SocialAnimal
+curl -O github.com/NLion74/SocialAnimal/refs/heads/main/docker/docker-compose.yml
 
 # Start all services
-docker-compose -f docker-compose.yml up --build
+docker-compose -f docker-compose.yml up
 ```
 
 Frontend: http://localhost:3001  
