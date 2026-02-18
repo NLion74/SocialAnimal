@@ -58,25 +58,29 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
         },
     );
 
-    fastify.patch("/:id", async (request, reply) => {
+    fastify.put("/:id", async (request, reply) => {
         try {
             const { id } = request.params as any;
             const uid = (request as any).user.id;
-            const { name, syncInterval } = request.body as any;
+            const { name, syncInterval, config } = request.body as any;
 
             const cal = await prisma.calendar.findFirst({
                 where: { id, userId: uid },
             });
             if (!cal) return notFound(reply, "Calendar not found");
 
-            return prisma.calendar.update({
+            const updated = await prisma.calendar.update({
                 where: { id },
                 data: {
                     ...(name !== undefined && { name }),
                     ...(syncInterval !== undefined && { syncInterval }),
+                    ...(config !== undefined && { config }),
                 },
             });
-        } catch {
+
+            return reply.send(updated);
+        } catch (err) {
+            fastify.log.error(err);
             return serverError(reply, "Failed to update calendar");
         }
     });

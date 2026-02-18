@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useCallback } from "react";
 import {
     Plus,
     RefreshCw,
@@ -9,19 +10,21 @@ import {
     Check,
     Link,
     Calendar,
+    Edit,
 } from "lucide-react";
 import { env } from "@/lib/env";
 import s from "./GeneralTab.module.css";
-import { useCallback } from "react";
 
 interface CalendarData {
     id: string;
     name: string;
     type: string;
     url?: string;
+    config?: { url?: string; username?: string; password?: string };
     events: { id: string; title: string }[];
     lastSync?: string;
 }
+
 interface Friend {
     id: string;
     user1: { id: string; email: string; name?: string };
@@ -30,33 +33,6 @@ interface Friend {
     sharedCalendarIds: string[];
     sharedWithMe: { id: string; name: string }[];
 }
-
-const TYPES = [
-    {
-        value: "ics_url",
-        label: "ICS / iCal URL",
-        desc: "Import from any public ICS URL",
-        enabled: true,
-    },
-    {
-        value: "google",
-        label: "Google Calendar",
-        desc: "Coming soon",
-        enabled: false,
-    },
-    {
-        value: "apple",
-        label: "Apple Calendar",
-        desc: "Coming soon",
-        enabled: false,
-    },
-    {
-        value: "proton",
-        label: "Proton Calendar",
-        desc: "Coming soon",
-        enabled: false,
-    },
-];
 
 function getUid(): string | null {
     const t =
@@ -74,23 +50,24 @@ export default function GeneralTab() {
     const [friends, setFriends] = useState<Friend[]>([]);
     const [loading, setLoading] = useState(true);
     const [syncingId, setSyncingId] = useState<string | null>(null);
+    const [showModal, setShowModal] = useState(false);
+    const [editingCalendar, setEditingCalendar] = useState<CalendarData | null>(
+        null,
+    );
 
-    const [showImport, setShowImport] = useState(false);
-    const [selType, setSelType] = useState<string | null>(null);
-    const [impName, setImpName] = useState("");
-    const [impUrl, setImpUrl] = useState("");
-    const [importing, setImporting] = useState(false);
-    const [impErr, setImpErr] = useState("");
-    const [impSync, setImpSync] = useState(60);
+    const [name, setName] = useState("");
+    const [url, setUrl] = useState("");
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
+    const [sync, setSync] = useState(60);
+
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState("");
 
     const [showExport, setShowExport] = useState(false);
     const [exportLink, setExportLink] = useState("");
     const [exportLabel, setExportLabel] = useState("");
     const [copied, setCopied] = useState(false);
-
-    useEffect(() => {
-        load();
-    }, []);
 
     const api = useCallback(
         (path: string, opts?: RequestInit) =>
@@ -107,6 +84,29 @@ export default function GeneralTab() {
         [],
     );
 
+    useEffect(() => {
+        load();
+    }, []);
+
+    useEffect(() => {
+        if (editingCalendar) {
+            setName(editingCalendar.name);
+            setUrl(editingCalendar.config?.url || "");
+            setUsername(editingCalendar.config?.username || "");
+            setPassword(editingCalendar.config?.password || "");
+            setSync(editingCalendar.syncInterval ?? 60);
+        } else resetForm();
+    }, [editingCalendar]);
+
+    const resetForm = () => {
+        setName("");
+        setUrl("");
+        setUsername("");
+        setPassword("");
+        setSync(60);
+        setError("");
+    };
+
     const load = async () => {
         setLoading(true);
         const [cr, fr] = await Promise.all([
@@ -118,70 +118,87 @@ export default function GeneralTab() {
         setLoading(false);
     };
 
-    const closeImport = () => {
-        setShowImport(false);
-        setSelType(null);
-        setImpName("");
-        setImpUrl("");
-        setImpErr("");
-        setImpSync(60);
+    const openCreate = () => {
+        setEditingCalendar(null);
+        resetForm();
+        setShowModal(true);
     };
 
-    const doImport = async () => {
-        if (!selType || !impName || (selType === "ics_url" && !impUrl)) return;
-        setImporting(true);
-        setImpErr("");
+    const openEdit = (c: CalendarData) => {
+        setEditingCalendar(c);
+        setShowModal(true);
+    };
+
+    const closeModal = () => {
+        setShowModal(false);
+        setEditingCalendar(null);
+        resetForm();
+    };
+
+    const saveCalendar = async () => {
+        if (!name || !url) return;
+        setSaving(true);
+        setError("");
+
         try {
-            const r = await api("/api/calendars", {
-                method: "POST",
-                body: JSON.stringify({
-                    name: impName,
-                    type: selType,
-                    url: impUrl || null,
-                }),
-            });
-            if (!r.ok)
-                throw new Error((await r.json()).error || "Import failed");
-            closeImport();
-            load();
-        } catch (e) {
-            setImpErr(e instanceof Error ? e.message : "Import failed");
+            const body = {
+                name,
+                type: "ics",
+                syncInterval: sync,
+                config: {
+                    url,
+                    ...(username && { username }),
+                    ...(password && { password }),
+                },
+            };
+            const r = await api(
+                editingCalendar
+                    ? `/api/calendars/${editingCalendar.id}`
+                    : "/api/calendars",
+                {
+                    method: editingCalendar ? "PUT" : "POST",
+                    body: JSON.stringify(body),
+                },
+            );
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.error || "Failed");
+            closeModal();
+            await load();
+        } catch (e: any) {
+            setError(e.message || "Failed");
         } finally {
-            setImporting(false);
+            setSaving(false);
         }
     };
 
     const doSync = async (id: string) => {
         setSyncingId(id);
         await api(`/api/calendars/${id}/sync`, { method: "POST" });
-        load();
+        await load();
         setSyncingId(null);
     };
 
     const doDelete = async (id: string) => {
         if (!confirm("Delete this calendar and all its events?")) return;
         await api(`/api/calendars/${id}`, { method: "DELETE" });
-        load();
+        await load();
     };
 
-    const openExport = (
+    const openExportLink = (
         type: "all" | "calendar" | "friend",
         id?: string,
         label?: string,
     ) => {
         const token = localStorage.getItem("token");
         if (!token) return;
-
         const base = env.ICS_BASE_URL;
         const t = encodeURIComponent(token);
-
         const link =
             type === "all"
                 ? `${base}/api/ics/my-calendar.ics?token=${t}`
                 : type === "calendar"
                   ? `${base}/api/ics/calendar/${id}.ics?token=${t}`
                   : `${base}/api/ics/friend/${id}.ics?token=${t}`;
-
         setExportLink(link);
         setExportLabel(label ?? "Full calendar");
         setShowExport(true);
@@ -213,13 +230,13 @@ export default function GeneralTab() {
                 <div className={s.btnRow}>
                     <button
                         className={`${s.btn} ${s.btnSecondary}`}
-                        onClick={() => openExport("all")}
+                        onClick={() => openExportLink("all")}
                     >
                         <Link size={14} /> Export All
                     </button>
                     <button
                         className={`${s.btn} ${s.btnPrimary}`}
-                        onClick={() => setShowImport(true)}
+                        onClick={openCreate}
                     >
                         <Plus size={14} /> Import Calendar
                     </button>
@@ -244,18 +261,15 @@ export default function GeneralTab() {
                     <span className={s.sectionTitle}>My Calendars</span>
                     <button
                         className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`}
-                        onClick={() => setShowImport(true)}
+                        onClick={openCreate}
                     >
                         <Plus size={12} /> Add
                     </button>
                 </div>
-
                 {calendars.length === 0 ? (
                     <div className={s.empty}>
                         <Calendar size={38} className={s.emptyIcon} />
-                        <span>
-                            No calendars yet — import one to get started
-                        </span>
+                        <span>No calendars yet</span>
                     </div>
                 ) : (
                     <div className={s.list}>
@@ -289,9 +303,12 @@ export default function GeneralTab() {
                                     <button
                                         className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
                                         onClick={() =>
-                                            openExport("calendar", c.id, c.name)
+                                            openExportLink(
+                                                "calendar",
+                                                c.id,
+                                                c.name,
+                                            )
                                         }
-                                        title="Get ICS link"
                                     >
                                         <Link size={12} />
                                     </button>
@@ -302,11 +319,14 @@ export default function GeneralTab() {
                                             disabled={syncingId === c.id}
                                         >
                                             <RefreshCw size={12} />
-                                            {syncingId === c.id
-                                                ? "Syncing…"
-                                                : "Sync"}
                                         </button>
                                     )}
+                                    <button
+                                        className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
+                                        onClick={() => openEdit(c)}
+                                    >
+                                        <Edit size={12} />
+                                    </button>
                                     <button
                                         className={`${s.btn} ${s.btnDanger} ${s.btnSm} ${s.btnIcon}`}
                                         onClick={() => doDelete(c.id)}
@@ -320,185 +340,96 @@ export default function GeneralTab() {
                 )}
             </div>
 
-            {accepted.length > 0 && (
-                <div className={s.section}>
-                    <div className={s.sectionHeader}>
-                        <span className={s.sectionTitle}>
-                            Friends' Calendars
-                        </span>
-                    </div>
-                    <div className={s.list}>
-                        {accepted.map((f) => {
-                            const friend =
-                                f.user1.id === uid ? f.user2 : f.user1;
-                            const shared = f.sharedWithMe ?? [];
-
-                            return (
-                                <div key={f.id} className={s.row}>
-                                    <div className={s.rowInfo}>
-                                        <div className={s.rowName}>
-                                            {friend.name || friend.email}
-                                        </div>
-                                        <div className={s.rowMeta}>
-                                            <span className={s.metaText}>
-                                                {friend.email}
-                                            </span>
-                                            {shared.length === 0 && (
-                                                <span className={s.metaText}>
-                                                    No calendars shared with you
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    {shared.length > 0 && (
-                                        <div className={s.rowActions}>
-                                            {shared.map((cal) => (
-                                                <button
-                                                    key={cal.id}
-                                                    className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
-                                                    onClick={() =>
-                                                        openExport(
-                                                            "calendar",
-                                                            cal.id,
-                                                            `${friend.name || friend.email} – ${cal.name}`,
-                                                        )
-                                                    }
-                                                >
-                                                    <Link size={12} />{" "}
-                                                    {cal.name}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
-            {showImport && (
-                <div className={s.overlay} onClick={closeImport}>
+            {showModal && (
+                <div className={s.overlay} onClick={closeModal}>
                     <div
                         className={s.modal}
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className={s.modalHeader}>
                             <span className={s.modalTitle}>
-                                Import Calendar
+                                {editingCalendar
+                                    ? "Edit Calendar"
+                                    : "Import Calendar"}
                             </span>
-                            <button
-                                className={s.closeBtn}
-                                onClick={closeImport}
-                            >
+                            <button className={s.closeBtn} onClick={closeModal}>
                                 <X size={18} />
                             </button>
                         </div>
-
-                        {!selType ? (
-                            <div className={s.typeGrid}>
-                                {TYPES.map((t) => (
-                                    <button
-                                        key={t.value}
-                                        className={s.typeBtn}
-                                        disabled={!t.enabled}
-                                        onClick={() =>
-                                            t.enabled && setSelType(t.value)
-                                        }
-                                    >
-                                        <div className={s.typeName}>
-                                            {t.label}
-                                        </div>
-                                        <div className={s.typeDesc}>
-                                            {t.desc}
-                                        </div>
-                                    </button>
-                                ))}
+                        <div className={s.formStack}>
+                            <div>
+                                <label className={s.fieldLabel}>Name</label>
+                                <input
+                                    className={s.input}
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                />
                             </div>
-                        ) : (
-                            <div className={s.formStack}>
+                            <div>
+                                <label className={s.fieldLabel}>ICS URL</label>
+                                <input
+                                    className={s.input}
+                                    value={url}
+                                    onChange={(e) => setUrl(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className={s.fieldLabel}>
+                                    Username (optional)
+                                </label>
+                                <input
+                                    className={s.input}
+                                    value={username}
+                                    onChange={(e) =>
+                                        setUsername(e.target.value)
+                                    }
+                                />
+                            </div>
+                            <div>
+                                <label className={s.fieldLabel}>
+                                    Password (optional)
+                                </label>
+                                <input
+                                    className={s.input}
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) =>
+                                        setPassword(e.target.value)
+                                    }
+                                />
+                            </div>
+                            <div>
+                                <label className={s.fieldLabel}>
+                                    Auto-sync (minutes)
+                                </label>
+                                <input
+                                    className={s.input}
+                                    type="number"
+                                    min={0}
+                                    value={sync}
+                                    onChange={(e) =>
+                                        setSync(Number(e.target.value))
+                                    }
+                                />
+                            </div>
+                            {error && <div className={s.error}>{error}</div>}
+                            <div className={s.formRow}>
                                 <button
-                                    className={s.backBtn}
-                                    onClick={() => setSelType(null)}
+                                    className={`${s.btn} ${s.btnPrimary}`}
+                                    style={{ flex: 1 }}
+                                    onClick={saveCalendar}
+                                    disabled={saving}
                                 >
-                                    ← Back
+                                    {saving ? "Saving…" : "Save"}
                                 </button>
-                                <div>
-                                    <label className={s.fieldLabel}>
-                                        Calendar Name
-                                    </label>
-                                    <input
-                                        className={s.input}
-                                        type="text"
-                                        value={impName}
-                                        onChange={(e) =>
-                                            setImpName(e.target.value)
-                                        }
-                                        placeholder="My Calendar"
-                                    />
-                                </div>
-                                <div>
-                                    <label className={s.fieldLabel}>
-                                        Auto-sync every (minutes)
-                                    </label>
-                                    <input
-                                        className={s.input}
-                                        type="number"
-                                        min={0}
-                                        value={impSync}
-                                        onChange={(e) =>
-                                            setImpSync(Number(e.target.value))
-                                        }
-                                        placeholder="60 (0 = manual only)"
-                                    />
-                                    <div className={s.hint}>
-                                        Set to 0 to disable automatic syncing.
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className={s.fieldLabel}>
-                                        ICS URL
-                                    </label>
-                                    <input
-                                        className={s.input}
-                                        type="url"
-                                        value={impUrl}
-                                        onChange={(e) =>
-                                            setImpUrl(e.target.value)
-                                        }
-                                        placeholder="https://example.com/calendar.ics"
-                                        onKeyDown={(e) =>
-                                            e.key === "Enter" && doImport()
-                                        }
-                                    />
-                                    <div className={s.hint}>
-                                        Any public ICS/iCal URL — Google,
-                                        Outlook, Fastmail, etc.
-                                    </div>
-                                </div>
-
-                                {impErr && (
-                                    <div className={s.error}>{impErr}</div>
-                                )}
-                                <div className={s.formRow}>
-                                    <button
-                                        className={`${s.btn} ${s.btnPrimary}`}
-                                        style={{ flex: 1 }}
-                                        onClick={doImport}
-                                        disabled={
-                                            importing || !impName || !impUrl
-                                        }
-                                    >
-                                        {importing ? "Importing…" : "Import"}
-                                    </button>
-                                    <button
-                                        className={`${s.btn} ${s.btnSecondary}`}
-                                        onClick={closeImport}
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
+                                <button
+                                    className={`${s.btn} ${s.btnSecondary}`}
+                                    onClick={closeModal}
+                                >
+                                    Cancel
+                                </button>
                             </div>
-                        )}
+                        </div>
                     </div>
                 </div>
             )}
@@ -520,14 +451,6 @@ export default function GeneralTab() {
                                 <X size={18} />
                             </button>
                         </div>
-                        <p className={s.hint} style={{ marginBottom: "1rem" }}>
-                            Subscribe to{" "}
-                            <strong style={{ color: "var(--text-primary)" }}>
-                                {exportLabel}
-                            </strong>{" "}
-                            in any calendar app. This link stays live and always
-                            reflects the latest events.
-                        </p>
                         <div className={s.linkRow}>
                             <input
                                 readOnly

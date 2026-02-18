@@ -49,7 +49,7 @@ export default function ProfileTab() {
                 body.newPassword = newPw;
             }
             await apiFetch("/api/users/me", {
-                method: "PATCH",
+                method: "PUT",
                 body: JSON.stringify(body),
             });
             setMsg("Profile saved!");
@@ -68,7 +68,7 @@ export default function ProfileTab() {
         setErr("");
         try {
             await apiFetch("/api/users/app-settings", {
-                method: "PATCH",
+                method: "PUT",
                 body: JSON.stringify({
                     registrationsOpen: regOpen,
                     inviteOnly,

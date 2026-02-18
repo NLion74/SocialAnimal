@@ -128,7 +128,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
         });
     });
 
-    fastify.patch(
+    fastify.put(
         "/me",
         { preHandler: authenticateToken },
         async (request, reply) => {
@@ -206,7 +206,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
         },
     );
 
-    fastify.patch(
+    fastify.put(
         "/app-settings",
         { preHandler: authenticateToken },
         async (request, reply) => {

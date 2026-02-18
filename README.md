@@ -40,12 +40,7 @@ This is an early release. Current features include:
 ## Roadmap
 
 - [ ] API tests
-- [ ] Edit added calendars
-- [ ] Google Calendar provider
-- [ ] Proton Calendar provider
-- [ ] Apple Calendar provider
-- [ ] CalDAV support
-- [ ] Research and add other common calendar providers
+- [ ] Easy Integration of Calendar clients e.g. google auth and others
 - [ ] Per-event permission overrides or event exclusions
 - [ ] GitHub Actions workflow for publishing Docker image
 - [ ] Better admin management
