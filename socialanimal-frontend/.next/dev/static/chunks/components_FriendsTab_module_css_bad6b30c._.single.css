@@ -87,11 +87,6 @@
   font-size: .8rem;
 }
 
-.FriendsTab-module__p9aSea__btnIcon {
-  padding: .35rem;
-  line-height: 0;
-}
-
 .FriendsTab-module__p9aSea__section {
   background: var(--bg-surface);
   border: 1px solid var(--border);
@@ -166,7 +161,6 @@
   text-transform: uppercase;
   letter-spacing: .04em;
   align-items: center;
-  gap: .2rem;
   padding: .15rem .55rem;
   font-size: .69rem;
   font-weight: 600;
@@ -315,11 +309,16 @@
   display: flex;
 }
 
+.FriendsTab-module__p9aSea__shareList {
+  flex-direction: column;
+  gap: .5rem;
+  display: flex;
+}
+
 .FriendsTab-module__p9aSea__shareRow {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  cursor: pointer;
   transition: border-color var(--transition);
   justify-content: space-between;
   align-items: center;
@@ -338,10 +337,19 @@
   font-weight: 500;
 }
 
-.FriendsTab-module__p9aSea__shareList {
-  flex-direction: column;
-  gap: .5rem;
-  display: flex;
+.FriendsTab-module__p9aSea__permSelect {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  cursor: pointer;
+  outline: none;
+  padding: .25rem .5rem;
+  font-size: .78rem;
+}
+
+.FriendsTab-module__p9aSea__permSelect:focus {
+  border-color: var(--border-focus);
 }
 
 .FriendsTab-module__p9aSea__loading {
@@ -360,54 +368,6 @@
   width: 1.125rem;
   height: 1.125rem;
   animation: .55s linear infinite FriendsTab-module__p9aSea__spin;
-}
-
-.FriendsTab-module__p9aSea__friendBlock {
-  flex-direction: column;
-  display: flex;
-}
-
-.FriendsTab-module__p9aSea__sharePanel {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
-  border-top: none;
-  flex-direction: column;
-  gap: .5rem;
-  padding: .875rem 1rem;
-  display: flex;
-}
-
-.FriendsTab-module__p9aSea__shareRow {
-  cursor: pointer;
-  -webkit-user-select: none;
-  user-select: none;
-  align-items: center;
-  gap: .625rem;
-  display: flex;
-}
-
-.FriendsTab-module__p9aSea__shareCalName {
-  color: var(--text-primary);
-  flex: 1;
-  font-size: .875rem;
-}
-
-.FriendsTab-module__p9aSea__checkBox {
-  border: 1.5px solid var(--border);
-  width: 14px;
-  height: 14px;
-  transition: all var(--transition);
-  border-radius: 3px;
-  flex-shrink: 0;
-  justify-content: center;
-  align-items: center;
-  display: flex;
-}
-
-.FriendsTab-module__p9aSea__checkBoxActive {
-  background: var(--purple-500);
-  border-color: var(--purple-500);
 }
 
 /*# sourceMappingURL=components_FriendsTab_module_css_bad6b30c._.single.css.map*/

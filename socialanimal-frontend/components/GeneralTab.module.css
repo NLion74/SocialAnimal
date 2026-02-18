@@ -420,3 +420,28 @@
     border-radius: 50%;
     animation: spin 550ms linear infinite;
 }
+/* Hide number input spinners */
+.input[type="number"]::-webkit-outer-spin-button,
+.input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+/* ProfileTab shared classes */
+.badgePurple {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.55rem;
+    border-radius: var(--radius-full);
+    font-size: 0.69rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: rgba(124, 58, 237, 0.2);
+    color: var(--purple-300);
+    border: 1px solid rgba(124, 58, 237, 0.3);
+}

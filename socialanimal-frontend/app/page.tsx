@@ -1,106 +1,113 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Share2, LayoutDashboard, Users, Calendar, LogOut } from "lucide-react";
+import { Calendar, Users, Home, User, LogOut } from "lucide-react";
 import GeneralTab from "@/components/GeneralTab";
 import FriendsTab from "@/components/FriendsTab";
 import CalendarTab from "@/components/CalendarTab";
+import ProfileTab from "@/components/ProfileTab";
 import AuthModal from "@/components/AuthModal";
 import s from "./page.module.css";
 
 const TABS = [
-    { id: "general", label: "Dashboard", Icon: LayoutDashboard },
-    { id: "friends", label: "Friends", Icon: Users },
-    { id: "calendar", label: "Calendar", Icon: Calendar },
+    { id: "general", label: "Dashboard", icon: Home },
+    { id: "calendar", label: "Calendar", icon: Calendar },
+    { id: "friends", label: "Friends", icon: Users },
+    { id: "profile", label: "Profile", icon: User },
 ];
 
 export default function HomePage() {
     const [activeTab, setActiveTab] = useState("general");
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [showAuth, setShowAuth] = useState(false);
+    const [showAuthModal, setShowAuthModal] = useState(false);
 
     useEffect(() => {
         if (localStorage.getItem("token")) setIsAuthenticated(true);
     }, []);
 
-    const login = (token: string) => {
+    const handleLogin = (token: string) => {
         localStorage.setItem("token", token);
         setIsAuthenticated(true);
-        setShowAuth(false);
-    };
-    const logout = () => {
-        localStorage.removeItem("token");
-        setIsAuthenticated(false);
+        setShowAuthModal(false);
     };
 
-    if (!isAuthenticated)
+    const handleLogout = () => {
+        localStorage.removeItem("token");
+        setIsAuthenticated(false);
+        setActiveTab("general");
+    };
+
+    if (!isAuthenticated) {
         return (
             <div className={s.landing}>
                 <div className={s.landingInner}>
                     <div className={s.logoWrap}>
-                        <Share2 size={26} color="var(--purple-400)" />
+                        <Calendar size={28} color="var(--purple-400)" />
                     </div>
                     <h1 className={s.h1}>SocialAnimal</h1>
                     <p className={s.tagline}>
-                        Open-source calendar sharing for friends.
+                        Share calendars with friends.
                         <br />
-                        Import from Google, Apple, Proton or any ICS feed.
+                        See when everyone's free.
                     </p>
                     <div className={s.ctaRow}>
                         <button
                             className={s.ctaBtn}
-                            onClick={() => setShowAuth(true)}
+                            onClick={() => setShowAuthModal(true)}
                         >
                             Get Started
                         </button>
                     </div>
                     <div className={s.pillRow}>
-                        {["Google", "Apple", "Proton", "ICS URL"].map((f) => (
-                            <span key={f} className={s.pill}>
-                                {f}
-                            </span>
-                        ))}
+                        <span className={s.pill}>📅 ICS Import</span>
+                        <span className={s.pill}>👥 Friend Sharing</span>
+                        <span className={s.pill}>🔒 Permission Control</span>
                     </div>
                 </div>
-                {showAuth && (
+                {showAuthModal && (
                     <AuthModal
-                        onLogin={login}
-                        onClose={() => setShowAuth(false)}
+                        onClose={() => setShowAuthModal(false)}
+                        onLogin={handleLogin}
                     />
                 )}
             </div>
         );
+    }
 
     return (
         <div className={s.page}>
+            {/* Header */}
             <header className={s.header}>
                 <div className={s.brand}>
                     <div className={s.brandIcon}>
-                        <Share2 size={13} color="var(--purple-400)" />
+                        <Calendar size={15} color="var(--purple-400)" />
                     </div>
                     <span className={s.brandName}>SocialAnimal</span>
                 </div>
-                <button className={s.logoutBtn} onClick={logout}>
+                <button className={s.logoutBtn} onClick={handleLogout}>
                     <LogOut size={13} /> Sign out
                 </button>
             </header>
 
-            <nav className={s.tabBar}>
-                {TABS.map(({ id, label, Icon }) => (
+            {/* Tab bar */}
+            <div className={s.tabBar}>
+                {TABS.map(({ id, label, icon: Icon }) => (
                     <button
                         key={id}
+                        className={`${s.tabBtn} ${activeTab === id ? s.active : ""}`}
                         onClick={() => setActiveTab(id)}
-                        className={`${s.tabBtn}${activeTab === id ? ` ${s.active}` : ""}`}
                     >
                         <Icon size={14} />
                         {label}
                     </button>
                 ))}
-            </nav>
+            </div>
 
+            {/* Content */}
             <main className={s.main}>
                 {activeTab === "general" && <GeneralTab />}
-                {activeTab === "friends" && <FriendsTab />}
                 {activeTab === "calendar" && <CalendarTab />}
+                {activeTab === "friends" && <FriendsTab />}
+                {activeTab === "profile" && <ProfileTab />}
             </main>
         </div>
     );

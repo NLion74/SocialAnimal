@@ -1,17 +1,20 @@
 import { FastifyPluginAsync } from "fastify";
 import { authenticateToken } from "../utils/auth";
 import { prisma } from "../utils/db";
+import {
+    badRequest,
+    notFound,
+    forbidden,
+    serverError,
+} from "../utils/response";
 
 const friendsRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.addHook("preHandler", authenticateToken);
 
     fastify.get("/", async (request) => {
         const uid = (request as any).user.id;
-
         const friendships = await prisma.friendship.findMany({
-            where: {
-                OR: [{ user1Id: uid }, { user2Id: uid }],
-            },
+            where: { OR: [{ user1Id: uid }, { user2Id: uid }] },
             include: {
                 user1: { select: { id: true, email: true, name: true } },
                 user2: { select: { id: true, email: true, name: true } },
@@ -19,17 +22,16 @@ const friendsRoutes: FastifyPluginAsync = async (fastify) => {
             orderBy: { createdAt: "desc" },
         });
 
-        const enriched = await Promise.all(
+        return Promise.all(
             friendships.map(async (f) => {
                 const friendId = f.user1Id === uid ? f.user2Id : f.user1Id;
-
                 const [myShares, theirShares] = await Promise.all([
                     prisma.calendarShare.findMany({
                         where: {
                             sharedWithId: friendId,
                             calendar: { userId: uid },
                         },
-                        select: { calendarId: true },
+                        select: { calendarId: true, permission: true },
                     }),
                     prisma.calendarShare.findMany({
                         where: {
@@ -38,44 +40,39 @@ const friendsRoutes: FastifyPluginAsync = async (fastify) => {
                         },
                         select: {
                             calendarId: true,
+                            permission: true,
                             calendar: { select: { name: true } },
                         },
                     }),
                 ]);
-
                 return {
                     ...f,
                     sharedCalendarIds: myShares.map((s) => s.calendarId),
+                    sharedCalendarPermissions: Object.fromEntries(
+                        myShares.map((s) => [s.calendarId, s.permission]),
+                    ),
                     sharedWithMe: theirShares.map((s) => ({
                         id: s.calendarId,
                         name: s.calendar.name,
+                        permission: s.permission,
                     })),
                 };
             }),
         );
-
-        return enriched;
     });
 
     fastify.post("/request", async (request, reply) => {
         try {
             const { email } = request.body as any;
             const uid = (request as any).user.id;
-
-            if (!email)
-                return reply.status(400).send({ error: "Email required" });
-
+            if (!email) return badRequest(reply, "Email required");
             const target = await prisma.user.findUnique({
                 where: { email },
                 select: { id: true },
             });
-            if (!target)
-                return reply.status(404).send({ error: "User not found" });
+            if (!target) return notFound(reply, "User not found");
             if (target.id === uid)
-                return reply
-                    .status(400)
-                    .send({ error: "Cannot friend yourself" });
-
+                return badRequest(reply, "Cannot friend yourself");
             const existing = await prisma.friendship.findFirst({
                 where: {
                     OR: [
@@ -84,23 +81,17 @@ const friendsRoutes: FastifyPluginAsync = async (fastify) => {
                     ],
                 },
             });
-            if (existing)
-                return reply
-                    .status(400)
-                    .send({ error: "Friendship already exists" });
-
+            if (existing) return badRequest(reply, "Friendship already exists");
             const friendship = await prisma.friendship.create({
                 data: { user1Id: uid, user2Id: target.id, status: "pending" },
                 include: {
                     user2: { select: { id: true, email: true, name: true } },
                 },
             });
-
             return reply.status(201).send(friendship);
         } catch (err) {
-            return reply
-                .status(500)
-                .send({ error: "Failed to send friend request" });
+            fastify.log.error(err);
+            return serverError(reply, "Failed to send friend request");
         }
     });
 
@@ -108,21 +99,17 @@ const friendsRoutes: FastifyPluginAsync = async (fastify) => {
         try {
             const { id } = request.params as any;
             const uid = (request as any).user.id;
-
             const f = await prisma.friendship.findFirst({
                 where: { id, user2Id: uid, status: "pending" },
             });
-            if (!f)
-                return reply
-                    .status(404)
-                    .send({ error: "Friend request not found" });
-
+            if (!f) return notFound(reply, "Friend request not found");
             return prisma.friendship.update({
                 where: { id },
                 data: { status: "accepted" },
             });
         } catch (err) {
-            return reply.status(500).send({ error: "Failed to accept" });
+            fastify.log.error(err);
+            return serverError(reply, "Failed to accept");
         }
     });
 
@@ -130,17 +117,11 @@ const friendsRoutes: FastifyPluginAsync = async (fastify) => {
         try {
             const { id } = request.params as any;
             const uid = (request as any).user.id;
-
             const f = await prisma.friendship.findFirst({
                 where: { id, OR: [{ user1Id: uid }, { user2Id: uid }] },
             });
-            if (!f)
-                return reply
-                    .status(404)
-                    .send({ error: "Friendship not found" });
-
+            if (!f) return notFound(reply, "Friendship not found");
             const friendId = f.user1Id === uid ? f.user2Id : f.user1Id;
-
             await prisma.calendarShare.deleteMany({
                 where: {
                     OR: [
@@ -149,19 +130,23 @@ const friendsRoutes: FastifyPluginAsync = async (fastify) => {
                     ],
                 },
             });
-
             await prisma.friendship.delete({ where: { id } });
             return reply.status(204).send();
         } catch (err) {
-            return reply.status(500).send({ error: "Failed to remove friend" });
+            fastify.log.error(err);
+            return serverError(reply, "Failed to remove friend");
         }
     });
 
     fastify.post("/share-calendar", async (request, reply) => {
         try {
-            const { friendId, calendarId, share } = request.body as any;
+            const {
+                friendId,
+                calendarId,
+                share,
+                permission = "full",
+            } = request.body as any;
             const uid = (request as any).user.id;
-
             const friendship = await prisma.friendship.findFirst({
                 where: {
                     status: "accepted",
@@ -171,14 +156,11 @@ const friendsRoutes: FastifyPluginAsync = async (fastify) => {
                     ],
                 },
             });
-            if (!friendship)
-                return reply.status(403).send({ error: "Not friends" });
-
+            if (!friendship) return forbidden(reply, "Not friends");
             const calendar = await prisma.calendar.findFirst({
                 where: { id: calendarId, userId: uid },
             });
-            if (!calendar)
-                return reply.status(404).send({ error: "Calendar not found" });
+            if (!calendar) return notFound(reply, "Calendar not found");
 
             if (share) {
                 await prisma.calendarShare.upsert({
@@ -188,19 +170,18 @@ const friendsRoutes: FastifyPluginAsync = async (fastify) => {
                             sharedWithId: friendId,
                         },
                     },
-                    update: {},
-                    create: { calendarId, sharedWithId: friendId },
+                    update: { permission },
+                    create: { calendarId, sharedWithId: friendId, permission },
                 });
             } else {
                 await prisma.calendarShare.deleteMany({
                     where: { calendarId, sharedWithId: friendId },
                 });
             }
-
             return reply.status(200).send({ ok: true });
         } catch (err) {
             fastify.log.error(err);
-            return reply.status(500).send({ error: "Failed to update share" });
+            return serverError(reply, "Failed to update share");
         }
     });
 };

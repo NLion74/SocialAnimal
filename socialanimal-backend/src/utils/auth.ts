@@ -1,78 +1,34 @@
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import jwt from "jsonwebtoken";
 import { FastifyRequest, FastifyReply } from "fastify";
 import { prisma } from "./db";
-import { env } from "./env";
 
-export interface RegisterData {
-    email: string;
-    password: string;
-    name?: string;
+const JWT_SECRET = process.env.JWT_SECRET ?? "changeme-secret";
+const SALT_ROUNDS = 12;
+
+export async function hashPassword(
+    password: string,
+): Promise<{ hash: string; salt: string }> {
+    const salt = crypto.randomBytes(32).toString("hex");
+    const hash = await bcrypt.hash(password + salt, SALT_ROUNDS);
+    return { hash, salt };
 }
 
-export interface LoginData {
-    email: string;
-    password: string;
+export async function verifyPassword(
+    password: string,
+    hash: string,
+    salt: string,
+): Promise<boolean> {
+    return bcrypt.compare(password + salt, hash);
 }
 
-export async function register(data: RegisterData) {
-    const existingUser = await prisma.user.findUnique({
-        where: { email: data.email },
-    });
-
-    if (existingUser) {
-        throw new Error("User already exists");
-    }
-
-    const passwordHash = await bcrypt.hash(data.password, 10);
-
-    const user = await prisma.user.create({
-        data: {
-            email: data.email,
-            passwordHash,
-            name: data.name,
-        },
-        select: {
-            id: true,
-            email: true,
-            name: true,
-            createdAt: true,
-        },
-    });
-
-    return user;
+export function generateToken(userId: string): string {
+    return jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: "30d" });
 }
 
-export async function login(data: LoginData) {
-    const user = await prisma.user.findUnique({
-        where: { email: data.email },
-    });
-
-    if (!user) {
-        throw new Error("Invalid credentials");
-    }
-
-    const isValidPassword = await bcrypt.compare(
-        data.password,
-        user.passwordHash,
-    );
-
-    if (!isValidPassword) {
-        throw new Error("Invalid credentials");
-    }
-
-    return {
-        user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-        },
-        token: generateToken(user.id),
-    };
-}
-
-function generateToken(userId: string): string {
-    const payload = { sub: userId };
-    return Buffer.from(JSON.stringify(payload)).toString("base64");
+export function verifyToken(token: string): { sub: string } {
+    return jwt.verify(token, JWT_SECRET) as { sub: string };
 }
 
 export async function authenticateToken(
@@ -81,24 +37,17 @@ export async function authenticateToken(
 ) {
     try {
         const authHeader = request.headers.authorization;
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        if (!authHeader?.startsWith("Bearer "))
             return reply.status(401).send({ error: "No token provided" });
-        }
-
         const token = authHeader.substring(7);
-        const payload = JSON.parse(Buffer.from(token, "base64").toString());
-
+        const payload = verifyToken(token);
         const user = await prisma.user.findUnique({
             where: { id: payload.sub },
             select: { id: true, email: true, name: true },
         });
-
-        if (!user) {
-            return reply.status(401).send({ error: "User not found" });
-        }
-
+        if (!user) return reply.status(401).send({ error: "User not found" });
         (request as any).user = user;
-    } catch (err) {
-        return reply.status(401).send({ error: "Invalid token" });
+    } catch {
+        return reply.status(401).send({ error: "Invalid or expired token" });
     }
 }

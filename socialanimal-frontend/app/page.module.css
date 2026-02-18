@@ -178,13 +178,15 @@
         border-color var(--transition);
     margin-bottom: -1px;
 }
+
 .tabBtn:hover {
     color: var(--text-secondary);
 }
-.tabBtn.active {
-    color: var(--purple-400);
-    border-bottom-color: var(--purple-500);
-    font-weight: 600;
+
+.active {
+    color: var(--purple-400) !important;
+    border-bottom-color: var(--purple-500) !important;
+    font-weight: 600 !important;
 }
 
 .main {

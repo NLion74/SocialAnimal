@@ -81,6 +81,7 @@ export default function GeneralTab() {
     const [impUrl, setImpUrl] = useState("");
     const [importing, setImporting] = useState(false);
     const [impErr, setImpErr] = useState("");
+    const [impSync, setImpSync] = useState(60);
 
     const [showExport, setShowExport] = useState(false);
     const [exportLink, setExportLink] = useState("");
@@ -123,6 +124,7 @@ export default function GeneralTab() {
         setImpName("");
         setImpUrl("");
         setImpErr("");
+        setImpSync(60);
     };
 
     const doImport = async () => {
@@ -436,6 +438,24 @@ export default function GeneralTab() {
                                 </div>
                                 <div>
                                     <label className={s.fieldLabel}>
+                                        Auto-sync every (minutes)
+                                    </label>
+                                    <input
+                                        className={s.input}
+                                        type="number"
+                                        min={0}
+                                        value={impSync}
+                                        onChange={(e) =>
+                                            setImpSync(Number(e.target.value))
+                                        }
+                                        placeholder="60 (0 = manual only)"
+                                    />
+                                    <div className={s.hint}>
+                                        Set to 0 to disable automatic syncing.
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className={s.fieldLabel}>
                                         ICS URL
                                     </label>
                                     <input
@@ -455,6 +475,7 @@ export default function GeneralTab() {
                                         Outlook, Fastmail, etc.
                                     </div>
                                 </div>
+
                                 {impErr && (
                                     <div className={s.error}>{impErr}</div>
                                 )}

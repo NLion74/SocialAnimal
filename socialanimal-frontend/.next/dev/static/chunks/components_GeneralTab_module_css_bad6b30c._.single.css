@@ -457,4 +457,32 @@
   animation: .55s linear infinite GeneralTab-module__gdDy2G__spin;
 }
 
+.GeneralTab-module__gdDy2G__input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.GeneralTab-module__gdDy2G__input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.GeneralTab-module__gdDy2G__input[type="number"] {
+  appearance: textfield;
+}
+
+.GeneralTab-module__gdDy2G__badgePurple {
+  border-radius: var(--radius-full);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--purple-300);
+  background: #7c3aed33;
+  border: 1px solid #7c3aed4d;
+  align-items: center;
+  padding: .15rem .55rem;
+  font-size: .69rem;
+  font-weight: 600;
+  display: inline-flex;
+}
+
 /*# sourceMappingURL=components_GeneralTab_module_css_bad6b30c._.single.css.map*/

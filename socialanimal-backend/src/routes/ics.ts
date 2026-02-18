@@ -1,12 +1,12 @@
 import { FastifyPluginAsync } from "fastify";
 import { prisma } from "../utils/db";
+import { verifyToken } from "../utils/auth";
 import icalGenerator from "ical-generator";
 
 async function userFromToken(token: string | undefined) {
     if (!token) return null;
     try {
-        const payload = JSON.parse(Buffer.from(token, "base64").toString());
-        if (!payload?.sub) return null;
+        const payload = verifyToken(token);
         return await prisma.user.findUnique({
             where: { id: payload.sub },
             select: { id: true },
@@ -41,15 +41,13 @@ function icsReply(reply: any, filename: string, body: string) {
 
 const icsRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.get("/my-calendar.ics", async (request, reply) => {
-        const { token } = request.query as Record<string, string>;
+        const { token } = request.query as any;
         const user = await userFromToken(token);
         if (!user) return reply.status(401).send("Invalid or missing token");
-
         const events = await prisma.event.findMany({
             where: { calendar: { userId: user.id } },
             orderBy: { startTime: "asc" },
         });
-
         return icsReply(
             reply,
             "my-calendar.ics",
@@ -57,10 +55,10 @@ const icsRoutes: FastifyPluginAsync = async (fastify) => {
         );
     });
 
+    // Own calendar OR one shared with the requesting user
     fastify.get("/calendar/:calendarId.ics", async (request, reply) => {
-        const { calendarId } = request.params as Record<string, string>;
-        const { token } = request.query as Record<string, string>;
-
+        const { calendarId } = request.params as any;
+        const { token } = request.query as any;
         const user = await userFromToken(token);
         if (!user) return reply.status(401).send("Invalid or missing token");
 
@@ -79,7 +77,6 @@ const icsRoutes: FastifyPluginAsync = async (fastify) => {
             where: { calendarId },
             orderBy: { startTime: "asc" },
         });
-
         return icsReply(
             reply,
             `${calendar.name}.ics`,
@@ -88,9 +85,8 @@ const icsRoutes: FastifyPluginAsync = async (fastify) => {
     });
 
     fastify.get("/friend/:friendUserId.ics", async (request, reply) => {
-        const { friendUserId } = request.params as Record<string, string>;
-        const { token } = request.query as Record<string, string>;
-
+        const { friendUserId } = request.params as any;
+        const { token } = request.query as any;
         const user = await userFromToken(token);
         if (!user) return reply.status(401).send("Invalid or missing token");
 
@@ -119,14 +115,15 @@ const icsRoutes: FastifyPluginAsync = async (fastify) => {
             where: { calendarId: { in: shares.map((s) => s.calendarId) } },
             orderBy: { startTime: "asc" },
         });
-
         const friend = await prisma.user.findUnique({
             where: { id: friendUserId },
             select: { name: true, email: true },
         });
-        const calName = `${friend?.name ?? friend?.email ?? "Friend"}'s Calendar`;
-
-        return icsReply(reply, "shared.ics", buildIcs(calName, events));
+        return icsReply(
+            reply,
+            "shared.ics",
+            buildIcs(`${friend?.name ?? friend?.email}'s Calendar`, events),
+        );
     });
 };
 

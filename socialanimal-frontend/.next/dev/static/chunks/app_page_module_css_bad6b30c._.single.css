@@ -174,10 +174,10 @@
   color: var(--text-secondary);
 }
 
-.page-module__E0kJGG__tabBtn.page-module__E0kJGG__active {
-  color: var(--purple-400);
-  border-bottom-color: var(--purple-500);
-  font-weight: 600;
+.page-module__E0kJGG__active {
+  color: var(--purple-400) !important;
+  border-bottom-color: var(--purple-500) !important;
+  font-weight: 600 !important;
 }
 
 .page-module__E0kJGG__main {

@@ -11,6 +11,15 @@ import {
     Check,
 } from "lucide-react";
 import s from "./CalendarTab.module.css";
+import {
+    MONTHS,
+    DAYS,
+    startOfWeek,
+    isSameDay,
+    fmtTime,
+    fmtDateTime,
+} from "@/lib/date";
+import { apiFetch } from "@/lib/api";
 
 interface CalEvent {
     id: string;
@@ -30,45 +39,14 @@ interface CalSource {
     isFriend: boolean;
 }
 
-const MONTHS = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-];
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function getUid(): string | null {
-    const t =
-        typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    if (!t) return null;
-    try {
-        return JSON.parse(atob(t)).sub;
-    } catch {
-        return null;
-    }
-}
-
-function startOfWeek(d: Date) {
-    const n = new Date(d);
-    n.setDate(d.getDate() - d.getDay());
-    return n;
-}
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 export default function CalendarTab() {
     const [myEvents, setMyEvents] = useState<CalEvent[]>([]);
     const [friendEvents, setFriendEvents] = useState<CalEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [date, setDate] = useState(new Date());
-    const [view, setView] = useState<"month" | "week" | "today">("month");
+    const [view, setView] = useState<"month" | "week" | "day">("month");
     const [detail, setDetail] = useState<CalEvent | null>(null);
     const [sources, setSources] = useState<CalSource[]>([]);
     const [hidden, setHidden] = useState<Set<string>>(new Set());
@@ -77,49 +55,31 @@ export default function CalendarTab() {
         load();
     }, []);
 
-    const api = (path: string) =>
-        fetch(path, {
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-        });
-
     const load = async () => {
         setLoading(true);
-        const [er, fer, cr] = await Promise.all([
-            api("/api/events"),
-            api("/api/events/friends"),
-            api("/api/calendars"),
+        const [mine, friend, cals] = await Promise.all([
+            apiFetch<CalEvent[]>("/api/events").catch(() => []),
+            apiFetch<CalEvent[]>("/api/events/friends").catch(() => []),
+            apiFetch<any[]>("/api/calendars").catch(() => []),
         ]);
-
-        const mine: CalEvent[] = er.ok ? await er.json() : [];
-        const friend: CalEvent[] = fer.ok ? await fer.json() : [];
-
         setMyEvents(mine);
         setFriendEvents(friend.map((e) => ({ ...e, isFriend: true })));
 
-        const newSources: CalSource[] = [];
-        if (cr.ok) {
-            const cals = await cr.json();
-            cals.forEach((c: any) =>
-                newSources.push({ id: c.id, name: c.name, isFriend: false }),
-            );
-        }
-
-        const seenCalIds = new Set<string>();
+        const newSources: CalSource[] = cals.map((c) => ({
+            id: c.id,
+            name: c.name,
+            isFriend: false,
+        }));
+        const seen = new Set<string>();
         friend.forEach((e) => {
-            if (!e.owner) return;
-            if (seenCalIds.has(e.calendar.id)) return;
-            seenCalIds.add(e.calendar.id);
-            if (!newSources.find((src) => src.id === e.calendar.id)) {
-                newSources.push({
-                    id: e.calendar.id,
-                    name: `${e.owner.name || e.owner.email} – ${e.calendar.name}`,
-                    isFriend: true,
-                });
-            }
+            if (!e.owner || seen.has(e.calendar.id)) return;
+            seen.add(e.calendar.id);
+            newSources.push({
+                id: e.calendar.id,
+                name: `${e.owner.name || e.owner.email} – ${e.calendar.name}`,
+                isFriend: true,
+            });
         });
-
         setSources(newSources);
         setLoading(false);
     };
@@ -136,7 +96,6 @@ export default function CalendarTab() {
             return n;
         });
 
-    // Navigation
     const prev = () => {
         if (view === "month")
             setDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
@@ -144,6 +103,12 @@ export default function CalendarTab() {
             setDate((d) => {
                 const n = new Date(d);
                 n.setDate(d.getDate() - 7);
+                return n;
+            });
+        else
+            setDate((d) => {
+                const n = new Date(d);
+                n.setDate(d.getDate() - 1);
                 return n;
             });
     };
@@ -156,10 +121,15 @@ export default function CalendarTab() {
                 n.setDate(d.getDate() + 7);
                 return n;
             });
+        else
+            setDate((d) => {
+                const n = new Date(d);
+                n.setDate(d.getDate() + 1);
+                return n;
+            });
     };
     const goToday = () => setDate(new Date());
 
-    // Month
     const getMonthCells = () => {
         const y = date.getFullYear(),
             m = date.getMonth();
@@ -184,15 +154,13 @@ export default function CalendarTab() {
     };
 
     const isCalToday = (d: Date | number) => {
-        const n = new Date();
         const check =
             typeof d === "number"
                 ? new Date(date.getFullYear(), date.getMonth(), d)
                 : d;
-        return check.toDateString() === n.toDateString();
+        return isSameDay(check, new Date());
     };
 
-    // Week
     const getWeekDays = () => {
         const start = startOfWeek(date);
         return Array.from({ length: 7 }, (_, i) => {
@@ -203,44 +171,18 @@ export default function CalendarTab() {
     };
 
     const eventsForDate = (d: Date) =>
-        allEvents.filter(
-            (e) => new Date(e.startTime).toDateString() === d.toDateString(),
+        allEvents.filter((e) => isSameDay(new Date(e.startTime), d));
+
+    const eventsForHour = (evs: CalEvent[], hour: number) =>
+        evs.filter(
+            (e) => !e.allDay && new Date(e.startTime).getHours() === hour,
         );
-
-    // Today
-    const todayEvents = allEvents
-        .filter(
-            (e) =>
-                new Date(e.startTime).toDateString() ===
-                new Date().toDateString(),
-        )
-        .sort((a, b) => {
-            if (a.allDay && !b.allDay) return -1;
-            if (!a.allDay && b.allDay) return 1;
-            return (
-                new Date(a.startTime).getTime() -
-                new Date(b.startTime).getTime()
-            );
-        });
-
-    const fmt = (iso: string) =>
-        new Date(iso).toLocaleString([], {
-            dateStyle: "medium",
-            timeStyle: "short",
-        });
-    const fmtTime = (iso: string) =>
-        new Date(iso).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-        });
 
     const monthLabel = () => {
         if (view === "month")
             return `${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
-        if (view === "today") {
-            const n = new Date();
-            return `${DAYS[n.getDay()]}, ${MONTHS[n.getMonth()]} ${n.getDate()}`;
-        }
+        if (view === "day")
+            return `${DAYS[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()} ${date.getFullYear()}`;
         const days = getWeekDays();
         return `${MONTHS[days[0].getMonth()]} ${days[0].getDate()} – ${days[6].getDate()}, ${days[6].getFullYear()}`;
     };
@@ -255,33 +197,30 @@ export default function CalendarTab() {
 
     const monthCells = getMonthCells();
     const weekDays = getWeekDays();
+    const dayEvents = eventsForDate(date);
 
     return (
         <div className={s.page}>
             {/* Toolbar */}
             <div className={s.toolbar}>
                 <div className={s.navGroup}>
-                    {view !== "today" && (
-                        <button className={s.navBtn} onClick={prev}>
-                            <ChevronLeft size={15} />
-                        </button>
-                    )}
+                    <button className={s.navBtn} onClick={prev}>
+                        <ChevronLeft size={15} />
+                    </button>
                     <span className={s.monthLabel}>{monthLabel()}</span>
-                    {view !== "today" && (
-                        <button className={s.navBtn} onClick={next}>
-                            <ChevronRight size={15} />
-                        </button>
-                    )}
+                    <button className={s.navBtn} onClick={next}>
+                        <ChevronRight size={15} />
+                    </button>
                 </div>
                 <div className={s.rightGroup}>
                     <button className={s.todayBtn} onClick={goToday}>
                         Today
                     </button>
                     <div className={s.viewGroup}>
-                        {(["month", "week", "today"] as const).map((v) => (
+                        {(["month", "week", "day"] as const).map((v) => (
                             <button
                                 key={v}
-                                className={`${s.viewBtn}${view === v ? ` ${s.viewBtnActive}` : ""}`}
+                                className={`${s.viewBtn} ${view === v ? s.viewBtnActive : ""}`}
                                 onClick={() => setView(v)}
                                 style={{ textTransform: "capitalize" }}
                             >
@@ -294,10 +233,9 @@ export default function CalendarTab() {
 
             {/* Layout */}
             <div className={s.layout}>
-                {/* Sidebar */}
                 {sources.length > 0 && (
                     <div className={s.sidebar}>
-                        {sources.some((s) => !s.isFriend) && (
+                        {sources.some((src) => !src.isFriend) && (
                             <>
                                 <div className={s.sidebarTitle}>
                                     My Calendars
@@ -309,28 +247,23 @@ export default function CalendarTab() {
                                         return (
                                             <label
                                                 key={src.id}
-                                                className={`${s.calToggle}${on ? ` ${s.calToggleOn}` : ""}`}
+                                                className={`${s.calToggle} ${on ? s.calToggleOn : ""}`}
+                                                onClick={() =>
+                                                    toggleSource(src.id)
+                                                }
                                             >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={on}
-                                                    onChange={() =>
-                                                        toggleSource(src.id)
-                                                    }
-                                                />
                                                 <div
-                                                    className={`${s.checkBox}${on ? ` ${s.checkBoxMine}` : ""}`}
+                                                    className={`${s.checkBox} ${on ? s.checkBoxMine : ""}`}
                                                 >
                                                     {on && (
                                                         <Check
-                                                            size={8}
+                                                            size={9}
                                                             color="#fff"
                                                         />
                                                     )}
                                                 </div>
                                                 <span
                                                     className={s.calToggleName}
-                                                    title={src.name}
                                                 >
                                                     {src.name}
                                                 </span>
@@ -339,8 +272,7 @@ export default function CalendarTab() {
                                     })}
                             </>
                         )}
-
-                        {sources.some((s) => s.isFriend) && (
+                        {sources.some((src) => src.isFriend) && (
                             <>
                                 <div className={s.calDivider} />
                                 <div className={s.sidebarTitle}>Friends</div>
@@ -351,28 +283,23 @@ export default function CalendarTab() {
                                         return (
                                             <label
                                                 key={src.id}
-                                                className={`${s.calToggle}${on ? ` ${s.calToggleOn}` : ""}`}
+                                                className={`${s.calToggle} ${on ? s.calToggleOn : ""}`}
+                                                onClick={() =>
+                                                    toggleSource(src.id)
+                                                }
                                             >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={on}
-                                                    onChange={() =>
-                                                        toggleSource(src.id)
-                                                    }
-                                                />
                                                 <div
-                                                    className={`${s.checkBox}${on ? ` ${s.checkBoxFriend}` : ""}`}
+                                                    className={`${s.checkBox} ${on ? s.checkBoxFriend : ""}`}
                                                 >
                                                     {on && (
                                                         <Check
-                                                            size={8}
+                                                            size={9}
                                                             color="#fff"
                                                         />
                                                     )}
                                                 </div>
                                                 <span
                                                     className={s.calToggleName}
-                                                    title={src.name}
                                                 >
                                                     {src.name}
                                                 </span>
@@ -383,9 +310,8 @@ export default function CalendarTab() {
                         )}
                     </div>
                 )}
-
                 <div className={s.calendarArea}>
-                    {/* Month view */}
+                    {/* Month */}
                     {view === "month" && (
                         <div className={s.monthGrid}>
                             <div className={s.dayHeaders}>
@@ -410,13 +336,13 @@ export default function CalendarTab() {
                                     return (
                                         <div
                                             key={day}
-                                            className={`${s.cell}${isCalToday(day) ? ` ${s.cellToday}` : ""}`}
+                                            className={`${s.cell} ${isCalToday(day) ? s.cellToday : ""}`}
                                         >
-                                            <div className={s.dayNum}>
+                                            <span className={s.dayNum}>
                                                 {day}
-                                            </div>
+                                            </span>
                                             {visible.map((e) => (
-                                                <div
+                                                <span
                                                     key={e.id}
                                                     className={`${s.pill} ${e.isFriend ? s.pillFriend : s.pillMine}`}
                                                     onClick={() => setDetail(e)}
@@ -426,12 +352,12 @@ export default function CalendarTab() {
                                                         ? ""
                                                         : `${fmtTime(e.startTime)} `}
                                                     {e.title}
-                                                </div>
+                                                </span>
                                             ))}
                                             {overflow > 0 && (
-                                                <div className={s.overflow}>
+                                                <span className={s.overflow}>
                                                     +{overflow}
-                                                </div>
+                                                </span>
                                             )}
                                         </div>
                                     );
@@ -439,8 +365,6 @@ export default function CalendarTab() {
                             </div>
                         </div>
                     )}
-
-                    {/* Week view */}
                     {view === "week" && (
                         <div className={s.weekGrid}>
                             {weekDays.map((day) => {
@@ -456,14 +380,14 @@ export default function CalendarTab() {
                                                 {DAYS[day.getDay()]}
                                             </div>
                                             <div
-                                                className={`${s.weekDate}${today ? ` ${s.weekDateToday}` : ""}`}
+                                                className={`${s.weekDate} ${today ? s.weekDateToday : ""}`}
                                             >
                                                 {day.getDate()}
                                             </div>
                                         </div>
                                         <div className={s.weekColBody}>
                                             {dayEvs.map((e) => (
-                                                <div
+                                                <span
                                                     key={e.id}
                                                     className={`${s.pill} ${e.isFriend ? s.pillFriend : s.pillMine}`}
                                                     onClick={() => setDetail(e)}
@@ -475,7 +399,7 @@ export default function CalendarTab() {
                                                               e.startTime,
                                                           )}{" "}
                                                     · {e.title}
-                                                </div>
+                                                </span>
                                             ))}
                                         </div>
                                     </div>
@@ -484,49 +408,69 @@ export default function CalendarTab() {
                         </div>
                     )}
 
-                    {/* Today view */}
-                    {view === "today" && (
-                        <div className={s.todayView}>
-                            <div className={s.todayHeader}>
-                                {todayEvents.length} event
-                                {todayEvents.length !== 1 ? "s" : ""} today
-                            </div>
-                            {todayEvents.length === 0 ? (
-                                <div className={s.todayEmpty}>
-                                    <Calendar
-                                        size={36}
-                                        className={s.todayEmptyIcon}
-                                    />
-                                    <span>Nothing scheduled today</span>
+                    {/* Day — hourly grid */}
+                    {view === "day" && (
+                        <div className={s.dayGrid}>
+                            {/* All-day strip */}
+                            {dayEvents.filter((e) => e.allDay).length > 0 && (
+                                <div className={s.allDayRow}>
+                                    <div className={s.hourLabel}>All day</div>
+                                    <div className={s.allDayEvents}>
+                                        {dayEvents
+                                            .filter((e) => e.allDay)
+                                            .map((e) => (
+                                                <span
+                                                    key={e.id}
+                                                    className={`${s.pill} ${e.isFriend ? s.pillFriend : s.pillMine}`}
+                                                    onClick={() => setDetail(e)}
+                                                >
+                                                    {e.title}
+                                                </span>
+                                            ))}
+                                    </div>
                                 </div>
-                            ) : (
-                                todayEvents.map((e) => (
-                                    <div
-                                        key={e.id}
-                                        className={s.todayEvent}
-                                        onClick={() => setDetail(e)}
-                                    >
-                                        <div
-                                            className={`${s.todayStrip} ${e.isFriend ? s.todayStripFriend : s.todayStripMine}`}
-                                        />
-                                        <div className={s.todayTime}>
-                                            {e.allDay
-                                                ? "All day"
-                                                : fmtTime(e.startTime)}
+                            )}
+                            {HOURS.map((hour) => {
+                                const hourEvs = eventsForHour(dayEvents, hour);
+                                return (
+                                    <div key={hour} className={s.hourRow}>
+                                        <div className={s.hourLabel}>
+                                            {hour === 0
+                                                ? "12 AM"
+                                                : hour < 12
+                                                  ? `${hour} AM`
+                                                  : hour === 12
+                                                    ? "12 PM"
+                                                    : `${hour - 12} PM`}
                                         </div>
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div className={s.todayTitle}>
-                                                {e.title}
-                                            </div>
-                                            <div className={s.todayCal}>
-                                                {e.isFriend
-                                                    ? `${e.owner?.name || e.owner?.email} · ${e.calendar.name}`
-                                                    : e.calendar.name}
-                                            </div>
+                                        <div className={s.hourSlot}>
+                                            {hourEvs.map((e) => (
+                                                <span
+                                                    key={e.id}
+                                                    className={`${s.dayEvent} ${e.isFriend ? s.dayEventFriend : s.dayEventMine}`}
+                                                    onClick={() => setDetail(e)}
+                                                >
+                                                    <span
+                                                        className={
+                                                            s.dayEventTime
+                                                        }
+                                                    >
+                                                        {fmtTime(e.startTime)} –{" "}
+                                                        {fmtTime(e.endTime)}
+                                                    </span>
+                                                    <span
+                                                        className={
+                                                            s.dayEventTitle
+                                                        }
+                                                    >
+                                                        {e.title}
+                                                    </span>
+                                                </span>
+                                            ))}
                                         </div>
                                     </div>
-                                ))
-                            )}
+                                );
+                            })}
                         </div>
                     )}
                 </div>
@@ -555,7 +499,7 @@ export default function CalendarTab() {
                                     <div className={s.metaLabel}>Time</div>
                                     {detail.allDay
                                         ? "All day"
-                                        : `${fmt(detail.startTime)} – ${fmtTime(detail.endTime)}`}
+                                        : `${fmtDateTime(detail.startTime)} – ${fmtTime(detail.endTime)}`}
                                 </div>
                             </div>
                             {detail.location && (
