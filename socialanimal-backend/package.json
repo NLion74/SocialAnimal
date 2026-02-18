@@ -1,0 +1,49 @@
+{
+    "name": "socialanimal-backend",
+    "version": "0.1.0",
+    "description": "Social calendar sharing platform for friends",
+    "main": "dist/index.js",
+    "author": "NLion74",
+    "license": "UNLICENSE",
+    "scripts": {
+        "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "prisma:generate": "prisma generate",
+        "prisma:migrate": "prisma migrate dev",
+        "prisma:studio": "prisma studio",
+        "prisma:push": "prisma db push && prisma generate",
+        "prisma:reset": "prisma migrate reset",
+        "docker:dev": "docker-compose -f docker-compose.dev.yml up -d postgres",
+        "docker:dev-stop": "docker-compose -f docker-compose.dev.yml down"
+    },
+    "dependencies": {
+        "@fastify/cors": "^11.2.0",
+        "@fastify/jwt": "^10.0.0",
+        "@prisma/adapter-pg": "^7.0.0",
+        "@prisma/client": "^7.0.0",
+        "bcryptjs": "^3.0.3",
+        "dotenv": "^17.3.1",
+        "fastify": "^5.0.0",
+        "ical-generator": "^10.0.0",
+        "node-ical": "^0.25.2",
+        "pg": "^8.13.0"
+    },
+    "devDependencies": {
+        "@types/bcrypt": "^6.0.0",
+        "@types/bcryptjs": "^2.4.6",
+        "@types/node": "^25.2.3",
+        "@types/pg": "^8.11.0",
+        "prisma": "^7.0.0",
+        "ts-node-dev": "^2.0.0",
+        "tsx": "^4.19.0",
+        "typescript": "^5.9.3"
+    },
+    "keywords": [
+        "calendar",
+        "social",
+        "friends",
+        "sharing",
+        "ics"
+    ]
+}

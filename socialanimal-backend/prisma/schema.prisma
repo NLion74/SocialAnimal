@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  avatar       String?
+  createdAt    DateTime @default(now())
+  
+  calendars       Calendar[]
+  friendships     Friendship[]     @relation("User1")
+  friendships2    Friendship[]     @relation("User2")
+  calendarShares  CalendarShare[]  @relation("SharedWith")
+}
+
+model Calendar {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  type      String
+  url       String?
+  config    Json     @default("{}")
+  lastSync  DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User           @relation(fields: [userId], references: [id])
+  events Event[]
+  shares CalendarShare[]
+}
+
+
+model Event {
+  id          String   @id @default(cuid())
+  calendarId  String
+  externalId  String?
+  title       String
+  description String?
+  location    String?
+  startTime   DateTime
+  endTime     DateTime
+  allDay      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  calendar Calendar @relation(fields: [calendarId], references: [id])
+
+  @@unique([calendarId, externalId])
+}
+
+model Friendship {
+  id        String   @id @default(uuid())
+  user1Id   String
+  user1     User     @relation("User1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2Id   String
+  user2     User     @relation("User2", fields: [user2Id], references: [id], onDelete: Cascade)
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sharedCalendars Boolean @default(false)
+  
+  @@unique([user1Id, user2Id])
+  @@index([user1Id])
+  @@index([user2Id])
+}
+
+model CalendarShare {
+  id           String   @id @default(uuid())
+  calendarId   String
+  calendar     Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  sharedWithId String
+  sharedWith   User     @relation("SharedWith", fields: [sharedWithId], references: [id], onDelete: Cascade)
+  permission   String   @default("read")
+  createdAt    DateTime @default(now())
+  
+  @@unique([calendarId, sharedWithId])
+  @@index([sharedWithId])
+}
