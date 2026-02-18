@@ -75,7 +75,6 @@ export default function HomePage() {
 
     return (
         <div className={s.page}>
-            {/* Header */}
             <header className={s.header}>
                 <div className={s.brand}>
                     <div className={s.brandIcon}>
@@ -88,7 +87,6 @@ export default function HomePage() {
                 </button>
             </header>
 
-            {/* Tab bar */}
             <div className={s.tabBar}>
                 {TABS.map(({ id, label, icon: Icon }) => (
                     <button
@@ -102,7 +100,6 @@ export default function HomePage() {
                 ))}
             </div>
 
-            {/* Content */}
             <main className={s.main}>
                 {activeTab === "general" && <GeneralTab />}
                 {activeTab === "calendar" && <CalendarTab />}

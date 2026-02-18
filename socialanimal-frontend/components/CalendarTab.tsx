@@ -201,7 +201,6 @@ export default function CalendarTab() {
 
     return (
         <div className={s.page}>
-            {/* Toolbar */}
             <div className={s.toolbar}>
                 <div className={s.navGroup}>
                     <button className={s.navBtn} onClick={prev}>
@@ -231,7 +230,6 @@ export default function CalendarTab() {
                 </div>
             </div>
 
-            {/* Layout */}
             <div className={s.layout}>
                 {sources.length > 0 && (
                     <div className={s.sidebar}>
@@ -311,7 +309,6 @@ export default function CalendarTab() {
                     </div>
                 )}
                 <div className={s.calendarArea}>
-                    {/* Month */}
                     {view === "month" && (
                         <div className={s.monthGrid}>
                             <div className={s.dayHeaders}>
@@ -367,51 +364,91 @@ export default function CalendarTab() {
                     )}
                     {view === "week" && (
                         <div className={s.weekGrid}>
-                            {weekDays.map((day) => {
-                                const dayEvs = eventsForDate(day);
-                                const today = isCalToday(day);
-                                return (
-                                    <div
-                                        key={day.toISOString()}
-                                        className={s.weekCol}
-                                    >
-                                        <div className={s.weekColHeader}>
+                            <div className={s.weekCols}>
+                                <div className={s.weekColHeaders}>
+                                    <div className={s.weekTimeGutterHeader} />
+                                    {weekDays.map((day) => (
+                                        <div
+                                            key={day.toISOString()}
+                                            className={s.weekColHeader}
+                                        >
                                             <div className={s.weekDay}>
                                                 {DAYS[day.getDay()]}
                                             </div>
                                             <div
-                                                className={`${s.weekDate} ${today ? s.weekDateToday : ""}`}
+                                                className={`${s.weekDate} ${isCalToday(day) ? s.weekDateToday : ""}`}
                                             >
                                                 {day.getDate()}
                                             </div>
                                         </div>
-                                        <div className={s.weekColBody}>
-                                            {dayEvs.map((e) => (
-                                                <span
-                                                    key={e.id}
-                                                    className={`${s.pill} ${e.isFriend ? s.pillFriend : s.pillMine}`}
-                                                    onClick={() => setDetail(e)}
-                                                    title={e.title}
-                                                >
-                                                    {e.allDay
-                                                        ? "All day"
-                                                        : fmtTime(
-                                                              e.startTime,
-                                                          )}{" "}
-                                                    · {e.title}
-                                                </span>
-                                            ))}
+                                    ))}
+                                </div>
+                                <div className={s.weekBody}>
+                                    {HOURS.map((hour) => (
+                                        <div
+                                            key={hour}
+                                            className={s.weekHourRow}
+                                        >
+                                            <div className={s.weekHourLabel}>
+                                                {hour === 0
+                                                    ? "12 AM"
+                                                    : hour < 12
+                                                      ? `${hour} AM`
+                                                      : hour === 12
+                                                        ? "12 PM"
+                                                        : `${hour - 12} PM`}
+                                            </div>
+                                            {weekDays.map((day) => {
+                                                const hourEvs = eventsForHour(
+                                                    eventsForDate(day),
+                                                    hour,
+                                                );
+                                                return (
+                                                    <div
+                                                        key={day.toISOString()}
+                                                        className={
+                                                            s.weekHourCell
+                                                        }
+                                                    >
+                                                        {hourEvs.map((e) => (
+                                                            <span
+                                                                key={e.id}
+                                                                className={`${s.weekPill} ${e.isFriend ? s.pillFriend : s.pillMine}`}
+                                                                onClick={() =>
+                                                                    setDetail(e)
+                                                                }
+                                                                title={e.title}
+                                                            >
+                                                                <span
+                                                                    className={
+                                                                        s.weekPillTime
+                                                                    }
+                                                                >
+                                                                    {fmtTime(
+                                                                        e.startTime,
+                                                                    )}
+                                                                </span>
+                                                                <span
+                                                                    className={
+                                                                        s.weekPillTitle
+                                                                    }
+                                                                >
+                                                                    {e.title}
+                                                                </span>
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
-                                    </div>
-                                );
-                            })}
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     )}
 
-                    {/* Day — hourly grid */}
                     {view === "day" && (
                         <div className={s.dayGrid}>
-                            {/* All-day strip */}
                             {dayEvents.filter((e) => e.allDay).length > 0 && (
                                 <div className={s.allDayRow}>
                                     <div className={s.hourLabel}>All day</div>
@@ -476,7 +513,6 @@ export default function CalendarTab() {
                 </div>
             </div>
 
-            {/* Event detail modal */}
             {detail && (
                 <div className={s.overlay} onClick={() => setDetail(null)}>
                     <div

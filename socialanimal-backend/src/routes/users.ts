@@ -23,7 +23,6 @@ async function getOrCreateAppSettings() {
 }
 
 const usersRoutes: FastifyPluginAsync = async (fastify) => {
-    // ── Register ──────────────────────────────────────────────────────────
     fastify.post("/register", async (request, reply) => {
         try {
             const { email, password, name, inviteCode } = request.body as any;
@@ -84,7 +83,6 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
         }
     });
 
-    // ── Login ─────────────────────────────────────────────────────────────
     fastify.post("/login", async (request, reply) => {
         try {
             const { email, password } = request.body as any;
@@ -115,7 +113,6 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
         }
     });
 
-    // ── Me ────────────────────────────────────────────────────────────────
     fastify.get("/me", { preHandler: authenticateToken }, async (request) => {
         const uid = (request as any).user.id;
         return prisma.user.findUnique({
@@ -195,7 +192,6 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
         },
     );
 
-    // ── App settings (admin only) ─────────────────────────────────────────
     fastify.get(
         "/app-settings",
         { preHandler: authenticateToken },
@@ -234,7 +230,6 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
         },
     );
 
-    // ── Invite codes (admin only) ─────────────────────────────────────────
     fastify.post(
         "/invite",
         { preHandler: authenticateToken },

@@ -40,7 +40,6 @@ This is an early release. Current features include:
 ## Roadmap
 
 - [ ] API tests
-- [ ] Better calendar view with hourly time grid
 - [ ] Edit added calendars
 - [ ] Google Calendar provider
 - [ ] Proton Calendar provider
@@ -50,7 +49,6 @@ This is an early release. Current features include:
 - [ ] Per-event permission overrides or event exclusions
 - [ ] GitHub Actions workflow for publishing Docker image
 - [ ] Better admin management
-- [ ] Mobile view optimisation
 
 ---
 

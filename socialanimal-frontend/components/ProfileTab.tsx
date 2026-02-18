@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Shield, Ticket, Save } from "lucide-react";
-import s from "./GeneralTab.module.css";
+import s from "./ProfileTab.module.css";
 import { apiFetch } from "@/lib/api";
 
 type Permission = "busy" | "titles" | "full";
@@ -30,13 +30,12 @@ export default function ProfileTab() {
             setName(u.name ?? "");
             setDefPerm(u.settings?.defaultSharePermission ?? "full");
         });
-        // load admin settings if admin
         apiFetch("/api/users/app-settings")
             .then((s: any) => {
                 setRegOpen(s.registrationsOpen ?? true);
                 setInviteOnly(s.inviteOnly ?? false);
             })
-            .catch(() => {}); // non-admins get 403, ignore
+            .catch(() => {});
     }, []);
 
     const saveProfile = async () => {
@@ -122,7 +121,6 @@ export default function ProfileTab() {
                 </h1>
             </div>
 
-            {/* Profile */}
             <div className={s.section}>
                 <div className={s.sectionHeader}>
                     <span className={s.sectionTitle}>Profile</span>
@@ -149,7 +147,6 @@ export default function ProfileTab() {
                 </div>
             </div>
 
-            {/* Password */}
             <div className={s.section}>
                 <div className={s.sectionHeader}>
                     <span className={s.sectionTitle}>Change Password</span>
@@ -178,7 +175,6 @@ export default function ProfileTab() {
                 </div>
             </div>
 
-            {/* Default share permission */}
             <div className={s.section}>
                 <div className={s.sectionHeader}>
                     <span className={s.sectionTitle}>
@@ -235,7 +231,6 @@ export default function ProfileTab() {
                 <Save size={14} /> {saving ? "Saving…" : "Save Profile"}
             </button>
 
-            {/* Admin section — only shown to admins */}
             {user.isAdmin && (
                 <div className={s.section}>
                     <div className={s.sectionHeader}>

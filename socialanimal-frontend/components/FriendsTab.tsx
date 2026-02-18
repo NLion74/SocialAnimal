@@ -149,7 +149,6 @@ export default function FriendsTab() {
                 </button>
             </div>
 
-            {/* Accepted */}
             <div className={s.section}>
                 <div className={s.sectionTitle}>
                     Friends ({accepted.length})
@@ -204,7 +203,6 @@ export default function FriendsTab() {
                 )}
             </div>
 
-            {/* Pending */}
             {pending.length > 0 && (
                 <div className={s.section}>
                     <div className={s.sectionTitle}>Pending Requests</div>
@@ -252,7 +250,6 @@ export default function FriendsTab() {
                 </div>
             )}
 
-            {/* Add Friend Modal */}
             {showAdd && (
                 <div className={s.overlay} onClick={() => setShowAdd(false)}>
                     <div
@@ -310,7 +307,6 @@ export default function FriendsTab() {
                 </div>
             )}
 
-            {/* Share Calendars Modal */}
             {shareTarget &&
                 (() => {
                     const friend = getFriend(shareTarget);

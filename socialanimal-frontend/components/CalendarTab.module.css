@@ -4,7 +4,6 @@
     gap: 1.25rem;
 }
 
-/* Toolbar */
 .toolbar {
     display: flex;
     justify-content: space-between;
@@ -96,6 +95,7 @@
 .viewBtn:last-child {
     border-right: none;
 }
+
 .viewBtn:hover {
     color: var(--text-primary);
     background: var(--bg-hover);
@@ -106,7 +106,6 @@
     background: rgba(124, 58, 237, 0.15);
 }
 
-/* Layout */
 .layout {
     display: flex;
     gap: 1rem;
@@ -119,7 +118,6 @@
     overflow: hidden;
 }
 
-/* Sidebar */
 .sidebar {
     width: 188px;
     flex-shrink: 0;
@@ -175,6 +173,7 @@
     background: var(--purple-500);
     border-color: var(--purple-500);
 }
+
 .checkBoxFriend {
     background: var(--success);
     border-color: var(--success);
@@ -199,7 +198,6 @@
     margin: 0.375rem 0;
 }
 
-/* Month grid */
 .monthGrid {
     background: var(--bg-surface);
     border: 1px solid var(--border);
@@ -229,7 +227,7 @@
 }
 
 .cell {
-    height: 6.5rem;
+    height: 9rem;
     padding: 0.375rem;
     border-right: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
@@ -237,14 +235,18 @@
     cursor: default;
     transition: background var(--transition);
     min-width: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .cell:nth-child(7n) {
     border-right: none;
 }
+
 .cell:hover {
     background: var(--bg-elevated);
 }
+
 .cellEmpty {
     background: transparent;
     cursor: default;
@@ -266,14 +268,34 @@
     font-weight: 500;
     color: var(--text-muted);
     margin-bottom: 0.2rem;
+    flex-shrink: 0;
+}
+
+.monthPill {
+    display: flex;
+    flex-direction: column;
+    padding: 0.15rem 0.35rem;
+    border-radius: 3px;
+    margin-bottom: 0.175rem;
+    overflow: hidden;
+    cursor: pointer;
+    font-weight: 500;
+    transition: opacity var(--transition);
+    flex: 1;
+    min-height: 1.25rem;
+    max-height: 2.25rem;
+}
+
+.monthPill:hover {
+    opacity: 0.75;
 }
 
 .pill {
     display: block;
-    font-size: 0.68rem;
-    padding: 0.1rem 0.35rem;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
     border-radius: 3px;
-    margin-bottom: 0.175rem;
+    margin-bottom: 0.2rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -304,30 +326,81 @@
     color: var(--text-muted);
     padding-left: 0.25rem;
     line-height: 1.4;
+    flex-shrink: 0;
 }
 
-/* Week grid */
 .weekGrid {
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     overflow: hidden;
-    display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    overflow-x: auto;
 }
 
-.weekCol {
-    border-right: 1px solid var(--border);
-    min-width: 0;
+.weekCols {
+    min-width: 36rem;
+    display: flex;
+    flex-direction: column;
 }
-.weekCol:last-child {
-    border-right: none;
+
+.weekColHeaders {
+    display: grid;
+    grid-template-columns: 4rem repeat(7, minmax(0, 1fr));
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg-surface);
+    z-index: 1;
+}
+
+.weekTimeGutterHeader {
+    border-right: 1px solid var(--border);
 }
 
 .weekColHeader {
     padding: 0.625rem 0.5rem;
     text-align: center;
+    border-right: 1px solid var(--border);
+}
+
+.weekColHeader:last-child {
+    border-right: none;
+}
+
+.weekBody {
+    display: flex;
+    flex-direction: column;
+}
+
+.weekHourRow {
+    display: grid;
+    grid-template-columns: 4rem repeat(7, minmax(0, 1fr));
     border-bottom: 1px solid var(--border);
+    min-height: 3rem;
+}
+
+.weekHourLabel {
+    padding: 0.5rem 0.5rem;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    border-right: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    flex-shrink: 0;
+}
+
+.weekHourCell {
+    border-right: 1px solid var(--border);
+    padding: 0.2rem 0.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.weekHourCell:last-child {
+    border-right: none;
 }
 
 .weekDay {
@@ -350,28 +423,55 @@
     color: var(--purple-400);
 }
 
-.weekColBody {
-    padding: 0.5rem 0.375rem;
-    min-height: 14rem;
+.weekPill {
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
+    padding: 0.2rem 0.35rem;
+    border-radius: 3px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: opacity var(--transition);
+    overflow: hidden;
+    color: inherit;
+    width: 100%;
 }
 
-/* Day view */
+.weekPill:hover {
+    opacity: 0.75;
+}
+
+.weekPillTime {
+    font-size: 0.6rem;
+    opacity: 0.8;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+    color: inherit;
+}
+
+.weekPillTitle {
+    font-size: 0.7rem;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: inherit;
+}
+
 .dayGrid {
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     overflow-y: auto;
     max-height: calc(100vh - 12rem);
+    width: 100%;
 }
 
 .allDayRow,
 .hourRow {
     display: flex;
     border-bottom: 1px solid var(--border);
-    min-height: 3rem;
+    min-height: 2.5rem;
+    align-items: stretch;
 }
 
 .hourLabel {
@@ -382,6 +482,8 @@
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
     border-right: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
 }
 
 .hourSlot,
@@ -391,24 +493,30 @@
     display: flex;
     flex-direction: column;
     gap: 0.2rem;
+    min-width: 0;
 }
 
 .dayEvent {
     display: flex;
     flex-direction: column;
-    padding: 0.25rem 0.5rem;
+    padding: 0.35rem 0.625rem;
     border-radius: 4px;
     cursor: pointer;
     transition: opacity var(--transition);
+    width: 100%;
+    flex: 1;
+    min-height: 2.5rem;
 }
 
 .dayEvent:hover {
     opacity: 0.8;
 }
+
 .dayEventMine {
     background: rgba(124, 58, 237, 0.22);
     border-left: 3px solid var(--purple-500);
 }
+
 .dayEventFriend {
     background: rgba(16, 185, 129, 0.18);
     border-left: 3px solid var(--success);
@@ -426,7 +534,6 @@
     color: var(--text-primary);
 }
 
-/* Event modal */
 .overlay {
     position: fixed;
     inset: 0;
@@ -538,7 +645,6 @@
     border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
-/* Loading */
 .loading {
     display: flex;
     justify-content: center;
@@ -555,4 +661,148 @@
     border-top-color: var(--purple-400);
     border-radius: 50%;
     animation: spin 550ms linear infinite;
+}
+
+@keyframes fadein {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideup {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (max-width: 768px) {
+    .toolbar {
+        gap: 0.5rem;
+    }
+
+    .navGroup {
+        flex: 1;
+    }
+
+    .monthLabel {
+        min-width: 0;
+        flex: 1;
+        font-size: 0.875rem;
+    }
+
+    .rightGroup {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .viewBtn {
+        padding: 0.375rem 0.5rem;
+        font-size: 0.75rem;
+    }
+
+    .todayBtn {
+        padding: 0.375rem 0.625rem;
+        font-size: 0.75rem;
+    }
+
+    .layout {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.375rem;
+        padding: 0.625rem 0.75rem;
+        border-radius: var(--radius-md);
+    }
+
+    .sidebarTitle {
+        width: 100%;
+        margin: 0;
+    }
+
+    .calDivider {
+        display: none;
+    }
+
+    .calToggle {
+        padding: 0.2rem 0.5rem;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+    }
+
+    .cell {
+        height: 5rem;
+        padding: 0.2rem;
+    }
+
+    .dayHeader {
+        font-size: 0.6rem;
+        padding: 0.35rem 0;
+    }
+
+    .dayNum {
+        font-size: 0.65rem;
+        width: 1.25rem;
+        height: 1.25rem;
+    }
+
+    .dayGrid {
+        display: grid;
+        grid-template-columns: 60px 1fr;
+        gap: 1px;
+        background: var(--gray-200);
+        height: 100%;
+    }
+
+    .calendarArea {
+        width: 100vw;
+        position: relative;
+        left: 50%;
+        right: 50%;
+        margin-left: -50vw;
+        height: 100vh;
+        overflow: auto;
+        padding: 0 12px;
+        box-sizing: border-box;
+    }
+    .hourSlot {
+        padding: 6px;
+    }
+
+    .weekCols {
+        min-width: 32rem;
+    }
+
+    .weekTimeGutter {
+        width: 3rem;
+    }
+
+    .weekHourLabel {
+        font-size: 0.6rem;
+        padding: 0.4rem 0.3rem;
+    }
+
+    .modal {
+        max-width: 100%;
+        padding: 1.25rem;
+        border-radius: var(--radius-lg);
+    }
 }

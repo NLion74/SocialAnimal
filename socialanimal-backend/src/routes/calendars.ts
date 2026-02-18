@@ -109,7 +109,7 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
                         .status(404)
                         .send({ error: "Calendar not found" });
 
-                await syncCalendar(id); // ← pass id, sync.ts fetches it internally
+                await syncCalendar(id);
                 return reply.send({ message: "Sync complete" });
             } catch (err) {
                 fastify.log.error(err);
