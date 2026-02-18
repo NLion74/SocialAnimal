@@ -3,8 +3,6 @@ name: Build & Publish Docker Images
 on:
     release:
         types: [published]
-    push:
-        branches: [main]
 
 jobs:
     build-backend:
@@ -28,7 +26,7 @@ jobs:
                   push: true
                   tags: |
                       nlion/socialanimal-backend:latest
-                      nlion/socialanimal-backend:${{ github.sha }}
+                      nlion/socialanimal-backend:${{ github.event.release.tag_name }}
                   cache-from: type=gha
                   cache-to: type=gha,mode=max
 
@@ -53,6 +51,6 @@ jobs:
                   push: true
                   tags: |
                       nlion/socialanimal-frontend:latest
-                      nlion/socialanimal-frontend:${{ github.sha }}
+                      nlion/socialanimal-frontend:${{ github.event.release.tag_name }}
                   cache-from: type=gha
                   cache-to: type=gha,mode=max
