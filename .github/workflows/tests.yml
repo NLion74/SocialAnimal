@@ -13,7 +13,7 @@ jobs:
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
-                  node-version: 25
+                  node-version: 22
                   cache: "npm"
                   cache-dependency-path: socialanimal-backend/package-lock.json
             - working-directory: ./socialanimal-backend
@@ -29,7 +29,7 @@ jobs:
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
-                  node-version: 25
+                  node-version: 22
                   cache: "npm"
                   cache-dependency-path: socialanimal-frontend/package-lock.json
             - working-directory: ./socialanimal-frontend
