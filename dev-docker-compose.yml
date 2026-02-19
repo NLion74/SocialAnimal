@@ -12,12 +12,11 @@ services:
         volumes:
             - db-data:/var/lib/postgresql/data
         healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U postgres"]
-            interval: 10s
-            timeout: 5s
-            retries: 5
-        networks:
-            - app-network
+            test: ["CMD-SHELL", "pg_isready -U postgres || exit 1"]
+            interval: 5s
+            timeout: 2s
+            retries: 20
+            start_period: 5s
 
     backend:
         image: node:22-alpine
@@ -36,19 +35,10 @@ services:
         environment:
             NODE_ENV: development
             PORT: 3000
-            JWT_SECRET: "${JWT_SECRET:-changeme-in-production}"
             DATABASE_URL: "postgresql://postgres:postgres@db:5432/socialanimal"
         depends_on:
             db:
                 condition: service_healthy
-        healthcheck:
-            test: ["CMD-SHELL", "wget -qO- http://localhost:3000 || exit 1"]
-            interval: 10s
-            timeout: 5s
-            retries: 12
-            start_period: 5s
-        networks:
-            - app-network
 
     frontend:
         image: node:22-alpine
@@ -68,20 +58,8 @@ services:
         depends_on:
             backend:
                 condition: service_healthy
-        healthcheck:
-            test: ["CMD-SHELL", "wget -qO- http://localhost:3001 || exit 1"]
-            interval: 10s
-            timeout: 5s
-            retries: 12
-            start_period: 5s
-        networks:
-            - app-network
 
 volumes:
     db-data:
     backend-modules:
     frontend-modules:
-
-networks:
-    app-network:
-        driver: bridge

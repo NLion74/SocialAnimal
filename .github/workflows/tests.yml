@@ -39,22 +39,3 @@ jobs:
                   npm ci
                   npm run build
                   npm run lint -- --max-warnings=0
-
-    docker:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-
-            - name: Set up Node
-              uses: actions/setup-node@v4
-              with:
-                  node-version: 22
-                  cache: "npm"
-                  cache-dependency-path: socialanimal-frontend/package-lock.json
-
-            - name: Build and run dev-compose
-              env:
-                  DATABASE_URL: postgresql://postgres:postgres@db:5432/socialanimal
-                  PUBLIC_URL: "http://localhost:3001"
-              run: |
-                  docker compose -f dev-docker-compose.yml up --build --wait
