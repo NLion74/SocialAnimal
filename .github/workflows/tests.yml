@@ -16,7 +16,8 @@ jobs:
                   node-version: 22
                   cache: "npm"
                   cache-dependency-path: socialanimal-backend/package-lock.json
-            - working-directory: ./socialanimal-backend
+            - name: Build backend
+              working-directory: ./socialanimal-backend
               run: |
                   npm ci
                   npx prisma generate
@@ -32,7 +33,8 @@ jobs:
                   node-version: 22
                   cache: "npm"
                   cache-dependency-path: socialanimal-frontend/package-lock.json
-            - working-directory: ./socialanimal-frontend
+            - name: Build frontend
+              working-directory: ./socialanimal-frontend
               run: |
                   npm ci
                   npm run build
@@ -40,28 +42,18 @@ jobs:
 
     docker:
         runs-on: ubuntu-latest
-        needs: [backend, frontend]
         steps:
             - uses: actions/checkout@v4
 
-            - name: Start PostgreSQL
-              run: |
-                  docker run -d -p 5432:5432 \
-                    -e POSTGRES_DB=socialanimal \
-                    -e POSTGRES_USER=user \
-                    -e POSTGRES_PASSWORD=pass \
-                    postgres:15-alpine
-
-            - name: Wait for PostgreSQL
-              uses: nick-fields/retry@v2
+            - name: Set up Node
+              uses: actions/setup-node@v4
               with:
-                  timeout_minutes: 2
-                  retry_on: error
-                  command: |
-                      docker run --rm alpine/nmap nmap --host-timeout 5s localhost -p 5432
+                  node-version: 22
+                  cache: "npm"
 
-            - name: Run dev-docker-compose
+            - name: Build and run dev-compose
               env:
-                  DATABASE_URL: postgresql://user:pass@localhost:5432/socialanimal
+                  DATABASE_URL: postgresql://postgres:postgres@db:5432/socialanimal
+                  PUBLIC_URL: "http://localhost:3001"
               run: |
                   docker-compose -f dev-docker-compose.yml up --build --abort-on-container-exit
