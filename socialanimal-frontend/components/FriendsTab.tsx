@@ -2,24 +2,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { UserPlus, X, Check, Users, Share2 } from "lucide-react";
 import s from "./FriendsTab.module.css";
-import { apiFetch, getUid } from "../lib/api";
-
-type Permission = "busy" | "titles" | "full";
-
-interface Friend {
-    id: string;
-    user1: { id: string; email: string; name?: string };
-    user2: { id: string; email: string; name?: string };
-    status: string;
-    createdAt: string;
-    sharedCalendarIds: string[];
-    sharedCalendarPermissions: Record<string, Permission>;
-}
-
-interface CalendarData {
-    id: string;
-    name: string;
-}
+import { apiClient } from "../lib/api";
+import type { Friend, CalendarData, Permission } from "../lib/types";
 
 const PERM_LABELS: Record<Permission, string> = {
     busy: "🔴 Busy only",
@@ -38,13 +22,13 @@ export default function FriendsTab() {
 
     const [shareTarget, setShareTarget] = useState<Friend | null>(null);
 
-    const uid = getUid();
+    const uid = apiClient.getUid();
 
     const load = useCallback(async () => {
         setLoading(true);
         const [fr, cr] = await Promise.all([
-            apiFetch<Friend[]>("/api/friends").catch(() => []),
-            apiFetch<CalendarData[]>("/api/calendars").catch(() => []),
+            apiClient.request<Friend[]>("/api/friends").catch(() => []),
+            apiClient.request<CalendarData[]>("/api/calendars").catch(() => []),
         ]);
         setFriends(fr);
         setCalendars(cr);
@@ -69,10 +53,7 @@ export default function FriendsTab() {
         setAdding(true);
         setAddErr("");
         try {
-            await apiFetch("/api/friends/request", {
-                method: "POST",
-                body: JSON.stringify({ email }),
-            });
+            await apiClient.post("/api/friends/request", { email });
             setShowAdd(false);
             setEmail("");
             load();
@@ -84,17 +65,13 @@ export default function FriendsTab() {
     };
 
     const accept = async (id: string) => {
-        await apiFetch(`/api/friends/${id}/accept`, { method: "POST" }).catch(
-            () => {},
-        );
+        await apiClient.post(`/api/friends/${id}/accept`).catch(() => {});
         load();
     };
 
     const remove = async (id: string) => {
         if (!confirm("Remove this friend?")) return;
-        await apiFetch(`/api/friends/${id}`, { method: "DELETE" }).catch(
-            () => {},
-        );
+        await apiClient.del(`/api/friends/${id}`).catch(() => {});
         load();
     };
 
@@ -107,8 +84,10 @@ export default function FriendsTab() {
         setShareTarget((prev) => {
             if (!prev) return prev;
             const ids = share
-                ? [...new Set([...prev.sharedCalendarIds, calendarId])]
-                : prev.sharedCalendarIds.filter((id) => id !== calendarId);
+                ? [...new Set([...(prev.sharedCalendarIds ?? []), calendarId])]
+                : (prev.sharedCalendarIds ?? []).filter(
+                      (id) => id !== calendarId,
+                  );
             const perms = { ...prev.sharedCalendarPermissions };
             if (share) perms[calendarId] = permission;
             else delete perms[calendarId];
@@ -119,10 +98,14 @@ export default function FriendsTab() {
             };
         });
 
-        await apiFetch("/api/friends/share-calendar", {
-            method: "POST",
-            body: JSON.stringify({ friendId, calendarId, share, permission }),
-        }).catch(() => {});
+        await apiClient
+            .post("/api/friends/share-calendar", {
+                friendId,
+                calendarId,
+                share,
+                permission,
+            })
+            .catch(() => {});
         load();
     };
 
@@ -171,12 +154,18 @@ export default function FriendsTab() {
                                         <div className={s.rowEmail}>
                                             {friend.email}
                                         </div>
-                                        {f.sharedCalendarIds.length > 0 && (
+                                        {(f.sharedCalendarIds ?? []).length >
+                                            0 && (
                                             <div className={s.rowMeta}>
                                                 <span
                                                     className={`${s.badge} ${s.badgeGreen}`}
                                                 >
-                                                    {f.sharedCalendarIds.length}{" "}
+                                                    {
+                                                        (
+                                                            f.sharedCalendarIds ??
+                                                            []
+                                                        ).length
+                                                    }{" "}
                                                     shared
                                                 </span>
                                             </div>
@@ -341,10 +330,9 @@ export default function FriendsTab() {
                                         </div>
                                     )}
                                     {calendars.map((cal) => {
-                                        const shared =
-                                            shareTarget.sharedCalendarIds.includes(
-                                                cal.id,
-                                            );
+                                        const shared = (
+                                            shareTarget.sharedCalendarIds ?? []
+                                        ).includes(cal.id);
                                         const perm: Permission =
                                             shareTarget
                                                 .sharedCalendarPermissions?.[

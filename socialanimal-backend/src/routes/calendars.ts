@@ -1,7 +1,11 @@
 import { FastifyPluginAsync } from "fastify";
 import { authenticateToken } from "../utils/auth";
-import { prisma } from "../utils/db";
 import { syncCalendar } from "../utils/sync";
+import {
+    getUserCalendars,
+    findCalendarForUser,
+} from "../services/calendarService";
+import { prisma } from "../utils/db";
 import { badRequest, notFound, serverError } from "../utils/response";
 
 const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
@@ -9,20 +13,7 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
 
     fastify.get("/", async (request) => {
         const uid = (request as any).user.id;
-        return prisma.calendar.findMany({
-            where: { userId: uid },
-            include: {
-                events: {
-                    select: {
-                        id: true,
-                        title: true,
-                        startTime: true,
-                        endTime: true,
-                        allDay: true,
-                    },
-                },
-            },
-        });
+        return getUserCalendars(uid);
     });
 
     fastify.post(
@@ -105,9 +96,10 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
         async (request, reply) => {
             try {
                 const { id } = request.params as any;
-                const calendar = await prisma.calendar.findFirst({
-                    where: { id, userId: (request as any).user.id },
-                });
+                const calendar = await findCalendarForUser(
+                    id,
+                    (request as any).user.id,
+                );
                 if (!calendar)
                     return reply
                         .status(404)

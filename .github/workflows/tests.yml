@@ -1,0 +1,65 @@
+name: CI Tests
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+jobs:
+    backend:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: "npm"
+            - working-directory: ./socialanimal-backend
+              run: |
+                  npm ci
+                  npx prisma generate
+                  npm run build
+                  npm run lint -- --max-warnings=0
+
+    frontend:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: "npm"
+            - working-directory: ./socialanimal-frontend
+              run: |
+                  npm ci
+                  npm run build
+                  npm run lint -- --max-warnings=0
+
+    docker:
+        runs-on: ubuntu-latest
+        needs: [backend, frontend]
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Start PostgreSQL
+              run: |
+                  docker run -d -p 5432:5432 \
+                    -e POSTGRES_DB=socialanimal \
+                    -e POSTGRES_USER=user \
+                    -e POSTGRES_PASSWORD=pass \
+                    postgres:15-alpine
+
+            - name: Wait for PostgreSQL
+              uses: nick-fields/retry@v2
+              with:
+                  timeout_minutes: 2
+                  retry_on: error
+                  command: |
+                      docker run --rm alpine/nmap nmap --host-timeout 5s localhost -p 5432
+
+            - name: Run dev-docker-compose
+              env:
+                  DATABASE_URL: postgresql://user:pass@localhost:5432/socialanimal
+              run: |
+                  docker-compose -f dev-docker-compose.yml up --build --abort-on-container-exit
