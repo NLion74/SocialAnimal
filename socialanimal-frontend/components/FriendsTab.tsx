@@ -34,7 +34,7 @@ export default function FriendsTab() {
         setCalendars(cr);
         setLoading(false);
         setShareTarget((prev) =>
-            prev ? (fr.find((f) => f.id === prev.id) ?? null) : null,
+            prev ? fr.find((f) => f.id === prev.id) ?? null : null
         );
     }, []);
 
@@ -43,8 +43,6 @@ export default function FriendsTab() {
     }, [load]);
 
     const getFriend = (f: Friend) => (f.user1.id === uid ? f.user2 : f.user1);
-    const isPending = (f: Friend) =>
-        f.status === "pending" && f.user1.id === uid;
     const isIncoming = (f: Friend) =>
         f.status === "pending" && f.user2.id === uid;
 
@@ -79,14 +77,14 @@ export default function FriendsTab() {
         friendId: string,
         calendarId: string,
         share: boolean,
-        permission: Permission,
+        permission: Permission
     ) => {
         setShareTarget((prev) => {
             if (!prev) return prev;
             const ids = share
                 ? [...new Set([...(prev.sharedCalendarIds ?? []), calendarId])]
                 : (prev.sharedCalendarIds ?? []).filter(
-                      (id) => id !== calendarId,
+                      (id) => id !== calendarId
                   );
             const perms = { ...prev.sharedCalendarPermissions };
             if (share) perms[calendarId] = permission;
@@ -365,7 +363,7 @@ export default function FriendsTab() {
                                                                     cal.id,
                                                                     true,
                                                                     e.target
-                                                                        .value as Permission,
+                                                                        .value as Permission
                                                                 )
                                                             }
                                                             onClick={(e) =>
@@ -374,7 +372,7 @@ export default function FriendsTab() {
                                                         >
                                                             {(
                                                                 Object.keys(
-                                                                    PERM_LABELS,
+                                                                    PERM_LABELS
                                                                 ) as Permission[]
                                                             ).map((p) => (
                                                                 <option
@@ -391,13 +389,17 @@ export default function FriendsTab() {
                                                         </select>
                                                     )}
                                                     <button
-                                                        className={`${s.btn} ${shared ? s.btnDanger : s.btnSuccess} ${s.btnSm}`}
+                                                        className={`${s.btn} ${
+                                                            shared
+                                                                ? s.btnDanger
+                                                                : s.btnSuccess
+                                                        } ${s.btnSm}`}
                                                         onClick={() =>
                                                             toggleShare(
                                                                 friend.id,
                                                                 cal.id,
                                                                 !shared,
-                                                                perm,
+                                                                perm
                                                             )
                                                         }
                                                     >

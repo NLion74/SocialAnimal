@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
     Plus,
     RefreshCw,
@@ -24,7 +24,7 @@ export default function GeneralTab() {
     const [syncingId, setSyncingId] = useState<string | null>(null);
     const [showModal, setShowModal] = useState(false);
     const [editingCalendar, setEditingCalendar] = useState<CalendarData | null>(
-        null,
+        null
     );
 
     const [name, setName] = useState("");
@@ -38,9 +38,7 @@ export default function GeneralTab() {
 
     const [showExport, setShowExport] = useState(false);
     const [exportLink, setExportLink] = useState("");
-    const [exportLabel, setExportLabel] = useState("");
     const [copied, setCopied] = useState(false);
-    // use apiClient for network requests
 
     useEffect(() => {
         load();
@@ -122,7 +120,7 @@ export default function GeneralTab() {
                 {
                     method: editingCalendar ? "PUT" : "POST",
                     body,
-                },
+                }
             );
             closeModal();
             await load();
@@ -148,8 +146,7 @@ export default function GeneralTab() {
 
     const openExportLink = (
         type: "all" | "calendar" | "friend",
-        id?: string,
-        label?: string,
+        id?: string
     ) => {
         const token = localStorage.getItem("token");
         if (!token) return;
@@ -159,10 +156,9 @@ export default function GeneralTab() {
             type === "all"
                 ? `${base}/api/ics/my-calendar.ics?token=${t}`
                 : type === "calendar"
-                  ? `${base}/api/ics/calendar/${id}.ics?token=${t}`
-                  : `${base}/api/ics/friend/${id}.ics?token=${t}`;
+                ? `${base}/api/ics/calendar/${id}.ics?token=${t}`
+                : `${base}/api/ics/friend/${id}.ics?token=${t}`;
         setExportLink(link);
-        setExportLabel(label ?? "Full calendar");
         setShowExport(true);
         setCopied(false);
     };
@@ -173,7 +169,7 @@ export default function GeneralTab() {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const uid = apiClient.getUid();
+    // const uid = apiClient.getUid(); // removed unused
     const accepted = friends.filter((f) => f.status === "accepted");
     const total = calendars.reduce((n, c) => n + (c.events?.length || 0), 0);
 
@@ -252,7 +248,7 @@ export default function GeneralTab() {
                                             <span className={s.metaText}>
                                                 synced{" "}
                                                 {new Date(
-                                                    c.lastSync,
+                                                    c.lastSync
                                                 ).toLocaleString()}
                                             </span>
                                         )}
@@ -265,11 +261,7 @@ export default function GeneralTab() {
                                     <button
                                         className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
                                         onClick={() =>
-                                            openExportLink(
-                                                "calendar",
-                                                c.id,
-                                                c.name,
-                                            )
+                                            openExportLink("calendar", c.id)
                                         }
                                     >
                                         <Link size={12} />

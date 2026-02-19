@@ -6,7 +6,7 @@ import {
     findCalendarForUser,
 } from "../services/calendarService";
 import { prisma } from "../utils/db";
-import { badRequest, notFound, serverError } from "../utils/response";
+import { notFound, serverError } from "../utils/response";
 
 const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.addHook("preHandler", authenticateToken);
@@ -22,10 +22,12 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
         async (request, reply) => {
             try {
                 const { name, type, url, config } = request.body as any;
-                if (!name || !type)
+
+                if (!name || !type) {
                     return reply
                         .status(400)
                         .send({ error: "Name and type required" });
+                }
 
                 const calendar = await prisma.calendar.create({
                     data: {
@@ -36,17 +38,25 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
                     },
                 });
 
-                await syncCalendar(calendar.id).catch((err) =>
-                    console.error("[sync] initial sync failed:", err),
+                syncCalendar(calendar.id).catch((err) =>
+                    console.error(
+                        `[sync] initial sync failed for calendar ${calendar.id}:`,
+                        err
+                    )
                 );
 
                 return reply.status(201).send(calendar);
-            } catch (err) {
+            } catch (error: any) {
+                console.error(
+                    "[calendar:create] Error creating calendar:",
+                    error
+                );
+
                 return reply
                     .status(500)
                     .send({ error: "Failed to create calendar" });
             }
-        },
+        }
     );
 
     fastify.put("/:id", async (request, reply) => {
@@ -98,7 +108,7 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
                 const { id } = request.params as any;
                 const calendar = await findCalendarForUser(
                     id,
-                    (request as any).user.id,
+                    (request as any).user.id
                 );
                 if (!calendar)
                     return reply
@@ -111,7 +121,7 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
                 fastify.log.error(err);
                 return reply.status(500).send({ error: "Sync failed" });
             }
-        },
+        }
     );
 };
 
