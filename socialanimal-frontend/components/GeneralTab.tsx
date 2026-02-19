@@ -12,7 +12,7 @@ import {
     Calendar,
     Edit,
 } from "lucide-react";
-import { env } from "@/lib/env";
+import { env } from "../lib/env";
 import s from "./GeneralTab.module.css";
 
 interface CalendarData {
@@ -20,9 +20,18 @@ interface CalendarData {
     name: string;
     type: string;
     url?: string;
-    config?: { url?: string; username?: string; password?: string };
-    events: { id: string; title: string }[];
-    lastSync?: string;
+    config?: Record<string, any>;
+    syncInterval: number;
+    lastSync?: string | null;
+    createdAt: string;
+    updatedAt: string;
+    events?: {
+        id: string;
+        title: string;
+        startTime: string;
+        endTime: string;
+        allDay: boolean;
+    }[];
 }
 
 interface Friend {

@@ -112,7 +112,7 @@ const icsRoutes: FastifyPluginAsync = async (fastify) => {
             return reply.status(403).send("No calendars shared with you");
 
         const events = await prisma.event.findMany({
-            where: { calendarId: { in: shares.map((s) => s.calendarId) } },
+            where: { calendarId: { in: shares.map((s: any) => s.calendarId) } },
             orderBy: { startTime: "asc" },
         });
         const friend = await prisma.user.findUnique({

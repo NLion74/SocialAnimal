@@ -15,9 +15,26 @@ export async function syncIcsCalendar(calendar: any) {
                   `${calendar.config.username || ""}:${calendar.config.password}`,
               ).toString("base64")}`,
           }
-        : {};
+        : undefined;
 
-    const data = await ical.async.fromURL(url, { headers });
+    const rawData: any = await ical.async.fromURL(url, { headers });
+
+    if (
+        rawData == null ||
+        typeof rawData !== "object" ||
+        Array.isArray(rawData)
+    ) {
+        console.log(
+            `No events found or parse error for calendar ${calendar.id}`,
+        );
+        await prisma.calendar.update({
+            where: { id: calendar.id },
+            data: { lastSync: new Date() },
+        });
+        return;
+    }
+
+    const data = rawData as Record<string, any>;
 
     const parsedEvents: {
         externalId: string;
@@ -47,7 +64,7 @@ export async function syncIcsCalendar(calendar: any) {
 
     const uids = parsedEvents.map((e) => e.externalId);
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
         await Promise.all(
             parsedEvents.map((ev) =>
                 tx.event.upsert({
@@ -79,12 +96,14 @@ export async function syncIcsCalendar(calendar: any) {
             ),
         );
 
-        await tx.event.deleteMany({
-            where: {
-                calendarId: calendar.id,
-                externalId: { notIn: uids },
-            },
-        });
+        if (uids.length > 0) {
+            await tx.event.deleteMany({
+                where: {
+                    calendarId: calendar.id,
+                    externalId: { notIn: uids },
+                },
+            });
+        }
 
         await tx.calendar.update({
             where: { id: calendar.id },

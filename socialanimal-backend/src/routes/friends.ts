@@ -23,7 +23,7 @@ const friendsRoutes: FastifyPluginAsync = async (fastify) => {
         });
 
         return Promise.all(
-            friendships.map(async (f) => {
+            friendships.map(async (f: any) => {
                 const friendId = f.user1Id === uid ? f.user2Id : f.user1Id;
                 const [myShares, theirShares] = await Promise.all([
                     prisma.calendarShare.findMany({
@@ -47,11 +47,11 @@ const friendsRoutes: FastifyPluginAsync = async (fastify) => {
                 ]);
                 return {
                     ...f,
-                    sharedCalendarIds: myShares.map((s) => s.calendarId),
+                    sharedCalendarIds: myShares.map((s: any) => s.calendarId),
                     sharedCalendarPermissions: Object.fromEntries(
-                        myShares.map((s) => [s.calendarId, s.permission]),
+                        myShares.map((s: any) => [s.calendarId, s.permission]),
                     ),
-                    sharedWithMe: theirShares.map((s) => ({
+                    sharedWithMe: theirShares.map((s: any) => ({
                         id: s.calendarId,
                         name: s.calendar.name,
                         permission: s.permission,

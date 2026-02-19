@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { UserPlus, X, Check, Users, Share2 } from "lucide-react";
 import s from "./FriendsTab.module.css";
-import { apiFetch, getUid } from "@/lib/api";
+import { apiFetch, getUid } from "../lib/api";
 
 type Permission = "busy" | "titles" | "full";
 

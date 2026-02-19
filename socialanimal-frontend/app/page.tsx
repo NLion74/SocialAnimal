@@ -1,11 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Calendar, Users, Home, User, LogOut } from "lucide-react";
-import GeneralTab from "@/components/GeneralTab";
-import FriendsTab from "@/components/FriendsTab";
-import CalendarTab from "@/components/CalendarTab";
-import ProfileTab from "@/components/ProfileTab";
-import AuthModal from "@/components/AuthModal";
+import GeneralTab from "../components/GeneralTab";
+import FriendsTab from "../components/FriendsTab";
+import CalendarTab from "../components/CalendarTab";
+import ProfileTab from "../components/ProfileTab";
+import AuthModal from "../components/AuthModal";
 import s from "./page.module.css";
 
 const TABS = [

@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Shield, Ticket, Save } from "lucide-react";
 import s from "./ProfileTab.module.css";
-import { apiFetch } from "@/lib/api";
+import { apiFetch } from "../lib/api";
 
 type Permission = "busy" | "titles" | "full";
 const PERM_LABELS: Record<Permission, string> = {

@@ -18,8 +18,8 @@ import {
     isSameDay,
     fmtTime,
     fmtDateTime,
-} from "@/lib/date";
-import { apiFetch } from "@/lib/api";
+} from "../lib/date";
+import { apiFetch } from "../lib/api";
 
 interface CalEvent {
     id: string;

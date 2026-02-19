@@ -1,6 +1,5 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
-import { disconnectDb } from "./utils/db";
 import usersRoutes from "./routes/users";
 import calendarsRoutes from "./routes/calendars";
 import eventsRoutes from "./routes/events";
@@ -28,7 +27,6 @@ async function start() {
         setInterval(() => runDueCalendars().catch(console.error), 60_000);
     } catch (err) {
         server.log.error(err);
-        await disconnectDb();
         process.exit(1);
     }
 }
