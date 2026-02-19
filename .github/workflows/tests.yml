@@ -50,6 +50,7 @@ jobs:
               with:
                   node-version: 22
                   cache: "npm"
+                  cache-dependency-path: socialanimal-frontend/package-lock.json
 
             - name: Build and run dev-compose
               env:
