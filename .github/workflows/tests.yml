@@ -57,4 +57,4 @@ jobs:
                   DATABASE_URL: postgresql://postgres:postgres@db:5432/socialanimal
                   PUBLIC_URL: "http://localhost:3001"
               run: |
-                  docker-compose -f dev-docker-compose.yml up --build --abort-on-container-exit
+                  docker compose -f dev-docker-compose.yml up --build --abort-on-container-exit
