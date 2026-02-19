@@ -1,12 +1,11 @@
 import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 declare global {
-    var prisma: PrismaClient | undefined;
+    var prisma: any | undefined;
 }
 
-const _prisma = globalThis.prisma as PrismaClient | undefined;
+const _prisma = globalThis.prisma as any | undefined;
 
 const clientOptions: any = {
     log: process.env.NODE_ENV === "development" ? ["query", "error"] : [],
@@ -18,12 +17,21 @@ if (process.env.DATABASE_URL) {
             connectionString: process.env.DATABASE_URL,
         });
         clientOptions.adapter = adapter;
-    } catch (e) {
-        console.error("Failed to initialize PrismaPg adapter:", e);
+    } catch {
+        console.error("Failed to initialize PrismaPg adapter");
     }
 }
 
-export const prisma = _prisma ?? new PrismaClient(clientOptions);
+let PrismaClientCtor: any;
+try {
+    PrismaClientCtor = require("@prisma/client").PrismaClient;
+} catch {
+    PrismaClientCtor = undefined;
+}
+
+export const prisma =
+    _prisma ??
+    (PrismaClientCtor ? new PrismaClientCtor(clientOptions) : ({} as any));
 
 if (process.env.NODE_ENV === "development") globalThis.prisma = prisma;
 

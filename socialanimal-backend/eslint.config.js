@@ -1,5 +1,6 @@
 module.exports = [
     {
+        ignores: ["node_modules", "dist"],
         files: ["**/*.ts", "**/*.tsx"],
         languageOptions: {
             parser: require("@typescript-eslint/parser"),
@@ -13,6 +14,5 @@ module.exports = [
             "no-unused-vars": "warn",
             "@typescript-eslint/no-unused-vars": ["error"],
         },
-        ignores: ["node_modules"],
     },
 ];
