@@ -1,14 +1,11 @@
-// eslint.config.js
 import parser from "@typescript-eslint/parser";
 import tsPlugin from "@typescript-eslint/eslint-plugin";
 
 export default [
-    // Top-level ignores
     {
-        ignores: [".next/", "node_modules/"], // ✅ must be at top level
+        ignores: [".next/", "node_modules/"],
     },
 
-    // Main rules
     {
         files: ["**/*.{js,jsx,ts,tsx}"],
         languageOptions: {
