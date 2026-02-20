@@ -15,9 +15,9 @@ jobs:
               with:
                   node-version: 22
                   cache: "npm"
-                  cache-dependency-path: socialanimal-backend/package-lock.json
+                  cache-dependency-path: backend/package-lock.json
             - name: Build backend
-              working-directory: ./socialanimal-backend
+              working-directory: ./backend
               run: |
                   npm ci
                   npx prisma generate
@@ -32,9 +32,9 @@ jobs:
               with:
                   node-version: 22
                   cache: "npm"
-                  cache-dependency-path: socialanimal-frontend/package-lock.json
+                  cache-dependency-path: frontend/package-lock.json
             - name: Build frontend
-              working-directory: ./socialanimal-frontend
+              working-directory: ./frontend
               run: |
                   npm ci
                   npm run build
