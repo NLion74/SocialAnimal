@@ -51,3 +51,18 @@ export interface CalSource {
 }
 
 export type Permission = "busy" | "titles" | "full";
+
+export type LayoutEvent = {
+    id: string;
+    startMinutes: number;
+    endMinutes: number;
+    orig: CalEvent;
+};
+
+export type EventLayout = {
+    event: LayoutEvent;
+    col: number;
+    cols: number;
+};
+
+export type FirstDay = "sunday" | "monday";

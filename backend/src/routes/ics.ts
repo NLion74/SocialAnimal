@@ -55,7 +55,6 @@ const icsRoutes: FastifyPluginAsync = async (fastify) => {
         );
     });
 
-    // Own calendar OR one shared with the requesting user
     fastify.get("/calendar/:calendarId.ics", async (request, reply) => {
         const { calendarId } = request.params as any;
         const { token } = request.query as any;
