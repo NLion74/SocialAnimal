@@ -41,22 +41,22 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
                 syncCalendar(calendar.id).catch((err) =>
                     console.error(
                         `[sync] initial sync failed for calendar ${calendar.id}:`,
-                        err
-                    )
+                        err,
+                    ),
                 );
 
                 return reply.status(201).send(calendar);
             } catch (error: any) {
                 console.error(
                     "[calendar:create] Error creating calendar:",
-                    error
+                    error,
                 );
 
                 return reply
                     .status(500)
                     .send({ error: "Failed to create calendar" });
             }
-        }
+        },
     );
 
     fastify.put("/:id", async (request, reply) => {
@@ -108,7 +108,7 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
                 const { id } = request.params as any;
                 const calendar = await findCalendarForUser(
                     id,
-                    (request as any).user.id
+                    (request as any).user.id,
                 );
                 if (!calendar)
                     return reply
@@ -121,7 +121,7 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
                 fastify.log.error(err);
                 return reply.status(500).send({ error: "Sync failed" });
             }
-        }
+        },
     );
 };
 

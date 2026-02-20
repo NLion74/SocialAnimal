@@ -12,6 +12,7 @@ const server = Fastify({ logger: true });
 async function start() {
     try {
         await server.register(cors);
+
         server.register(usersRoutes, { prefix: "/api/users" });
         server.register(calendarsRoutes, { prefix: "/api/calendars" });
         server.register(eventsRoutes, { prefix: "/api/events" });
