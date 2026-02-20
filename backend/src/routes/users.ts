@@ -139,6 +139,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
                     currentPassword,
                     newPassword,
                     defaultSharePermission,
+                    firstDayOfWeek,
                 } = request.body as any;
                 const user = await prisma.user.findUnique({
                     where: { id: uid },
@@ -168,12 +169,28 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
                         where: { id: uid },
                         data: { name },
                     });
-                if (defaultSharePermission !== undefined)
+                if (
+                    defaultSharePermission !== undefined ||
+                    firstDayOfWeek !== undefined
+                ) {
                     await prisma.userSettings.upsert({
                         where: { userId: uid },
-                        update: { defaultSharePermission },
-                        create: { userId: uid, defaultSharePermission },
+                        update: {
+                            ...(defaultSharePermission !== undefined
+                                ? { defaultSharePermission }
+                                : {}),
+                            ...(firstDayOfWeek !== undefined
+                                ? { firstDayOfWeek }
+                                : {}),
+                        },
+                        create: {
+                            userId: uid,
+                            defaultSharePermission:
+                                defaultSharePermission ?? "full",
+                            firstDayOfWeek: firstDayOfWeek ?? "monday",
+                        },
                     });
+                }
 
                 return prisma.user.findUnique({
                     where: { id: uid },

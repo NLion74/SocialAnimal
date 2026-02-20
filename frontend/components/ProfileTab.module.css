@@ -61,6 +61,38 @@
     gap: 1rem;
 }
 
+.firstDayGroup {
+    display: flex;
+    gap: 0.75rem;
+}
+.firstDayGroup label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.firstDayGroup input[type="radio"] {
+    display: none;
+}
+
+.firstDayGroup label {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    padding: 0.45rem 0.75rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.firstDayGroup input[type="radio"] + span {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.firstDayGroup input[type="radio"]:checked + span {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
 .fieldLabel {
     display: block;
     font-size: 0.73rem;
@@ -192,6 +224,10 @@
     }
 
     .formRow {
+        flex-direction: column;
+    }
+
+    .firstDayGroup {
         flex-direction: column;
     }
 

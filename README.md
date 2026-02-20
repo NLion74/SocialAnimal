@@ -39,11 +39,11 @@ This is an early release. Current features include:
 
 ## Roadmap
 
-- [ ] API tests
-- [ ] Easy Integration of Calendar clients e.g. google auth and others
+- [ ] Easy Integration of Calendar clients e.g. google, proton, apple, outlook and others
 - [ ] Per-event permission overrides or event exclusions
-- [ ] GitHub Actions workflow for publishing Docker image
-- [ ] Better admin management
+- [ ] Admin Dashboard
+- [ ] API tests
+- [ ] Many small improvements...
 
 ---
 

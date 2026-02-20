@@ -35,6 +35,7 @@ model UserSettings {
   userId                 String @unique
   user                   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   defaultSharePermission String @default("full")
+  firstDayOfWeek         String @default("monday")
 }
 
 model InviteCode {

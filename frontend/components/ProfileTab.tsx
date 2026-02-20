@@ -16,6 +16,7 @@ export default function ProfileTab() {
     const [curPw, setCurPw] = useState("");
     const [newPw, setNewPw] = useState("");
     const [defPerm, setDefPerm] = useState<Permission>("full");
+    const [firstDay, setFirstDay] = useState<"sunday" | "monday">("monday");
     const [regOpen, setRegOpen] = useState(true);
     const [inviteOnly, setInviteOnly] = useState(false);
     const [inviteCode, setInviteCode] = useState("");
@@ -28,6 +29,9 @@ export default function ProfileTab() {
             setUser(u);
             setName(u.name ?? "");
             setDefPerm(u.settings?.defaultSharePermission ?? "full");
+            setFirstDay(
+                (u.settings?.firstDayOfWeek as "sunday" | "monday") ?? "monday",
+            );
         });
         apiClient
             .request("/api/users/app-settings")
@@ -42,7 +46,11 @@ export default function ProfileTab() {
         setMsg("");
         setErr("");
         try {
-            const body: any = { name, defaultSharePermission: defPerm };
+            const body: any = {
+                name,
+                defaultSharePermission: defPerm,
+                firstDayOfWeek: firstDay,
+            };
             if (newPw) {
                 body.currentPassword = curPw;
                 body.newPassword = newPw;
@@ -131,6 +139,33 @@ export default function ProfileTab() {
                             readOnly
                             style={{ opacity: 0.6 }}
                         />
+                    </div>
+                    <div>
+                        <label className={s.fieldLabel}>
+                            First Day of Week
+                        </label>
+                        <div className={s.firstDayGroup}>
+                            <label>
+                                <input
+                                    type="radio"
+                                    name="firstDay"
+                                    value="monday"
+                                    checked={firstDay === "monday"}
+                                    onChange={() => setFirstDay("monday")}
+                                />
+                                <span>Monday</span>
+                            </label>
+                            <label>
+                                <input
+                                    type="radio"
+                                    name="firstDay"
+                                    value="sunday"
+                                    checked={firstDay === "sunday"}
+                                    onChange={() => setFirstDay("sunday")}
+                                />
+                                <span>Sunday</span>
+                            </label>
+                        </div>
                     </div>
                     <div>
                         <label className={s.fieldLabel}>Display Name</label>
