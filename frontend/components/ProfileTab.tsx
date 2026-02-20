@@ -2,9 +2,8 @@
 import { useState, useEffect } from "react";
 import { Shield, Ticket, Save } from "lucide-react";
 import s from "./ProfileTab.module.css";
-import { apiFetch } from "../lib/api";
-
-type Permission = "busy" | "titles" | "full";
+import { apiClient } from "../lib/api";
+import type { Permission } from "../lib/types";
 const PERM_LABELS: Record<Permission, string> = {
     busy: "🔴 Busy only — hide titles and details",
     titles: "🟡 Titles only — show event names, no descriptions",
@@ -25,19 +24,19 @@ export default function ProfileTab() {
     const [err, setErr] = useState("");
 
     useEffect(() => {
-        apiFetch("/api/users/me").then((u: any) => {
+        apiClient.request("/api/users/me").then((u: any) => {
             setUser(u);
             setName(u.name ?? "");
             setDefPerm(u.settings?.defaultSharePermission ?? "full");
         });
-        apiFetch("/api/users/app-settings")
+        apiClient
+            .request("/api/users/app-settings")
             .then((s: any) => {
                 setRegOpen(s.registrationsOpen ?? true);
                 setInviteOnly(s.inviteOnly ?? false);
             })
             .catch(() => {});
     }, []);
-
     const saveProfile = async () => {
         setSaving(true);
         setMsg("");
@@ -48,9 +47,9 @@ export default function ProfileTab() {
                 body.currentPassword = curPw;
                 body.newPassword = newPw;
             }
-            await apiFetch("/api/users/me", {
+            await apiClient.request("/api/users/me", {
                 method: "PUT",
-                body: JSON.stringify(body),
+                body,
             });
             setMsg("Profile saved!");
             setCurPw("");
@@ -67,12 +66,9 @@ export default function ProfileTab() {
         setMsg("");
         setErr("");
         try {
-            await apiFetch("/api/users/app-settings", {
+            await apiClient.request("/api/users/app-settings", {
                 method: "PUT",
-                body: JSON.stringify({
-                    registrationsOpen: regOpen,
-                    inviteOnly,
-                }),
+                body: { registrationsOpen: regOpen, inviteOnly },
             });
             setMsg("Admin settings saved!");
         } catch (e: any) {
@@ -84,9 +80,10 @@ export default function ProfileTab() {
 
     const genInvite = async () => {
         try {
-            const r = await apiFetch<{ code: string }>("/api/users/invite", {
-                method: "POST",
-            });
+            const r = await apiClient.request<{ code: string }>(
+                "/api/users/invite",
+                { method: "POST" },
+            );
             setInviteCode(r.code);
         } catch (e: any) {
             setErr(e.message);

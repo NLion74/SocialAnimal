@@ -19,25 +19,8 @@ import {
     fmtTime,
     fmtDateTime,
 } from "../lib/date";
-import { apiFetch } from "../lib/api";
-
-interface CalEvent {
-    id: string;
-    title: string;
-    description?: string;
-    location?: string;
-    startTime: string;
-    endTime: string;
-    allDay: boolean;
-    isFriend?: boolean;
-    owner?: { id: string; name?: string; email: string } | null;
-    calendar: { id: string; name: string; type: string };
-}
-interface CalSource {
-    id: string;
-    name: string;
-    isFriend: boolean;
-}
+import { apiClient } from "../lib/api";
+import type { CalEvent, CalSource } from "../lib/types";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
@@ -58,9 +41,11 @@ export default function CalendarTab() {
     const load = async () => {
         setLoading(true);
         const [mine, friend, cals] = await Promise.all([
-            apiFetch<CalEvent[]>("/api/events").catch(() => []),
-            apiFetch<CalEvent[]>("/api/events/friends").catch(() => []),
-            apiFetch<any[]>("/api/calendars").catch(() => []),
+            apiClient.request<CalEvent[]>("/api/events").catch(() => []),
+            apiClient
+                .request<CalEvent[]>("/api/events/friends")
+                .catch(() => []),
+            apiClient.request<any[]>("/api/calendars").catch(() => []),
         ]);
         setMyEvents(mine);
         setFriendEvents(friend.map((e) => ({ ...e, isFriend: true })));

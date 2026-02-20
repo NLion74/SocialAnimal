@@ -2,10 +2,11 @@
 const nextConfig = {
     output: "standalone",
     async rewrites() {
-        const isDev = process.env.NODE_ENV === "development";
-        const backendUrl = isDev
-            ? "http://localhost:3001"
-            : process.env.BACKEND_URL || "";
+        const backendUrl =
+            process.env.BACKEND_URL ||
+            (process.env.NODE_ENV === "development"
+                ? "http://localhost:3001"
+                : "");
 
         return [
             {
@@ -16,4 +17,4 @@ const nextConfig = {
     },
 };
 
-module.exports = nextConfig;
+export default nextConfig;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
     Plus,
     RefreshCw,
@@ -13,46 +13,9 @@ import {
     Edit,
 } from "lucide-react";
 import { env } from "../lib/env";
+import { apiClient } from "../lib/api";
+import type { CalendarData, Friend } from "../lib/types";
 import s from "./GeneralTab.module.css";
-
-interface CalendarData {
-    id: string;
-    name: string;
-    type: string;
-    url?: string;
-    config?: Record<string, any>;
-    syncInterval: number;
-    lastSync?: string | null;
-    createdAt: string;
-    updatedAt: string;
-    events?: {
-        id: string;
-        title: string;
-        startTime: string;
-        endTime: string;
-        allDay: boolean;
-    }[];
-}
-
-interface Friend {
-    id: string;
-    user1: { id: string; email: string; name?: string };
-    user2: { id: string; email: string; name?: string };
-    status: string;
-    sharedCalendarIds: string[];
-    sharedWithMe: { id: string; name: string }[];
-}
-
-function getUid(): string | null {
-    const t =
-        typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    if (!t) return null;
-    try {
-        return JSON.parse(atob(t)).sub;
-    } catch {
-        return null;
-    }
-}
 
 export default function GeneralTab() {
     const [calendars, setCalendars] = useState<CalendarData[]>([]);
@@ -61,7 +24,7 @@ export default function GeneralTab() {
     const [syncingId, setSyncingId] = useState<string | null>(null);
     const [showModal, setShowModal] = useState(false);
     const [editingCalendar, setEditingCalendar] = useState<CalendarData | null>(
-        null,
+        null
     );
 
     const [name, setName] = useState("");
@@ -75,23 +38,7 @@ export default function GeneralTab() {
 
     const [showExport, setShowExport] = useState(false);
     const [exportLink, setExportLink] = useState("");
-    const [exportLabel, setExportLabel] = useState("");
     const [copied, setCopied] = useState(false);
-
-    const api = useCallback(
-        (path: string, opts?: RequestInit) =>
-            fetch(path, {
-                ...opts,
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem("token")}`,
-                    ...(opts?.body
-                        ? { "Content-Type": "application/json" }
-                        : {}),
-                    ...(opts?.headers ?? {}),
-                },
-            }),
-        [],
-    );
 
     useEffect(() => {
         load();
@@ -118,13 +65,19 @@ export default function GeneralTab() {
 
     const load = async () => {
         setLoading(true);
-        const [cr, fr] = await Promise.all([
-            api("/api/calendars"),
-            api("/api/friends"),
-        ]);
-        if (cr.ok) setCalendars(await cr.json());
-        if (fr.ok) setFriends(await fr.json());
-        setLoading(false);
+        try {
+            const [cr, fr] = await Promise.all([
+                apiClient
+                    .request<CalendarData[]>("/api/calendars")
+                    .catch(() => []),
+                apiClient.request<Friend[]>("/api/friends").catch(() => []),
+            ]);
+            setCalendars(cr);
+            setFriends(fr);
+        } catch {
+        } finally {
+            setLoading(false);
+        }
     };
 
     const openCreate = () => {
@@ -160,17 +113,15 @@ export default function GeneralTab() {
                     ...(password && { password }),
                 },
             };
-            const r = await api(
+            await apiClient.request(
                 editingCalendar
                     ? `/api/calendars/${editingCalendar.id}`
                     : "/api/calendars",
                 {
                     method: editingCalendar ? "PUT" : "POST",
-                    body: JSON.stringify(body),
-                },
+                    body,
+                }
             );
-            const data = await r.json();
-            if (!r.ok) throw new Error(data.error || "Failed");
             closeModal();
             await load();
         } catch (e: any) {
@@ -182,21 +133,20 @@ export default function GeneralTab() {
 
     const doSync = async (id: string) => {
         setSyncingId(id);
-        await api(`/api/calendars/${id}/sync`, { method: "POST" });
+        await apiClient.post(`/api/calendars/${id}/sync`).catch(() => {});
         await load();
         setSyncingId(null);
     };
 
     const doDelete = async (id: string) => {
         if (!confirm("Delete this calendar and all its events?")) return;
-        await api(`/api/calendars/${id}`, { method: "DELETE" });
+        await apiClient.del(`/api/calendars/${id}`).catch(() => {});
         await load();
     };
 
     const openExportLink = (
         type: "all" | "calendar" | "friend",
-        id?: string,
-        label?: string,
+        id?: string
     ) => {
         const token = localStorage.getItem("token");
         if (!token) return;
@@ -206,10 +156,9 @@ export default function GeneralTab() {
             type === "all"
                 ? `${base}/api/ics/my-calendar.ics?token=${t}`
                 : type === "calendar"
-                  ? `${base}/api/ics/calendar/${id}.ics?token=${t}`
-                  : `${base}/api/ics/friend/${id}.ics?token=${t}`;
+                ? `${base}/api/ics/calendar/${id}.ics?token=${t}`
+                : `${base}/api/ics/friend/${id}.ics?token=${t}`;
         setExportLink(link);
-        setExportLabel(label ?? "Full calendar");
         setShowExport(true);
         setCopied(false);
     };
@@ -220,7 +169,7 @@ export default function GeneralTab() {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const uid = getUid();
+    // const uid = apiClient.getUid(); // removed unused
     const accepted = friends.filter((f) => f.status === "accepted");
     const total = calendars.reduce((n, c) => n + (c.events?.length || 0), 0);
 
@@ -299,7 +248,7 @@ export default function GeneralTab() {
                                             <span className={s.metaText}>
                                                 synced{" "}
                                                 {new Date(
-                                                    c.lastSync,
+                                                    c.lastSync
                                                 ).toLocaleString()}
                                             </span>
                                         )}
@@ -312,11 +261,7 @@ export default function GeneralTab() {
                                     <button
                                         className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
                                         onClick={() =>
-                                            openExportLink(
-                                                "calendar",
-                                                c.id,
-                                                c.name,
-                                            )
+                                            openExportLink("calendar", c.id)
                                         }
                                     >
                                         <Link size={12} />

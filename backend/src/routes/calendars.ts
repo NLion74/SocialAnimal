@@ -1,28 +1,19 @@
 import { FastifyPluginAsync } from "fastify";
 import { authenticateToken } from "../utils/auth";
-import { prisma } from "../utils/db";
 import { syncCalendar } from "../utils/sync";
-import { badRequest, notFound, serverError } from "../utils/response";
+import {
+    getUserCalendars,
+    findCalendarForUser,
+} from "../services/calendarService";
+import { prisma } from "../utils/db";
+import { notFound, serverError } from "../utils/response";
 
 const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.addHook("preHandler", authenticateToken);
 
     fastify.get("/", async (request) => {
         const uid = (request as any).user.id;
-        return prisma.calendar.findMany({
-            where: { userId: uid },
-            include: {
-                events: {
-                    select: {
-                        id: true,
-                        title: true,
-                        startTime: true,
-                        endTime: true,
-                        allDay: true,
-                    },
-                },
-            },
-        });
+        return getUserCalendars(uid);
     });
 
     fastify.post(
@@ -31,10 +22,12 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
         async (request, reply) => {
             try {
                 const { name, type, url, config } = request.body as any;
-                if (!name || !type)
+
+                if (!name || !type) {
                     return reply
                         .status(400)
                         .send({ error: "Name and type required" });
+                }
 
                 const calendar = await prisma.calendar.create({
                     data: {
@@ -45,17 +38,25 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
                     },
                 });
 
-                await syncCalendar(calendar.id).catch((err) =>
-                    console.error("[sync] initial sync failed:", err),
+                syncCalendar(calendar.id).catch((err) =>
+                    console.error(
+                        `[sync] initial sync failed for calendar ${calendar.id}:`,
+                        err
+                    )
                 );
 
                 return reply.status(201).send(calendar);
-            } catch (err) {
+            } catch (error: any) {
+                console.error(
+                    "[calendar:create] Error creating calendar:",
+                    error
+                );
+
                 return reply
                     .status(500)
                     .send({ error: "Failed to create calendar" });
             }
-        },
+        }
     );
 
     fastify.put("/:id", async (request, reply) => {
@@ -105,9 +106,10 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
         async (request, reply) => {
             try {
                 const { id } = request.params as any;
-                const calendar = await prisma.calendar.findFirst({
-                    where: { id, userId: (request as any).user.id },
-                });
+                const calendar = await findCalendarForUser(
+                    id,
+                    (request as any).user.id
+                );
                 if (!calendar)
                     return reply
                         .status(404)
@@ -119,7 +121,7 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
                 fastify.log.error(err);
                 return reply.status(500).send({ error: "Sync failed" });
             }
-        },
+        }
     );
 };
 
