@@ -36,8 +36,6 @@ services:
         restart: unless-stopped
         ports:
             - "3000:3000"
-        environment:
-            - BACKEND_URL=http://backend:4000
         depends_on:
             backend:
                 condition: service_started

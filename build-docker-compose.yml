@@ -19,15 +19,13 @@ services:
 
     backend:
         build:
-            context: ./backend
-            dockerfile: Dockerfile
+            context: .
+            dockerfile: backend/Dockerfile
         container_name: backend
         restart: unless-stopped
-        ports:
-            - "4000:4000"
         environment:
             - DATABASE_URL=postgresql://postgres:postgres@db:5432/socialanimal
-            - JWT_SECRET="set_your_jwt_secret_here"
+            - JWT_SECRET="something_secret"
         depends_on:
             db:
                 condition: service_healthy
@@ -36,14 +34,12 @@ services:
 
     frontend:
         build:
-            context: ./frontend
-            dockerfile: Dockerfile
+            context: .
+            dockerfile: frontend/Dockerfile
         container_name: frontend
         restart: unless-stopped
         ports:
             - "3000:3000"
-        environment:
-            - BACKEND_URL=http://backend:4000
         depends_on:
             backend:
                 condition: service_started
