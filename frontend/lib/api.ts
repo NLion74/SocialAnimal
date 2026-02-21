@@ -57,8 +57,8 @@ export class ApiClient {
 
     async request<T = any>(path: string, opts: ReqOpts = {}): Promise<T> {
         const headers: Record<string, string> = {
-            ...this.authHeaders(),
-            ...(opts.headers || {}),
+            ...(this.authHeaders() as Record<string, string>),
+            ...((opts.headers as Record<string, string>) || {}),
         };
 
         let body = opts.body;

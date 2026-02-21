@@ -137,7 +137,6 @@ export default function ProfileTab() {
 
     return (
         <div className={s.page}>
-            {/* Page Header */}
             <div className={s.pageHeader}>
                 <h1 className={s.pageTitle}>
                     Profile & Settings
@@ -156,7 +155,6 @@ export default function ProfileTab() {
                 </h1>
             </div>
 
-            {/* Profile Section */}
             <div className={s.section}>
                 <div className={s.sectionHeader}>
                     <span className={s.sectionTitle}>Profile</span>
@@ -210,7 +208,6 @@ export default function ProfileTab() {
                 </div>
             </div>
 
-            {/* Change Password */}
             <div className={s.section}>
                 <div className={s.sectionHeader}>
                     <span className={s.sectionTitle}>Change Password</span>
@@ -239,7 +236,6 @@ export default function ProfileTab() {
                 </div>
             </div>
 
-            {/* Default Permission */}
             <div className={s.section}>
                 <div className={s.sectionHeader}>
                     <span className={s.sectionTitle}>
@@ -296,7 +292,6 @@ export default function ProfileTab() {
                 <Save size={14} /> {saving ? "Saving…" : "Save Profile"}
             </button>
 
-            {/* Admin Section */}
             {user.isAdmin && (
                 <div className={s.section}>
                     <div className={s.sectionHeader}>

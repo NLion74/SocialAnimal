@@ -68,7 +68,7 @@ model Calendar {
   id           String    @id @default(cuid())
   userId       String
   name         String
-  type         CalendarType    // "ics" | "google" | "apple" etc.
+  type         CalendarType
   url          String?
   config       Json      @default("{}")
   syncInterval Int       @default(60)   // minutes, 0 = manual only

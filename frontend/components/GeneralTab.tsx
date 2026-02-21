@@ -114,7 +114,7 @@ export default function GeneralTab() {
     };
 
     const copyCalendar = (c: CalendarData) => {
-        setEditingCalendar(null); // important: new, not edit
+        setEditingCalendar(null);
 
         setName(`${c.name} (copy)`);
         setUrl(c.config?.url || "");
@@ -311,7 +311,6 @@ export default function GeneralTab() {
 
     return (
         <div className={s.page}>
-            {/* Header */}
             <div className={s.pageHeader}>
                 <h1 className={s.pageTitle}>Dashboard</h1>
                 <div className={s.btnRow}>
@@ -330,7 +329,6 @@ export default function GeneralTab() {
                 </div>
             </div>
 
-            {/* Stats */}
             <div className={s.statsGrid}>
                 {[
                     { label: "Calendars", value: calendars.length },
@@ -344,7 +342,6 @@ export default function GeneralTab() {
                 ))}
             </div>
 
-            {/* Calendar list */}
             <div className={s.section}>
                 <div className={s.sectionHeader}>
                     <span className={s.sectionTitle}>My Calendars</span>
@@ -465,7 +462,6 @@ export default function GeneralTab() {
                 )}
             </div>
 
-            {/* Modals */}
             {showModal && (
                 <div className={s.overlay} onClick={closeModal}>
                     <div

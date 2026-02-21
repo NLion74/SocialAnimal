@@ -1,7 +1,7 @@
 import ical from "node-ical";
 import type { CalendarWithUser, SyncResult, TestResult } from "../types";
 import { prisma } from "../utils/db";
-import type { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 interface ParsedEvent {
     externalId: string;
@@ -41,7 +41,6 @@ export async function fetchIcs(
 
     const normalized = normalizeUrlCandidate(config.url);
 
-    // Determine if localhost: skip HTTPS for localhost
     const isLocalhost =
         normalized.includes("localhost") || normalized.includes("127.0.0.1");
 
@@ -229,7 +228,14 @@ export async function testIcsConnection(calendar: {
         return {
             success: true,
             canConnect: true,
-            eventsPreview: events.slice(0, 5).map((e) => e.summary),
+            eventsPreview: events
+                .slice(0, 5)
+                .filter((e) => !!e)
+                .map((e) =>
+                    "summary" in e && typeof e.summary === "string"
+                        ? e.summary
+                        : "",
+                ),
         };
     } catch (err: any) {
         return {

@@ -1,9 +1,6 @@
 import { prisma } from "../utils/db";
 import type { SharePermission } from "@prisma/client";
 
-/**
- * getEvents - fetch events belonging to calendars owned by userId
- */
 export async function getEvents(opts: {
     userId: string;
     start?: string;
@@ -29,9 +26,6 @@ export async function getEvents(opts: {
     });
 }
 
-/**
- * getFriendEvents
- */
 export async function getFriendEvents(userId: string) {
     const shares = await prisma.calendarShare.findMany({
         where: { sharedWithId: userId },

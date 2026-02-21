@@ -36,10 +36,16 @@ async function testCalendarConnection(
     const config = calendar.config;
 
     if (type === "ics" && config?.url) {
+        const icsConfig = calendar.config as {
+            url: string;
+            username?: string;
+            password?: string;
+        };
+
         return testIcsConnection({
-            ...calendar,
-            config,
-        } as Calendar);
+            type: calendar.type ?? "ics",
+            config: icsConfig,
+        });
     }
 
     return {

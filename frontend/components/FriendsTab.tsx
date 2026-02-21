@@ -34,7 +34,6 @@ export default function FriendsTab() {
             ]);
             setFriends(fr);
             setCalendars(cr);
-            // Refresh shareTarget if still exists
             setShareTarget((prev) =>
                 prev ? (fr.find((f) => f.id === prev.id) ?? null) : null,
             );
@@ -73,9 +72,7 @@ export default function FriendsTab() {
         try {
             await apiClient.post(`/api/friends/${id}/accept`);
             load();
-        } catch {
-            // silent fail
-        }
+        } catch {}
     };
 
     const remove = async (id: string) => {
@@ -83,9 +80,7 @@ export default function FriendsTab() {
         try {
             await apiClient.del(`/api/friends/${id}`);
             load();
-        } catch {
-            // silent fail
-        }
+        } catch {}
     };
 
     const toggleShare = async (
@@ -94,7 +89,6 @@ export default function FriendsTab() {
         share: boolean,
         permission: Permission,
     ) => {
-        // Optimistic update
         setShareTarget((prev) => {
             if (!prev) return prev;
             const ids = share
@@ -120,7 +114,6 @@ export default function FriendsTab() {
                 permission,
             });
         } catch {
-            // revert on error could be implemented
         } finally {
             load();
         }
@@ -139,7 +132,6 @@ export default function FriendsTab() {
 
     return (
         <div className={s.page}>
-            {/* Page Header */}
             <div className={s.pageHeader}>
                 <h1 className={s.pageTitle}>Friends</h1>
                 <button
@@ -150,7 +142,6 @@ export default function FriendsTab() {
                 </button>
             </div>
 
-            {/* Accepted Friends */}
             <div className={s.section}>
                 <div className={s.sectionTitle}>
                     Friends ({accepted.length})
@@ -209,7 +200,6 @@ export default function FriendsTab() {
                 )}
             </div>
 
-            {/* Pending Requests */}
             {pending.length > 0 && (
                 <div className={s.section}>
                     <div className={s.sectionTitle}>Pending Requests</div>
@@ -257,7 +247,6 @@ export default function FriendsTab() {
                 </div>
             )}
 
-            {/* Add Friend Modal */}
             {showAdd && (
                 <div className={s.overlay} onClick={() => setShowAdd(false)}>
                     <div
@@ -315,7 +304,6 @@ export default function FriendsTab() {
                 </div>
             )}
 
-            {/* Share Modal */}
             {shareTarget &&
                 (() => {
                     const friend = getFriend(shareTarget);
