@@ -7,6 +7,22 @@ import { prisma } from "./db";
 const JWT_SECRET = process.env.JWT_SECRET ?? "changeme-secret";
 const SALT_ROUNDS = 12;
 
+export const authSchema = {
+    security: [{ bearerAuth: [] }],
+    response: {
+        401: {
+            type: "object",
+            properties: {
+                error: { type: "string" },
+            },
+        },
+    },
+};
+
+export interface AuthRequest extends FastifyRequest {
+    user: { id: string; email: string };
+}
+
 export async function hashPassword(
     password: string,
 ): Promise<{ hash: string; salt: string }> {

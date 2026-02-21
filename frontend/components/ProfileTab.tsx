@@ -1,9 +1,11 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import { Shield, Ticket, Save } from "lucide-react";
 import s from "./ProfileTab.module.css";
 import { apiClient } from "../lib/api";
 import type { Permission } from "../lib/types";
+
 const PERM_LABELS: Record<Permission, string> = {
     busy: "🔴 Busy only — hide titles and details",
     titles: "🟡 Titles only — show event names, no descriptions",
@@ -25,22 +27,53 @@ export default function ProfileTab() {
     const [err, setErr] = useState("");
 
     useEffect(() => {
-        apiClient.request("/api/users/me").then((u: any) => {
-            setUser(u);
-            setName(u.name ?? "");
-            setDefPerm(u.settings?.defaultSharePermission ?? "full");
-            setFirstDay(
-                (u.settings?.firstDayOfWeek as "sunday" | "monday") ?? "monday",
-            );
-        });
-        apiClient
-            .request("/api/users/app-settings")
-            .then((s: any) => {
-                setRegOpen(s.registrationsOpen ?? true);
-                setInviteOnly(s.inviteOnly ?? false);
-            })
-            .catch(() => {});
+        let mounted = true;
+
+        const loadProfile = async () => {
+            try {
+                const token = localStorage.getItem("token");
+                if (!token) return;
+
+                const u = await apiClient.get("/api/users/me");
+                if (!mounted) return;
+
+                setUser(u);
+                setName(u.name ?? "");
+                setDefPerm(u.settings?.defaultSharePermission ?? "full");
+                setFirstDay(
+                    (u.settings?.firstDayOfWeek as "sunday" | "monday") ??
+                        "monday",
+                );
+
+                if (u.isAdmin) {
+                    const s = await apiClient.get("/api/users/app-settings");
+                    if (!mounted) return;
+
+                    setRegOpen(s.registrationsOpen ?? true);
+                    setInviteOnly(s.inviteOnly ?? false);
+                }
+            } catch (err: any) {
+                console.error("Failed to load profile", err);
+
+                if (!mounted) return;
+
+                if (err?.status === 401 || err?.message?.includes("token")) {
+                    setErr("You are not logged in.");
+                } else if (err?.status === 403) {
+                    setErr("You don’t have permission for this action.");
+                } else {
+                    setErr("Failed to load profile.");
+                }
+            }
+        };
+
+        loadProfile();
+
+        return () => {
+            mounted = false;
+        };
     }, []);
+
     const saveProfile = async () => {
         setSaving(true);
         setMsg("");
@@ -55,10 +88,7 @@ export default function ProfileTab() {
                 body.currentPassword = curPw;
                 body.newPassword = newPw;
             }
-            await apiClient.request("/api/users/me", {
-                method: "PUT",
-                body,
-            });
+            await apiClient.put("/api/users/me", body);
             setMsg("Profile saved!");
             setCurPw("");
             setNewPw("");
@@ -74,9 +104,9 @@ export default function ProfileTab() {
         setMsg("");
         setErr("");
         try {
-            await apiClient.request("/api/users/app-settings", {
-                method: "PUT",
-                body: { registrationsOpen: regOpen, inviteOnly },
+            await apiClient.put("/api/users/app-settings", {
+                registrationsOpen: regOpen,
+                inviteOnly,
             });
             setMsg("Admin settings saved!");
         } catch (e: any) {
@@ -88,9 +118,8 @@ export default function ProfileTab() {
 
     const genInvite = async () => {
         try {
-            const r = await apiClient.request<{ code: string }>(
+            const r = await apiClient.post<{ code: string }>(
                 "/api/users/invite",
-                { method: "POST" },
             );
             setInviteCode(r.code);
         } catch (e: any) {
@@ -318,6 +347,7 @@ export default function ProfileTab() {
                                 Require invite code to register
                             </span>
                         </label>
+
                         <div className={s.formRow}>
                             <button
                                 className={`${s.btn} ${s.btnSecondary}`}
@@ -333,6 +363,7 @@ export default function ProfileTab() {
                                 <Ticket size={14} /> Generate Invite Code
                             </button>
                         </div>
+
                         {inviteCode && (
                             <div
                                 style={{

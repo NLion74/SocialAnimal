@@ -1,26 +1,17 @@
-import { FastifyPluginAsync } from "fastify";
-import crypto from "crypto";
-import {
-    hashPassword,
-    verifyPassword,
-    generateToken,
-    authenticateToken,
-} from "../utils/auth";
-import { prisma } from "../utils/db";
+import { FastifyPluginAsync, FastifyRequest } from "fastify";
+import { authenticateToken } from "../utils/auth";
 import {
     badRequest,
     notFound,
     forbidden,
     serverError,
 } from "../utils/response";
+import * as usersService from "../services/usersService";
 
-async function getOrCreateAppSettings() {
-    return prisma.appSettings.upsert({
-        where: { id: "global" },
-        update: {},
-        create: { id: "global", registrationsOpen: true, inviteOnly: false },
-    });
-}
+const authOptions: any = {
+    preHandler: authenticateToken,
+    schema: { security: [{ bearerAuth: [] }] },
+};
 
 const usersRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.post("/register", async (request, reply) => {
@@ -29,54 +20,20 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
             if (!email || !password)
                 return badRequest(reply, "Email and password required");
 
-            const isFirstUser = (await prisma.user.count()) === 0;
-
-            if (!isFirstUser) {
-                const settings = await getOrCreateAppSettings();
-                if (!settings.registrationsOpen)
-                    return reply
-                        .status(403)
-                        .send({ error: "Registrations are closed" });
-                if (settings.inviteOnly) {
-                    if (!inviteCode)
-                        return reply
-                            .status(403)
-                            .send({ error: "Invite code required" });
-                    const invite = await prisma.inviteCode.findUnique({
-                        where: { code: inviteCode },
-                    });
-                    if (!invite || invite.usedBy)
-                        return reply
-                            .status(403)
-                            .send({ error: "Invalid or used invite code" });
-                    await prisma.inviteCode.update({
-                        where: { code: inviteCode },
-                        data: { usedBy: "pending", usedAt: new Date() },
-                    });
-                }
-            }
-
-            const existing = await prisma.user.findUnique({ where: { email } });
-            if (existing) return badRequest(reply, "User already exists");
-
-            const { hash, salt } = await hashPassword(password);
-            const user = await prisma.user.create({
-                data: {
-                    email,
-                    passwordHash: hash,
-                    salt,
-                    name,
-                    isAdmin: isFirstUser,
-                },
-                select: {
-                    id: true,
-                    email: true,
-                    name: true,
-                    isAdmin: true,
-                    createdAt: true,
-                },
+            const res = await usersService.registerUser({
+                email,
+                password,
+                name,
+                inviteCode,
             });
-            return reply.status(201).send(user);
+            if (res === "exists")
+                return badRequest(reply, "User already exists");
+            if (res === "invite-invalid")
+                return reply
+                    .status(403)
+                    .send({ error: "Invalid or used invite code" });
+
+            return reply.status(201).send(res);
         } catch (err) {
             fastify.log.error(err);
             return serverError(reply);
@@ -88,24 +45,50 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
             const { email, password } = request.body as any;
             if (!email || !password)
                 return badRequest(reply, "Email and password required");
-            const user = await prisma.user.findUnique({ where: { email } });
-            if (!user)
+            const res = await usersService.loginUser(email, password);
+            if (!res)
                 return reply.status(401).send({ error: "Invalid credentials" });
-            const valid = await verifyPassword(
-                password,
-                user.passwordHash,
-                user.salt,
-            );
-            if (!valid)
-                return reply.status(401).send({ error: "Invalid credentials" });
-            return reply.send({
-                user: {
-                    id: user.id,
-                    email: user.email,
-                    name: user.name,
-                    isAdmin: user.isAdmin,
-                },
-                token: generateToken(user.id),
+            return reply.send(res);
+        } catch (err) {
+            fastify.log.error(err);
+            return serverError(reply);
+        }
+    });
+
+    fastify.get("/me", authOptions, async (request: FastifyRequest) => {
+        const uid = request.user.id;
+        return usersService.getMe(uid);
+    });
+
+    fastify.put("/me", authOptions, async (request: FastifyRequest, reply) => {
+        try {
+            const uid = request.user.id;
+            const payload = request.body as any;
+            const res = await usersService.updateMe(uid, payload);
+            if (!res) return notFound(reply);
+            return res;
+        } catch (err) {
+            fastify.log.error(err);
+            return serverError(reply);
+        }
+    });
+
+    fastify.get("/app-settings", authOptions, async (request, reply) => {
+        const uid = request.user.id;
+        const isAdmin = await usersService.isAdmin(uid);
+        if (!isAdmin) return forbidden(reply);
+        return usersService.getOrCreateAppSettings();
+    });
+
+    fastify.put("/app-settings", authOptions, async (request, reply) => {
+        try {
+            const uid = request.user.id;
+            const isAdmin = await usersService.isAdmin(uid);
+            if (!isAdmin) return forbidden(reply);
+            const { registrationsOpen, inviteOnly } = request.body as any;
+            return usersService.setAppSettings({
+                registrationsOpen,
+                inviteOnly,
             });
         } catch (err) {
             fastify.log.error(err);
@@ -113,162 +96,17 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
         }
     });
 
-    fastify.get("/me", { preHandler: authenticateToken }, async (request) => {
-        const uid = (request as any).user.id;
-        return prisma.user.findUnique({
-            where: { id: uid },
-            select: {
-                id: true,
-                email: true,
-                name: true,
-                isAdmin: true,
-                createdAt: true,
-                settings: true,
-            },
-        });
+    fastify.post("/invite", authOptions, async (request, reply) => {
+        try {
+            const uid = request.user.id;
+            const isAdmin = await usersService.isAdmin(uid);
+            if (!isAdmin) return forbidden(reply);
+            return usersService.createInvite(uid);
+        } catch (err) {
+            fastify.log.error(err);
+            return serverError(reply);
+        }
     });
-
-    fastify.put(
-        "/me",
-        { preHandler: authenticateToken },
-        async (request, reply) => {
-            try {
-                const uid = (request as any).user.id;
-                const {
-                    name,
-                    currentPassword,
-                    newPassword,
-                    defaultSharePermission,
-                    firstDayOfWeek,
-                } = request.body as any;
-                const user = await prisma.user.findUnique({
-                    where: { id: uid },
-                });
-                if (!user) return notFound(reply);
-
-                if (newPassword) {
-                    if (!currentPassword)
-                        return badRequest(reply, "Current password required");
-                    const valid = await verifyPassword(
-                        currentPassword,
-                        user.passwordHash,
-                        user.salt,
-                    );
-                    if (!valid)
-                        return reply
-                            .status(401)
-                            .send({ error: "Current password incorrect" });
-                    const { hash, salt } = await hashPassword(newPassword);
-                    await prisma.user.update({
-                        where: { id: uid },
-                        data: { passwordHash: hash, salt },
-                    });
-                }
-                if (name !== undefined)
-                    await prisma.user.update({
-                        where: { id: uid },
-                        data: { name },
-                    });
-                if (
-                    defaultSharePermission !== undefined ||
-                    firstDayOfWeek !== undefined
-                ) {
-                    await prisma.userSettings.upsert({
-                        where: { userId: uid },
-                        update: {
-                            ...(defaultSharePermission !== undefined
-                                ? { defaultSharePermission }
-                                : {}),
-                            ...(firstDayOfWeek !== undefined
-                                ? { firstDayOfWeek }
-                                : {}),
-                        },
-                        create: {
-                            userId: uid,
-                            defaultSharePermission:
-                                defaultSharePermission ?? "full",
-                            firstDayOfWeek: firstDayOfWeek ?? "monday",
-                        },
-                    });
-                }
-
-                return prisma.user.findUnique({
-                    where: { id: uid },
-                    select: {
-                        id: true,
-                        email: true,
-                        name: true,
-                        isAdmin: true,
-                        settings: true,
-                    },
-                });
-            } catch (err) {
-                fastify.log.error(err);
-                return serverError(reply);
-            }
-        },
-    );
-
-    fastify.get(
-        "/app-settings",
-        { preHandler: authenticateToken },
-        async (request, reply) => {
-            const uid = (request as any).user.id;
-            const user = await prisma.user.findUnique({
-                where: { id: uid },
-                select: { isAdmin: true },
-            });
-            if (!user?.isAdmin) return forbidden(reply);
-            return getOrCreateAppSettings();
-        },
-    );
-
-    fastify.put(
-        "/app-settings",
-        { preHandler: authenticateToken },
-        async (request, reply) => {
-            try {
-                const uid = (request as any).user.id;
-                const user = await prisma.user.findUnique({
-                    where: { id: uid },
-                    select: { isAdmin: true },
-                });
-                if (!user?.isAdmin) return forbidden(reply);
-                const { registrationsOpen, inviteOnly } = request.body as any;
-                return prisma.appSettings.upsert({
-                    where: { id: "global" },
-                    update: { registrationsOpen, inviteOnly },
-                    create: { id: "global", registrationsOpen, inviteOnly },
-                });
-            } catch (err) {
-                fastify.log.error(err);
-                return serverError(reply);
-            }
-        },
-    );
-
-    fastify.post(
-        "/invite",
-        { preHandler: authenticateToken },
-        async (request, reply) => {
-            try {
-                const uid = (request as any).user.id;
-                const user = await prisma.user.findUnique({
-                    where: { id: uid },
-                    select: { isAdmin: true },
-                });
-                if (!user?.isAdmin) return forbidden(reply);
-                const code = crypto.randomBytes(8).toString("hex");
-                const invite = await prisma.inviteCode.create({
-                    data: { code, createdBy: uid },
-                });
-                return reply.status(201).send({ code: invite.code });
-            } catch (err) {
-                fastify.log.error(err);
-                return serverError(reply);
-            }
-        },
-    );
 };
 
 export default usersRoutes;

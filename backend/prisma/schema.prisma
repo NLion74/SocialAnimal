@@ -6,6 +6,23 @@ datasource db {
   provider = "postgresql"
 }
 
+enum SharePermission {
+  busy
+  titles
+  full
+}
+
+enum FriendshipStatus {
+  pending
+  accepted
+}
+
+enum CalendarType {
+  ics
+  google
+  apple
+}
+
 model User {
   id           String        @id @default(uuid())
   email        String        @unique
@@ -34,7 +51,7 @@ model UserSettings {
   id                     String @id @default(uuid())
   userId                 String @unique
   user                   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  defaultSharePermission String @default("full")
+  defaultSharePermission SharePermission @default(full)
   firstDayOfWeek         String @default("monday")
 }
 
@@ -51,7 +68,7 @@ model Calendar {
   id           String    @id @default(cuid())
   userId       String
   name         String
-  type         String    // "ics_url" | "google" | "apple" etc.
+  type         CalendarType
   url          String?
   config       Json      @default("{}")
   syncInterval Int       @default(60)   // minutes, 0 = manual only
@@ -70,7 +87,7 @@ model CalendarShare {
   calendar     Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
   sharedWithId String
   sharedWith   User     @relation("SharedWith", fields: [sharedWithId], references: [id], onDelete: Cascade)
-  permission   String   @default("full")  // "busy" | "titles" | "full"
+  permission SharePermission @default(full)
   createdAt    DateTime @default(now())
 
   @@unique([calendarId, sharedWithId])
@@ -90,7 +107,7 @@ model Event {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  calendar Calendar @relation(fields: [calendarId], references: [id])
+  calendar Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
 
   @@unique([calendarId, externalId])
 }
@@ -101,7 +118,7 @@ model Friendship {
   user1     User     @relation("User1", fields: [user1Id], references: [id], onDelete: Cascade)
   user2Id   String
   user2     User     @relation("User2", fields: [user2Id], references: [id], onDelete: Cascade)
-  status    String   @default("pending")
+  status FriendshipStatus @default(pending)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   sharedCalendars Boolean @default(false)

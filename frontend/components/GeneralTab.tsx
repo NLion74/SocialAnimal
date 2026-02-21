@@ -22,17 +22,17 @@ export default function GeneralTab() {
     const [friends, setFriends] = useState<Friend[]>([]);
     const [loading, setLoading] = useState(true);
     const [syncingId, setSyncingId] = useState<string | null>(null);
+    const [testingId, setTestingId] = useState<string | null>(null);
+
     const [showModal, setShowModal] = useState(false);
     const [editingCalendar, setEditingCalendar] = useState<CalendarData | null>(
         null,
     );
-
     const [name, setName] = useState("");
     const [url, setUrl] = useState("");
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [sync, setSync] = useState(60);
-
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
 
@@ -41,7 +41,11 @@ export default function GeneralTab() {
     const [copied, setCopied] = useState(false);
 
     useEffect(() => {
-        load();
+        const run = async () => {
+            await loadAll();
+        };
+
+        run();
     }, []);
 
     useEffect(() => {
@@ -63,18 +67,36 @@ export default function GeneralTab() {
         setError("");
     };
 
-    const load = async () => {
+    const loadAll = async () => {
         setLoading(true);
+
         try {
-            const [cr, fr] = await Promise.all([
+            const [crRaw, frRaw] = await Promise.all([
                 apiClient
                     .request<CalendarData[]>("/api/calendars")
                     .catch(() => []),
                 apiClient.request<Friend[]>("/api/friends").catch(() => []),
             ]);
-            setCalendars(cr);
-            setFriends(fr);
-        } catch {
+
+            setCalendars((prev) =>
+                crRaw.map((c) => {
+                    const old = prev.find((p) => p.id === c.id);
+
+                    return {
+                        ...c,
+
+                        lastSyncSuccess:
+                            c.lastSyncSuccess ?? old?.lastSyncSuccess ?? true,
+
+                        lastTestSuccess:
+                            c.lastTestSuccess ?? old?.lastTestSuccess ?? true,
+
+                        lastError: c.lastError ?? old?.lastError ?? null,
+                    };
+                }),
+            );
+
+            setFriends(frRaw);
         } finally {
             setLoading(false);
         }
@@ -91,6 +113,33 @@ export default function GeneralTab() {
         setShowModal(true);
     };
 
+    const copyCalendar = (c: CalendarData) => {
+        setEditingCalendar(null);
+
+        setName(`${c.name} (copy)`);
+        setUrl(c.config?.url || "");
+        setUsername(c.config?.username || "");
+        setPassword(c.config?.password || "");
+        setSync(c.syncInterval ?? 60);
+
+        setError("");
+        setShowModal(true);
+    };
+
+    const doDelete = async (id: string) => {
+        if (!confirm("Delete this calendar? This cannot be undone.")) return;
+
+        try {
+            await apiClient.request(`/api/calendars/${id}`, {
+                method: "DELETE",
+            });
+
+            setCalendars((prev) => prev.filter((c) => c.id !== id));
+        } catch (err: any) {
+            alert(err.message || "Failed to delete calendar");
+        }
+    };
+
     const closeModal = () => {
         setShowModal(false);
         setEditingCalendar(null);
@@ -99,20 +148,37 @@ export default function GeneralTab() {
 
     const saveCalendar = async () => {
         if (!name || !url) return;
+
         setSaving(true);
         setError("");
 
+        const config = {
+            url,
+            ...(username && { username }),
+            ...(password && { password }),
+        };
+
         try {
+            const testRes = await apiClient.post(
+                "/api/calendars/test-connection",
+                {
+                    type: "ics",
+                    config,
+                },
+            );
+
+            if (!testRes?.success) {
+                setError(testRes?.error || "Connection test failed");
+                return;
+            }
+
             const body = {
                 name,
                 type: "ics",
                 syncInterval: sync,
-                config: {
-                    url,
-                    ...(username && { username }),
-                    ...(password && { password }),
-                },
+                config,
             };
+
             await apiClient.request(
                 editingCalendar
                     ? `/api/calendars/${editingCalendar.id}`
@@ -122,26 +188,89 @@ export default function GeneralTab() {
                     body,
                 },
             );
+
             closeModal();
-            await load();
+            await loadAll();
         } catch (e: any) {
-            setError(e.message || "Failed");
+            setError(e.message || "Test or save failed");
         } finally {
             setSaving(false);
         }
     };
 
-    const doSync = async (id: string) => {
-        setSyncingId(id);
-        await apiClient.post(`/api/calendars/${id}/sync`).catch(() => {});
-        await load();
-        setSyncingId(null);
+    const doSync = async (c: CalendarData) => {
+        setSyncingId(c.id);
+
+        try {
+            const res = await apiClient.post(`/api/calendars/${c.id}/sync`);
+
+            setCalendars((prev) =>
+                prev.map((cal) =>
+                    cal.id === c.id
+                        ? {
+                              ...cal,
+                              lastSyncSuccess: res?.success !== false,
+                              lastError:
+                                  res?.success === false
+                                      ? (res?.error ?? "Sync failed")
+                                      : null,
+                          }
+                        : cal,
+                ),
+            );
+        } catch (err: any) {
+            setCalendars((prev) =>
+                prev.map((cal) =>
+                    cal.id === c.id
+                        ? {
+                              ...cal,
+                              lastSyncSuccess: false,
+                              lastError: err.message ?? "Sync error",
+                          }
+                        : cal,
+                ),
+            );
+        } finally {
+            await loadAll();
+            setSyncingId(null);
+        }
     };
 
-    const doDelete = async (id: string) => {
-        if (!confirm("Delete this calendar and all its events?")) return;
-        await apiClient.del(`/api/calendars/${id}`).catch(() => {});
-        await load();
+    const doTest = async (c: CalendarData) => {
+        setTestingId(c.id);
+        try {
+            const res = await apiClient.post("/api/calendars/test-connection", {
+                type: c.type,
+                config: c.config,
+            });
+            setCalendars((prev) =>
+                prev.map((cal) =>
+                    cal.id === c.id
+                        ? {
+                              ...cal,
+                              lastTestSuccess: res.success,
+                              lastError: res.success
+                                  ? null
+                                  : (res.error ?? "Test failed"),
+                          }
+                        : cal,
+                ),
+            );
+        } catch (err: any) {
+            setCalendars((prev) =>
+                prev.map((cal) =>
+                    cal.id === c.id
+                        ? {
+                              ...cal,
+                              lastTestSuccess: false,
+                              lastError: err.message ?? "Network error",
+                          }
+                        : cal,
+                ),
+            );
+        } finally {
+            setTestingId(null);
+        }
     };
 
     const openExportLink = (
@@ -223,6 +352,7 @@ export default function GeneralTab() {
                         <Plus size={12} /> Add
                     </button>
                 </div>
+
                 {calendars.length === 0 ? (
                     <div className={s.empty}>
                         <Calendar size={38} className={s.emptyIcon} />
@@ -233,7 +363,19 @@ export default function GeneralTab() {
                         {calendars.map((c) => (
                             <div key={c.id} className={s.row}>
                                 <div className={s.rowInfo}>
-                                    <div className={s.rowName}>{c.name}</div>
+                                    <div className={s.rowName}>
+                                        {c.name}
+                                        {(c.lastTestSuccess === false ||
+                                            c.lastSyncSuccess === false) && (
+                                            <span
+                                                className={s.rowFailedDot}
+                                                title={
+                                                    c.lastError ||
+                                                    "Last sync or connection test failed"
+                                                }
+                                            />
+                                        )}
+                                    </div>
                                     <div className={s.rowMeta}>
                                         <span
                                             className={`${s.badge} ${s.badgePurple}`}
@@ -252,9 +394,6 @@ export default function GeneralTab() {
                                             </span>
                                         )}
                                     </div>
-                                    {c.url && (
-                                        <div className={s.rowUrl}>{c.url}</div>
-                                    )}
                                 </div>
                                 <div className={s.rowActions}>
                                     <button
@@ -265,21 +404,51 @@ export default function GeneralTab() {
                                     >
                                         <Link size={12} />
                                     </button>
+
                                     {c.type === "ics" && (
                                         <button
                                             className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
-                                            onClick={() => doSync(c.id)}
+                                            onClick={() => doTest(c)}
+                                            disabled={testingId === c.id}
+                                            title="Test Connection"
+                                        >
+                                            {testingId === c.id ? (
+                                                <RefreshCw
+                                                    size={12}
+                                                    className={s.spin}
+                                                />
+                                            ) : (
+                                                <Check size={12} />
+                                            )}
+                                        </button>
+                                    )}
+
+                                    {c.type === "ics" && (
+                                        <button
+                                            className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
+                                            onClick={() => doSync(c)}
                                             disabled={syncingId === c.id}
+                                            title="Sync Calendar"
                                         >
                                             <RefreshCw size={12} />
                                         </button>
                                     )}
+
+                                    <button
+                                        className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
+                                        onClick={() => copyCalendar(c)}
+                                        title="Duplicate calendar"
+                                    >
+                                        <Copy size={12} />
+                                    </button>
+
                                     <button
                                         className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
                                         onClick={() => openEdit(c)}
                                     >
                                         <Edit size={12} />
                                     </button>
+
                                     <button
                                         className={`${s.btn} ${s.btnDanger} ${s.btnSm} ${s.btnIcon}`}
                                         onClick={() => doDelete(c.id)}
@@ -423,7 +592,7 @@ export default function GeneralTab() {
                         </div>
                         {copied && (
                             <div className={s.copiedMsg}>
-                                ✓ Copied to clipboard
+                                Copied to clipboard
                             </div>
                         )}
                     </div>

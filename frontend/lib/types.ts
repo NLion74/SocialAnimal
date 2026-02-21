@@ -10,13 +10,13 @@ export interface CalendarData {
     id: string;
     name: string;
     type: string;
-    url?: string;
-    config?: Record<string, any>;
-    syncInterval: number;
+    config?: { url: string; username?: string; password?: string };
+    events?: any[];
     lastSync?: string | null;
-    createdAt: string;
-    updatedAt: string;
-    events?: CalendarEvent[];
+    lastTestSuccess?: boolean | null;
+    lastSyncSuccess?: boolean | null;
+    lastError?: string | null;
+    syncInterval?: number;
 }
 
 export interface FriendUser {

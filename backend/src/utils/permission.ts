@@ -1,6 +1,6 @@
-export type Permission = "busy" | "titles" | "full";
+import { SharePermission } from "@prisma/client";
 
-export function applyPermission(event: any, permission: Permission) {
+export function applyPermission(event: any, permission: SharePermission) {
     if (permission === "full") return event;
 
     if (permission === "titles") {
