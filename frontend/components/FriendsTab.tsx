@@ -19,23 +19,30 @@ export default function FriendsTab() {
     const [email, setEmail] = useState("");
     const [addErr, setAddErr] = useState("");
     const [adding, setAdding] = useState(false);
-
     const [shareTarget, setShareTarget] = useState<Friend | null>(null);
 
     const uid = apiClient.getUid();
 
     const load = useCallback(async () => {
         setLoading(true);
-        const [fr, cr] = await Promise.all([
-            apiClient.request<Friend[]>("/api/friends").catch(() => []),
-            apiClient.request<CalendarData[]>("/api/calendars").catch(() => []),
-        ]);
-        setFriends(fr);
-        setCalendars(cr);
-        setLoading(false);
-        setShareTarget((prev) =>
-            prev ? fr.find((f) => f.id === prev.id) ?? null : null
-        );
+        try {
+            const [fr, cr] = await Promise.all([
+                apiClient.request<Friend[]>("/api/friends").catch(() => []),
+                apiClient
+                    .request<CalendarData[]>("/api/calendars")
+                    .catch(() => []),
+            ]);
+            setFriends(fr);
+            setCalendars(cr);
+            // Refresh shareTarget if still exists
+            setShareTarget((prev) =>
+                prev ? (fr.find((f) => f.id === prev.id) ?? null) : null,
+            );
+        } catch (err) {
+            console.error("Failed to load friends/calendars", err);
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
     useEffect(() => {
@@ -55,36 +62,45 @@ export default function FriendsTab() {
             setShowAdd(false);
             setEmail("");
             load();
-        } catch (e: any) {
-            setAddErr(e.message);
+        } catch (err: any) {
+            setAddErr(err.message || "Failed to send request");
         } finally {
             setAdding(false);
         }
     };
 
     const accept = async (id: string) => {
-        await apiClient.post(`/api/friends/${id}/accept`).catch(() => {});
-        load();
+        try {
+            await apiClient.post(`/api/friends/${id}/accept`);
+            load();
+        } catch {
+            // silent fail
+        }
     };
 
     const remove = async (id: string) => {
         if (!confirm("Remove this friend?")) return;
-        await apiClient.del(`/api/friends/${id}`).catch(() => {});
-        load();
+        try {
+            await apiClient.del(`/api/friends/${id}`);
+            load();
+        } catch {
+            // silent fail
+        }
     };
 
     const toggleShare = async (
         friendId: string,
         calendarId: string,
         share: boolean,
-        permission: Permission
+        permission: Permission,
     ) => {
+        // Optimistic update
         setShareTarget((prev) => {
             if (!prev) return prev;
             const ids = share
                 ? [...new Set([...(prev.sharedCalendarIds ?? []), calendarId])]
                 : (prev.sharedCalendarIds ?? []).filter(
-                      (id) => id !== calendarId
+                      (id) => id !== calendarId,
                   );
             const perms = { ...prev.sharedCalendarPermissions };
             if (share) perms[calendarId] = permission;
@@ -96,15 +112,18 @@ export default function FriendsTab() {
             };
         });
 
-        await apiClient
-            .post("/api/friends/share-calendar", {
+        try {
+            await apiClient.post("/api/friends/share-calendar", {
                 friendId,
                 calendarId,
                 share,
                 permission,
-            })
-            .catch(() => {});
-        load();
+            });
+        } catch {
+            // revert on error could be implemented
+        } finally {
+            load();
+        }
     };
 
     if (loading)
@@ -120,6 +139,7 @@ export default function FriendsTab() {
 
     return (
         <div className={s.page}>
+            {/* Page Header */}
             <div className={s.pageHeader}>
                 <h1 className={s.pageTitle}>Friends</h1>
                 <button
@@ -130,6 +150,7 @@ export default function FriendsTab() {
                 </button>
             </div>
 
+            {/* Accepted Friends */}
             <div className={s.section}>
                 <div className={s.sectionTitle}>
                     Friends ({accepted.length})
@@ -159,10 +180,8 @@ export default function FriendsTab() {
                                                     className={`${s.badge} ${s.badgeGreen}`}
                                                 >
                                                     {
-                                                        (
-                                                            f.sharedCalendarIds ??
-                                                            []
-                                                        ).length
+                                                        f.sharedCalendarIds
+                                                            ?.length
                                                     }{" "}
                                                     shared
                                                 </span>
@@ -190,6 +209,7 @@ export default function FriendsTab() {
                 )}
             </div>
 
+            {/* Pending Requests */}
             {pending.length > 0 && (
                 <div className={s.section}>
                     <div className={s.sectionTitle}>Pending Requests</div>
@@ -237,6 +257,7 @@ export default function FriendsTab() {
                 </div>
             )}
 
+            {/* Add Friend Modal */}
             {showAdd && (
                 <div className={s.overlay} onClick={() => setShowAdd(false)}>
                     <div
@@ -294,6 +315,7 @@ export default function FriendsTab() {
                 </div>
             )}
 
+            {/* Share Modal */}
             {shareTarget &&
                 (() => {
                     const friend = getFriend(shareTarget);
@@ -328,9 +350,10 @@ export default function FriendsTab() {
                                         </div>
                                     )}
                                     {calendars.map((cal) => {
-                                        const shared = (
-                                            shareTarget.sharedCalendarIds ?? []
-                                        ).includes(cal.id);
+                                        const shared =
+                                            shareTarget.sharedCalendarIds?.includes(
+                                                cal.id,
+                                            ) ?? false;
                                         const perm: Permission =
                                             shareTarget
                                                 .sharedCalendarPermissions?.[
@@ -363,7 +386,7 @@ export default function FriendsTab() {
                                                                     cal.id,
                                                                     true,
                                                                     e.target
-                                                                        .value as Permission
+                                                                        .value as Permission,
                                                                 )
                                                             }
                                                             onClick={(e) =>
@@ -372,7 +395,7 @@ export default function FriendsTab() {
                                                         >
                                                             {(
                                                                 Object.keys(
-                                                                    PERM_LABELS
+                                                                    PERM_LABELS,
                                                                 ) as Permission[]
                                                             ).map((p) => (
                                                                 <option
@@ -399,7 +422,7 @@ export default function FriendsTab() {
                                                                 friend.id,
                                                                 cal.id,
                                                                 !shared,
-                                                                perm
+                                                                perm,
                                                             )
                                                         }
                                                     >

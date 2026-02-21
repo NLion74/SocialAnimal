@@ -1,6 +1,6 @@
-import { FastifyPluginAsync } from "fastify";
+import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { authenticateToken } from "../utils/auth";
-import { prisma } from "../utils/db";
+import * as friendService from "../services/friendService";
 import {
     badRequest,
     notFound,
@@ -8,182 +8,125 @@ import {
     serverError,
 } from "../utils/response";
 
+const authOptions: any = {
+    preHandler: authenticateToken,
+    schema: { security: [{ bearerAuth: [] }] },
+};
+
 const friendsRoutes: FastifyPluginAsync = async (fastify) => {
-    fastify.addHook("preHandler", authenticateToken);
-
-    fastify.get("/", async (request) => {
-        const uid = (request as any).user.id;
-        const friendships = await prisma.friendship.findMany({
-            where: { OR: [{ user1Id: uid }, { user2Id: uid }] },
-            include: {
-                user1: { select: { id: true, email: true, name: true } },
-                user2: { select: { id: true, email: true, name: true } },
-            },
-            orderBy: { createdAt: "desc" },
-        });
-
-        return Promise.all(
-            friendships.map(async (f: any) => {
-                const friendId = f.user1Id === uid ? f.user2Id : f.user1Id;
-                const [myShares, theirShares] = await Promise.all([
-                    prisma.calendarShare.findMany({
-                        where: {
-                            sharedWithId: friendId,
-                            calendar: { userId: uid },
-                        },
-                        select: { calendarId: true, permission: true },
-                    }),
-                    prisma.calendarShare.findMany({
-                        where: {
-                            sharedWithId: uid,
-                            calendar: { userId: friendId },
-                        },
-                        select: {
-                            calendarId: true,
-                            permission: true,
-                            calendar: { select: { name: true } },
-                        },
-                    }),
-                ]);
-                return {
-                    ...f,
-                    sharedCalendarIds: myShares.map((s: any) => s.calendarId),
-                    sharedCalendarPermissions: Object.fromEntries(
-                        myShares.map((s: any) => [s.calendarId, s.permission]),
-                    ),
-                    sharedWithMe: theirShares.map((s: any) => ({
-                        id: s.calendarId,
-                        name: s.calendar.name,
-                        permission: s.permission,
-                    })),
-                };
-            }),
-        );
-    });
-
-    fastify.post("/request", async (request, reply) => {
-        try {
-            const { email } = request.body as any;
-            const uid = (request as any).user.id;
-            if (!email) return badRequest(reply, "Email required");
-            const target = await prisma.user.findUnique({
-                where: { email },
-                select: { id: true },
-            });
-            if (!target) return notFound(reply, "User not found");
-            if (target.id === uid)
-                return badRequest(reply, "Cannot friend yourself");
-            const existing = await prisma.friendship.findFirst({
-                where: {
-                    OR: [
-                        { user1Id: uid, user2Id: target.id },
-                        { user1Id: target.id, user2Id: uid },
-                    ],
-                },
-            });
-            if (existing) return badRequest(reply, "Friendship already exists");
-            const friendship = await prisma.friendship.create({
-                data: { user1Id: uid, user2Id: target.id, status: "pending" },
-                include: {
-                    user2: { select: { id: true, email: true, name: true } },
-                },
-            });
-            return reply.status(201).send(friendship);
-        } catch (err) {
-            fastify.log.error(err);
-            return serverError(reply, "Failed to send friend request");
-        }
-    });
-
-    fastify.post("/:id/accept", async (request, reply) => {
-        try {
-            const { id } = request.params as any;
-            const uid = (request as any).user.id;
-            const f = await prisma.friendship.findFirst({
-                where: { id, user2Id: uid, status: "pending" },
-            });
-            if (!f) return notFound(reply, "Friend request not found");
-            return prisma.friendship.update({
-                where: { id },
-                data: { status: "accepted" },
-            });
-        } catch (err) {
-            fastify.log.error(err);
-            return serverError(reply, "Failed to accept");
-        }
-    });
-
-    fastify.delete("/:id", async (request, reply) => {
-        try {
-            const { id } = request.params as any;
-            const uid = (request as any).user.id;
-            const f = await prisma.friendship.findFirst({
-                where: { id, OR: [{ user1Id: uid }, { user2Id: uid }] },
-            });
-            if (!f) return notFound(reply, "Friendship not found");
-            const friendId = f.user1Id === uid ? f.user2Id : f.user1Id;
-            await prisma.calendarShare.deleteMany({
-                where: {
-                    OR: [
-                        { calendar: { userId: uid }, sharedWithId: friendId },
-                        { calendar: { userId: friendId }, sharedWithId: uid },
-                    ],
-                },
-            });
-            await prisma.friendship.delete({ where: { id } });
-            return reply.status(204).send();
-        } catch (err) {
-            fastify.log.error(err);
-            return serverError(reply, "Failed to remove friend");
-        }
-    });
-
-    fastify.post("/share-calendar", async (request, reply) => {
-        try {
-            const {
-                friendId,
-                calendarId,
-                share,
-                permission = "full",
-            } = request.body as any;
-            const uid = (request as any).user.id;
-            const friendship = await prisma.friendship.findFirst({
-                where: {
-                    status: "accepted",
-                    OR: [
-                        { user1Id: uid, user2Id: friendId },
-                        { user1Id: friendId, user2Id: uid },
-                    ],
-                },
-            });
-            if (!friendship) return forbidden(reply, "Not friends");
-            const calendar = await prisma.calendar.findFirst({
-                where: { id: calendarId, userId: uid },
-            });
-            if (!calendar) return notFound(reply, "Calendar not found");
-
-            if (share) {
-                await prisma.calendarShare.upsert({
-                    where: {
-                        calendarId_sharedWithId: {
-                            calendarId,
-                            sharedWithId: friendId,
-                        },
-                    },
-                    update: { permission },
-                    create: { calendarId, sharedWithId: friendId, permission },
-                });
-            } else {
-                await prisma.calendarShare.deleteMany({
-                    where: { calendarId, sharedWithId: friendId },
-                });
+    fastify.get(
+        "/",
+        authOptions,
+        async (request: FastifyRequest, reply: FastifyReply) => {
+            try {
+                const uid = request.user.id;
+                const result =
+                    await friendService.listFriendshipsWithShares(uid);
+                return result;
+            } catch (err) {
+                fastify.log.error(err);
+                return serverError(reply, "Failed to fetch friends");
             }
-            return reply.status(200).send({ ok: true });
-        } catch (err) {
-            fastify.log.error(err);
-            return serverError(reply, "Failed to update share");
-        }
-    });
+        },
+    );
+
+    fastify.post(
+        "/request",
+        authOptions,
+        async (request: FastifyRequest, reply: FastifyReply) => {
+            try {
+                const uid = request.user.id;
+                const { email } = request.body as any;
+                if (!email) return badRequest(reply, "Email required");
+
+                const res = await friendService.requestFriend(uid, email);
+
+                if (res === "not-found")
+                    return notFound(reply, "User not found");
+                if (res === "self")
+                    return badRequest(reply, "Cannot friend yourself");
+                if (res === "exists")
+                    return badRequest(reply, "Friendship already exists");
+
+                return reply.status(201).send(res);
+            } catch (err) {
+                fastify.log.error(err);
+                return serverError(reply, "Failed to send friend request");
+            }
+        },
+    );
+
+    fastify.post(
+        "/:id/accept",
+        authOptions,
+        async (request: FastifyRequest, reply: FastifyReply) => {
+            try {
+                const uid = request.user.id;
+                const { id } = request.params as any;
+                const updated = await friendService.acceptFriendRequest(
+                    uid,
+                    id,
+                );
+                if (!updated)
+                    return notFound(reply, "Friend request not found");
+                return updated;
+            } catch (err) {
+                fastify.log.error(err);
+                return serverError(reply, "Failed to accept friend request");
+            }
+        },
+    );
+
+    fastify.delete(
+        "/:id",
+        authOptions,
+        async (request: FastifyRequest, reply: FastifyReply) => {
+            try {
+                const uid = request.user.id;
+                const { id } = request.params as any;
+                const ok = await friendService.removeFriendship(uid, id);
+                if (!ok) return notFound(reply, "Friendship not found");
+                return reply.status(204).send();
+            } catch (err) {
+                fastify.log.error(err);
+                return serverError(reply, "Failed to remove friend");
+            }
+        },
+    );
+
+    fastify.post(
+        "/share-calendar",
+        authOptions,
+        async (request: FastifyRequest, reply: FastifyReply) => {
+            try {
+                const uid = request.user.id;
+                const {
+                    friendId,
+                    calendarId,
+                    share,
+                    permission = "full",
+                } = request.body as any;
+
+                const res = await friendService.setCalendarShare({
+                    ownerId: uid,
+                    friendId,
+                    calendarId,
+                    share,
+                    permission,
+                });
+
+                if (res === "not-friend")
+                    return forbidden(reply, "Not friends");
+                if (res === "no-calendar")
+                    return notFound(reply, "Calendar not found");
+
+                return { ok: true };
+            } catch (err) {
+                fastify.log.error(err);
+                return serverError(reply, "Failed to update share");
+            }
+        },
+    );
 };
 
 export default friendsRoutes;

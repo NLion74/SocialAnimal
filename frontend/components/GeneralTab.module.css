@@ -500,6 +500,16 @@
     animation: spin 550ms linear infinite;
 }
 
+.rowFailedDot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #e74c3c;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
 @keyframes fadein {
     from {
         opacity: 0;
@@ -521,7 +531,10 @@
 }
 
 @keyframes spin {
-    to {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
         transform: rotate(360deg);
     }
 }

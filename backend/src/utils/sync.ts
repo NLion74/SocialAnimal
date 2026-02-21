@@ -1,28 +1,70 @@
 import { prisma } from "./db";
-import { syncIcsCalendar } from "../syncs/ics";
+import type { SyncResult, TestResult } from "../types";
+import { syncIcsCalendar, testIcsConnection } from "../syncs/ics";
+import type { Calendar } from "@prisma/client";
 
-export async function syncCalendar(calendarId: string) {
+async function syncCalendar(calendarId: string): Promise<SyncResult> {
+    console.log(`[sync] ${calendarId}`);
+
     const calendar = await prisma.calendar.findUnique({
         where: { id: calendarId },
+        include: { user: { select: { email: true } } },
     });
-    if (!calendar) return;
 
-    return syncIcsCalendar(calendar);
+    if (!calendar) {
+        return { success: false, error: "Calendar not found" };
+    }
+
+    try {
+        if (calendar.type === "ics") {
+            return await syncIcsCalendar(calendar as any);
+        }
+        return { success: false, error: `Unsupported type: ${calendar.type}` };
+    } catch (error) {
+        console.error(`[sync:error] ${calendarId}:`, error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+        };
+    }
 }
 
-export async function runDueCalendars() {
+async function testCalendarConnection(
+    calendar: Partial<Calendar> & { type?: string; config?: any },
+    type: string = calendar.type!,
+): Promise<TestResult> {
+    const config = calendar.config;
+
+    if (type === "ics" && config?.url) {
+        return testIcsConnection({
+            ...calendar,
+            config,
+        } as Calendar);
+    }
+
+    return {
+        success: false,
+        error: `No test for type: ${type}`,
+    };
+}
+
+async function runDueCalendars() {
     const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
     const due = await prisma.calendar.findMany({
         where: {
             syncInterval: { gt: 0 },
-            OR: [
-                { lastSync: null },
-                { lastSync: { lt: new Date(now.getTime() - 60 * 60 * 1000) } },
-            ],
+            OR: [{ lastSync: null }, { lastSync: { lt: oneHourAgo } }],
         },
+        select: { id: true },
     });
 
-    for (const cal of due) {
-        await syncCalendar(cal.id).catch(console.error);
-    }
+    console.log(`[cron:run] ${due.length} calendars due`);
+
+    await Promise.allSettled(
+        due.map((cal: { id: string }) => syncCalendar(cal.id)),
+    );
 }
+
+export { syncCalendar, testCalendarConnection, runDueCalendars };

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { X, Share2 } from "lucide-react";
 import s from "./AuthModal.module.css";
+import { apiClient } from "../lib/api";
 
 interface Props {
     onClose: () => void;
@@ -23,28 +24,24 @@ export default function AuthModal({ onClose, onLogin }: Props) {
         setLoading(true);
         setError("");
         setSuccess("");
+
         try {
-            const url = isLogin ? "/api/users/login" : "/api/users/register";
-            const body = isLogin
-                ? { email, password }
-                : {
-                      email,
-                      password,
-                      name,
-                      ...(inviteCode ? { inviteCode } : {}),
-                  };
-
-            const res = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Authentication failed");
-
             if (isLogin) {
+                const data = await apiClient.post<{ token: string }>(
+                    "/api/users/login",
+                    {
+                        email,
+                        password,
+                    },
+                );
                 onLogin(data.token);
             } else {
+                await apiClient.post("/api/users/register", {
+                    email,
+                    password,
+                    name,
+                    ...(inviteCode ? { inviteCode } : {}),
+                });
                 setSuccess("Account created! Please sign in.");
                 setIsLogin(true);
                 setEmail("");
@@ -52,10 +49,8 @@ export default function AuthModal({ onClose, onLogin }: Props) {
                 setName("");
                 setInviteCode("");
             }
-        } catch (err) {
-            setError(
-                err instanceof Error ? err.message : "Something went wrong",
-            );
+        } catch (err: any) {
+            setError(err.message || "Something went wrong");
         } finally {
             setLoading(false);
         }
@@ -90,6 +85,7 @@ export default function AuthModal({ onClose, onLogin }: Props) {
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="Your name"
+                                required
                             />
                         </div>
                     )}
