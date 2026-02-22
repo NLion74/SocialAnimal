@@ -15,7 +15,10 @@
         "declarationMap": true,
         "sourceMap": true,
         "resolveJsonModule": true,
-        "typeRoots": ["./src/types", "./node_modules/@types"]
+        "typeRoots": ["./src/types", "./node_modules/@types"],
+        "paths": {
+            "@/*": ["./src/*"]
+        }
     },
     "ts-node": {
         "esm": true,
