@@ -10,6 +10,12 @@ export async function buildApp(): Promise<FastifyInstance> {
     const app = Fastify({ logger: false });
 
     await app.register(cors);
+    app.get("/health", async () => {
+        return {
+            status: "ok",
+            uptime: process.uptime(),
+        };
+    });
 
     await app.register(usersRoutes, { prefix: "/api/users" });
     await app.register(calendarsRoutes, { prefix: "/api/calendars" });
