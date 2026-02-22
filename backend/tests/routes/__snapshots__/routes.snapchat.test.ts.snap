@@ -3,6 +3,7 @@
 exports[`Routes snapshot > prints the same route tree 1`] = `
 "└── (empty root node)
     ├── /
+    │   ├── health (GET, HEAD)
     │   └── api/
     │       ├── users/
     │       │   ├── register (POST)
