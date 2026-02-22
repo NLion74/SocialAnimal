@@ -281,10 +281,8 @@ describe("Calendars Routes", () => {
                 headers: createAuthHeader(user.id),
             });
 
-            // Sync will fail because the URL doesn't exist,
             expect([200, 422, 500]).toContain(res.statusCode);
 
-            // Verify access was attempted
             expect(mockPrisma.calendar.findFirst).toHaveBeenCalledWith(
                 expect.objectContaining({
                     where: {

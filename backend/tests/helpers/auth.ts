@@ -9,3 +9,7 @@ export function generateTestToken(userId: string): string {
 export function createAuthHeader(userId: string): { authorization: string } {
     return { authorization: `Bearer ${generateTestToken(userId)}` };
 }
+
+export function createQueryToken(userId: string): string {
+    return generateTestToken(userId);
+}

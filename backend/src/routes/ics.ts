@@ -1,9 +1,36 @@
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import * as icsService from "../services/icsService";
+import { verifyToken } from "../utils/auth";
 
 const tokenGuard = async (request: FastifyRequest, reply: FastifyReply) => {
-    const token = (request.query as any).token;
-    const user = await icsService.userFromToken(token);
+    let token = (request.query as any).token;
+
+    if (!token) {
+        const authHeader = request.headers.authorization;
+        if (authHeader?.startsWith("Bearer ")) {
+            token = authHeader.substring(7);
+        }
+    }
+
+    if (!token) {
+        reply.status(401).send("Invalid or missing token");
+        return null;
+    }
+
+    let userId: string;
+    try {
+        const decoded = verifyToken(token);
+        userId = decoded.sub;
+    } catch {
+        const user = await icsService.userFromToken(token);
+        if (!user) {
+            reply.status(401).send("Invalid or missing token");
+            return null;
+        }
+        return user;
+    }
+
+    const user = await icsService.getUserBasicInfo(userId);
     if (!user) {
         reply.status(401).send("Invalid or missing token");
         return null;
