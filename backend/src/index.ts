@@ -11,4 +11,7 @@ async function start() {
     setInterval(() => runDueCalendars().catch(console.error), 60_000);
 }
 
-start().catch(() => process.exit(1));
+start().catch((err) => {
+    console.error("Startup failed:", err);
+    process.exit(1);
+});
