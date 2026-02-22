@@ -1,0 +1,37 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Routes snapshot > prints the same route tree 1`] = `
+"└── (empty root node)
+    ├── /
+    │   └── api/
+    │       ├── users/
+    │       │   ├── register (POST)
+    │       │   ├── login (POST)
+    │       │   ├── me (GET, HEAD, PUT)
+    │       │   ├── app-settings (GET, HEAD, PUT)
+    │       │   └── invite (POST)
+    │       ├── calendars (GET, HEAD, POST)
+    │       │   └── / (GET, HEAD, POST)
+    │       │       ├── test-connection (POST)
+    │       │       └── :id (PUT, DELETE)
+    │       │           └── /
+    │       │               ├── sync (POST)
+    │       │               └── test (GET, HEAD)
+    │       ├── events (GET, HEAD)
+    │       │   └── / (GET, HEAD)
+    │       │       └── friends (GET, HEAD)
+    │       ├── friends (GET, HEAD)
+    │       │   └── / (GET, HEAD)
+    │       │       ├── request (POST)
+    │       │       ├── share-calendar (POST)
+    │       │       └── :id (DELETE)
+    │       │           └── /accept (POST)
+    │       └── ics/
+    │           ├── my-calendar.ics (GET, HEAD)
+    │           ├── calendar/
+    │           │   └── :calendarId.ics (GET, HEAD)
+    │           └── friend/
+    │               └── :friendUserId.ics (GET, HEAD)
+    └── * (OPTIONS)
+"
+`;
