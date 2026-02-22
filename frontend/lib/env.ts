@@ -1,13 +1,20 @@
-function getEnv(key: string, defaultValue?: string): string {
-    const value = process.env[key] ?? defaultValue;
-    if (value === undefined) {
-        throw new Error(`Missing environment variable: ${key}`);
-    }
-    return value;
+export interface RuntimeEnv {
+    API_URL: string;
+    ICS_BASE_URL: string;
 }
 
-export const env = {
-    API_URL: process.env.NEXT_PUBLIC_API_URL ?? "",
-
-    ICS_BASE_URL: getEnv("NEXT_PUBLIC_PUBLIC_URL", "http://localhost:3001"),
+// default values
+export let env: RuntimeEnv = {
+    API_URL: "",
+    ICS_BASE_URL: "http://localhost:3000",
 };
+
+(async () => {
+    try {
+        const res = await fetch("/config");
+        env = await res.json();
+        console.log("Loaded runtime env:", env);
+    } catch (err) {
+        console.warn("Failed to load runtime env, using defaults", err);
+    }
+})();

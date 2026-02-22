@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     description: "Social calendar sharing platform for friends",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
     children,
 }: {
     children: React.ReactNode;

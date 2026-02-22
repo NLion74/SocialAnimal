@@ -12,10 +12,10 @@ import {
     Calendar,
     Edit,
 } from "lucide-react";
-import { env } from "../lib/env";
 import { apiClient } from "../lib/api";
 import type { CalendarData, Friend } from "../lib/types";
 import s from "./GeneralTab.module.css";
+import { env } from "../lib/env";
 
 export default function GeneralTab() {
     const [calendars, setCalendars] = useState<CalendarData[]>([]);
