@@ -43,6 +43,7 @@ const icsRoutes: FastifyPluginAsync = async (fastify) => {
         "/my-calendar.ics",
         async (request: FastifyRequest, reply: FastifyReply) => {
             const user = await tokenGuard(request, reply);
+            console.log("Generating ICS for user", user);
             if (!user) return;
 
             const events = await icsService.getUserEvents(user.id);
@@ -55,6 +56,7 @@ const icsRoutes: FastifyPluginAsync = async (fastify) => {
         "/calendar/:calendarId.ics",
         async (request: FastifyRequest, reply: FastifyReply) => {
             const user = await tokenGuard(request, reply);
+            console.log("Generating ICS for user", user);
             if (!user) return;
 
             const { calendarId } = request.params as any;

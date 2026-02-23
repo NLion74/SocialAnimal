@@ -53,7 +53,7 @@ services:
         environment:
             NODE_ENV: development
             PORT: 3001
-            NEXT_PUBLIC_PUBLIC_URL: "${PUBLIC_URL:-http://localhost:3001}"
+            PUBLIC_URL: "${PUBLIC_URL:-http://localhost:3001}"
         depends_on:
             backend:
                 condition: service_started
