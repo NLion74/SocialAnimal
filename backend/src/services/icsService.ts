@@ -99,6 +99,6 @@ export async function getSharedCalendarIdsForUser(
 export async function getUserBasicInfo(userId: string) {
     return prisma.user.findUnique({
         where: { id: userId },
-        select: { name: true, email: true },
+        select: { id: true, name: true, email: true },
     });
 }
