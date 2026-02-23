@@ -510,6 +510,39 @@
     vertical-align: middle;
 }
 
+.typeTabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+}
+
+.typeTab {
+    flex: 1;
+    padding: 8px 0;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-muted);
+    transition:
+        color 0.15s,
+        border-color 0.15s;
+}
+
+.typeTabActive {
+    color: var(--text);
+    border-bottom-color: var(--primary);
+    font-weight: 500;
+}
+
+.googleHint {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin: 0;
+}
+
 @keyframes fadein {
     from {
         opacity: 0;

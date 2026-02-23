@@ -1,0 +1,137 @@
+import {
+    FastifyPluginAsync,
+    FastifyRequest,
+    FastifyReply,
+    RouteShorthandOptions,
+} from "fastify";
+import { authenticateToken } from "../utils/auth";
+import {
+    importIcsCalendar,
+    importGoogleCalendar,
+    getGoogleAuthUrl,
+    testImportConnection,
+} from "../services/importService";
+import { badRequest, created, serverError } from "../utils/response";
+
+const auth: RouteShorthandOptions & { schema?: any } = {
+    preHandler: authenticateToken,
+    schema: { security: [{ bearerAuth: [] }] },
+};
+
+const IMPORT_ICS_ERRORS = {
+    "missing-name": "Name required",
+    "missing-url": "URL required",
+} as const;
+
+const IMPORT_GOOGLE_ERRORS = {
+    "not-configured": "Google OAuth not configured",
+    "token-exchange-failed": "Failed to exchange OAuth code",
+    "calendar-fetch-failed": "Failed to fetch Google calendars",
+    "no-calendars-found": "No Google calendars found",
+} as const;
+
+const importRoutes: FastifyPluginAsync = async (fastify) => {
+    fastify.post(
+        "/ics",
+        auth,
+        async (request: FastifyRequest, reply: FastifyReply) => {
+            try {
+                const { name, url, config } = request.body as any;
+                const result = await importIcsCalendar({
+                    userId: request.user.id,
+                    name,
+                    url,
+                    config,
+                });
+
+                if (typeof result === "string") {
+                    return badRequest(reply, IMPORT_ICS_ERRORS[result]);
+                }
+
+                return created(reply, result);
+            } catch (err) {
+                fastify.log.error(err);
+                return serverError(reply, "Failed to import ICS calendar");
+            }
+        },
+    );
+
+    fastify.get(
+        "/google/auth-url",
+        auth,
+        async (_request: FastifyRequest, reply: FastifyReply) => {
+            const url = await getGoogleAuthUrl();
+            if (url === "not-configured")
+                return serverError(reply, "Google OAuth not configured");
+            return { url };
+        },
+    );
+
+    fastify.get(
+        "/google/callback",
+        auth,
+        async (request: FastifyRequest, reply: FastifyReply) => {
+            const { code } = request.query as any;
+            if (!code) return badRequest(reply, "Missing OAuth code");
+
+            const result = await importGoogleCalendar({
+                userId: request.user.id,
+                code,
+            });
+            if (typeof result === "string") {
+                return serverError(reply, IMPORT_GOOGLE_ERRORS[result]);
+            }
+
+            return created(reply, result);
+        },
+    );
+
+    fastify.post(
+        "/google",
+        auth,
+        async (request: FastifyRequest, reply: FastifyReply) => {
+            try {
+                const { code } = request.body as any;
+                if (!code) return badRequest(reply, "Missing OAuth code");
+
+                const result = await importGoogleCalendar({
+                    userId: request.user.id,
+                    code,
+                });
+                if (typeof result === "string") {
+                    return serverError(reply, IMPORT_GOOGLE_ERRORS[result]);
+                }
+
+                return created(reply, result);
+            } catch (err) {
+                fastify.log.error(err);
+                return serverError(reply, "Failed to import Google calendar");
+            }
+        },
+    );
+
+    fastify.post(
+        "/test-connection",
+        auth,
+        async (request: FastifyRequest, reply: FastifyReply) => {
+            try {
+                const { type, config } = request.body as any;
+                if (!type || !config)
+                    return badRequest(reply, "Type and config required");
+
+                const result = await testImportConnection(type, config);
+
+                if (result.success) return reply.status(200).send(result);
+
+                return reply
+                    .status(422)
+                    .send({ error: result.error, canConnect: false });
+            } catch (err) {
+                fastify.log.error(err);
+                return serverError(reply, "Test failed");
+            }
+        },
+    );
+};
+
+export default importRoutes;

@@ -11,28 +11,35 @@ exports[`Routes snapshot > prints the same route tree 1`] = `
     │       │   ├── me (GET, HEAD, PUT)
     │       │   ├── app-settings (GET, HEAD, PUT)
     │       │   └── invite (POST)
-    │       ├── calendars (GET, HEAD, POST)
-    │       │   └── / (GET, HEAD, POST)
-    │       │       ├── test-connection (POST)
+    │       ├── calendars (GET, HEAD)
+    │       │   └── / (GET, HEAD)
     │       │       └── :id (PUT, DELETE)
     │       │           └── /
     │       │               ├── sync (POST)
     │       │               └── test (GET, HEAD)
+    │       ├── i
+    │       │   ├── mport/
+    │       │   │   ├── ics (POST)
+    │       │   │   ├── google (POST)
+    │       │   │   │   └── /
+    │       │   │   │       ├── auth-url (GET, HEAD)
+    │       │   │   │       └── callback (GET, HEAD)
+    │       │   │   └── test-connection (POST)
+    │       │   └── cs/
+    │       │       ├── my-calendar.ics (GET, HEAD)
+    │       │       ├── calendar/
+    │       │       │   └── :calendarId.ics (GET, HEAD)
+    │       │       └── friend/
+    │       │           └── :friendUserId.ics (GET, HEAD)
     │       ├── events (GET, HEAD)
     │       │   └── / (GET, HEAD)
     │       │       └── friends (GET, HEAD)
-    │       ├── friends (GET, HEAD)
-    │       │   └── / (GET, HEAD)
-    │       │       ├── request (POST)
-    │       │       ├── share-calendar (POST)
-    │       │       └── :id (DELETE)
-    │       │           └── /accept (POST)
-    │       └── ics/
-    │           ├── my-calendar.ics (GET, HEAD)
-    │           ├── calendar/
-    │           │   └── :calendarId.ics (GET, HEAD)
-    │           └── friend/
-    │               └── :friendUserId.ics (GET, HEAD)
+    │       └── friends (GET, HEAD)
+    │           └── / (GET, HEAD)
+    │               ├── request (POST)
+    │               ├── share-calendar (POST)
+    │               └── :id (DELETE)
+    │                   └── /accept (POST)
     └── * (OPTIONS)
 "
 `;

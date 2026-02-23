@@ -7,72 +7,35 @@ import {
 import { authenticateToken } from "../utils/auth";
 import * as calendarService from "../services/calendarService";
 import { syncCalendar, testCalendarConnection } from "../utils/sync";
-import { badRequest, notFound, serverError } from "../utils/response";
+import { notFound, serverError } from "../utils/response";
 
-const authRouteOptions: RouteShorthandOptions & { schema?: any } = {
+const auth: RouteShorthandOptions & { schema?: any } = {
     preHandler: authenticateToken,
     schema: { security: [{ bearerAuth: [] }] },
 };
 
 const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
-    fastify.get("/", authRouteOptions, async (request: FastifyRequest) => {
-        const uid = request.user.id;
-        return calendarService.getUserCalendars(uid);
+    fastify.get("/", auth, async (request: FastifyRequest) => {
+        return calendarService.getUserCalendars(request.user.id);
     });
-
-    fastify.post(
-        "/",
-        authRouteOptions,
-        async (request: FastifyRequest, reply: FastifyReply) => {
-            try {
-                const { name, type, url, config } = request.body as any;
-                const uid = request.user.id;
-
-                if (!name || !type) {
-                    return badRequest(reply, "Name and type required");
-                }
-
-                const calendar = await calendarService.createCalendar({
-                    userId: uid,
-                    name,
-                    type,
-                    url,
-                    config,
-                });
-
-                const syncResult = await syncCalendar(calendar.id);
-
-                return {
-                    calendar,
-                    sync: syncResult,
-                };
-            } catch (err) {
-                fastify.log.error(err);
-                return serverError(reply, "Failed to create calendar");
-            }
-        },
-    );
 
     fastify.put(
         "/:id",
-        authRouteOptions,
+        auth,
         async (request: FastifyRequest, reply: FastifyReply) => {
             try {
                 const { id } = request.params as any;
                 const { name, syncInterval, config } = request.body as any;
-                const uid = request.user.id;
 
                 const updated = await calendarService.updateCalendar({
-                    userId: uid,
+                    userId: request.user.id,
                     calendarId: id,
                     name,
                     syncInterval,
                     config,
                 });
 
-                if (!updated) {
-                    return notFound(reply, "Calendar not found");
-                }
+                if (!updated) return notFound(reply, "Calendar not found");
 
                 return updated;
             } catch (err) {
@@ -84,18 +47,15 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
 
     fastify.delete(
         "/:id",
-        authRouteOptions,
+        auth,
         async (request: FastifyRequest, reply: FastifyReply) => {
             try {
                 const { id } = request.params as any;
-                const uid = request.user.id;
-
-                const ok = await calendarService.deleteCalendar(uid, id);
-
-                if (!ok) {
-                    return notFound(reply, "Calendar not found");
-                }
-
+                const ok = await calendarService.deleteCalendar(
+                    request.user.id,
+                    id,
+                );
+                if (!ok) return notFound(reply, "Calendar not found");
                 return reply.status(204).send();
             } catch (err) {
                 fastify.log.error(err);
@@ -106,26 +66,20 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
 
     fastify.post(
         "/:id/sync",
-        authRouteOptions,
+        auth,
         async (request: FastifyRequest, reply: FastifyReply) => {
             try {
                 const { id } = request.params as any;
-                const uid = request.user.id;
 
                 const calendar = await calendarService.findCalendarForUser(
                     id,
-                    uid,
+                    request.user.id,
                 );
-
-                if (!calendar) {
-                    return notFound(reply, "Calendar not found");
-                }
+                if (!calendar) return notFound(reply, "Calendar not found");
 
                 const result = await syncCalendar(id);
-
-                if (!result.success) {
+                if (!result.success)
                     return serverError(reply, result.error ?? "Sync failed");
-                }
 
                 return {
                     message: "Sync complete",
@@ -140,19 +94,16 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
 
     fastify.get(
         "/:id/test",
-        authRouteOptions,
+        auth,
         async (request: FastifyRequest, reply: FastifyReply) => {
             try {
                 const { id } = request.params as any;
-                const uid = request.user.id;
 
                 const calendar = await calendarService.findCalendarForUser(
                     id,
-                    uid,
+                    request.user.id,
                 );
-                if (!calendar) {
-                    return notFound(reply, "Calendar not found");
-                }
+                if (!calendar) return notFound(reply, "Calendar not found");
 
                 const result = await testCalendarConnection(calendar as any);
 
@@ -164,38 +115,9 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
                     });
                 }
 
-                return reply.status(422).send({
-                    error: result.error,
-                    canConnect: false,
-                });
-            } catch (err) {
-                fastify.log.error(err);
-                return serverError(reply, "Test failed");
-            }
-        },
-    );
-
-    fastify.post(
-        "/test-connection",
-        authRouteOptions,
-        async (request: FastifyRequest, reply: FastifyReply) => {
-            try {
-                const { type, config } = request.body as any;
-
-                if (!type || !config?.url) {
-                    return badRequest(reply, "Type and URL required");
-                }
-
-                const result = await testCalendarConnection({ type, config });
-
-                if (result.success) {
-                    return reply.status(200).send(result);
-                }
-
-                return reply.status(422).send({
-                    error: result.error,
-                    canConnect: false,
-                });
+                return reply
+                    .status(422)
+                    .send({ error: result.error, canConnect: false });
             } catch (err) {
                 fastify.log.error(err);
                 return serverError(reply, "Test failed");

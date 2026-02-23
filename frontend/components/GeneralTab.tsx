@@ -17,6 +17,8 @@ import type { CalendarData, Friend } from "../lib/types";
 import s from "./GeneralTab.module.css";
 import { env } from "../lib/env";
 
+type ImportType = "ics" | "google";
+
 export default function GeneralTab() {
     const [calendars, setCalendars] = useState<CalendarData[]>([]);
     const [friends, setFriends] = useState<Friend[]>([]);
@@ -28,12 +30,14 @@ export default function GeneralTab() {
     const [editingCalendar, setEditingCalendar] = useState<CalendarData | null>(
         null,
     );
+    const [importType, setImportType] = useState<ImportType>("ics");
     const [name, setName] = useState("");
     const [url, setUrl] = useState("");
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [sync, setSync] = useState(60);
     const [saving, setSaving] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
     const [error, setError] = useState("");
 
     const [showExport, setShowExport] = useState(false);
@@ -44,7 +48,6 @@ export default function GeneralTab() {
         const run = async () => {
             await loadAll();
         };
-
         run();
     }, []);
 
@@ -55,7 +58,9 @@ export default function GeneralTab() {
             setUsername(editingCalendar.config?.username || "");
             setPassword(editingCalendar.config?.password || "");
             setSync(editingCalendar.syncInterval ?? 60);
-        } else resetForm();
+        } else {
+            resetForm();
+        }
     }, [editingCalendar]);
 
     const resetForm = () => {
@@ -65,11 +70,11 @@ export default function GeneralTab() {
         setPassword("");
         setSync(60);
         setError("");
+        setImportType("ics");
     };
 
     const loadAll = async () => {
         setLoading(true);
-
         try {
             const [crRaw, frRaw] = await Promise.all([
                 apiClient
@@ -81,16 +86,12 @@ export default function GeneralTab() {
             setCalendars((prev) =>
                 crRaw.map((c) => {
                     const old = prev.find((p) => p.id === c.id);
-
                     return {
                         ...c,
-
                         lastSyncSuccess:
                             c.lastSyncSuccess ?? old?.lastSyncSuccess ?? true,
-
                         lastTestSuccess:
                             c.lastTestSuccess ?? old?.lastTestSuccess ?? true,
-
                         lastError: c.lastError ?? old?.lastError ?? null,
                     };
                 }),
@@ -115,25 +116,22 @@ export default function GeneralTab() {
 
     const copyCalendar = (c: CalendarData) => {
         setEditingCalendar(null);
-
+        setImportType("ics");
         setName(`${c.name} (copy)`);
         setUrl(c.config?.url || "");
         setUsername(c.config?.username || "");
         setPassword(c.config?.password || "");
         setSync(c.syncInterval ?? 60);
-
         setError("");
         setShowModal(true);
     };
 
     const doDelete = async (id: string) => {
         if (!confirm("Delete this calendar? This cannot be undone.")) return;
-
         try {
             await apiClient.request(`/api/calendars/${id}`, {
                 method: "DELETE",
             });
-
             setCalendars((prev) => prev.filter((c) => c.id !== id));
         } catch (err: any) {
             alert(err.message || "Failed to delete calendar");
@@ -146,7 +144,7 @@ export default function GeneralTab() {
         resetForm();
     };
 
-    const saveCalendar = async () => {
+    const saveIcsCalendar = async () => {
         if (!name || !url) return;
 
         setSaving(true);
@@ -160,7 +158,7 @@ export default function GeneralTab() {
 
         try {
             const testRes = await apiClient.post(
-                "/api/calendars/test-connection",
+                "/api/import/test-connection",
                 {
                     type: "ics",
                     config,
@@ -172,22 +170,21 @@ export default function GeneralTab() {
                 return;
             }
 
-            const body = {
-                name,
-                type: "ics",
-                syncInterval: sync,
-                config,
-            };
-
-            await apiClient.request(
-                editingCalendar
-                    ? `/api/calendars/${editingCalendar.id}`
-                    : "/api/calendars",
-                {
-                    method: editingCalendar ? "PUT" : "POST",
-                    body,
-                },
-            );
+            if (editingCalendar) {
+                await apiClient.request(
+                    `/api/calendars/${editingCalendar.id}`,
+                    {
+                        method: "PUT",
+                        body: { name, syncInterval: sync, config },
+                    },
+                );
+            } else {
+                await apiClient.post("/api/import/ics", {
+                    name,
+                    url,
+                    config,
+                });
+            }
 
             closeModal();
             await loadAll();
@@ -198,12 +195,24 @@ export default function GeneralTab() {
         }
     };
 
+    const connectGoogle = async () => {
+        setGoogleLoading(true);
+        setError("");
+        try {
+            const res = await apiClient.request<{ url: string }>(
+                "/api/import/google/auth-url",
+            );
+            window.location.href = res.url;
+        } catch (err: any) {
+            setError(err.message || "Failed to get Google auth URL");
+            setGoogleLoading(false);
+        }
+    };
+
     const doSync = async (c: CalendarData) => {
         setSyncingId(c.id);
-
         try {
             const res = await apiClient.post(`/api/calendars/${c.id}/sync`);
-
             setCalendars((prev) =>
                 prev.map((cal) =>
                     cal.id === c.id
@@ -239,10 +248,7 @@ export default function GeneralTab() {
     const doTest = async (c: CalendarData) => {
         setTestingId(c.id);
         try {
-            const res = await apiClient.post("/api/calendars/test-connection", {
-                type: c.type,
-                config: c.config,
-            });
+            const res = await apiClient.request(`/api/calendars/${c.id}/test`);
             setCalendars((prev) =>
                 prev.map((cal) =>
                     cal.id === c.id
@@ -297,6 +303,10 @@ export default function GeneralTab() {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
+
+    const activeImportType = editingCalendar
+        ? (editingCalendar.type as ImportType)
+        : importType;
 
     const accepted = friends.filter((f) => f.status === "accepted");
     const total = calendars.reduce((n, c) => n + (c.events?.length || 0), 0);
@@ -405,34 +415,30 @@ export default function GeneralTab() {
                                         <Link size={12} />
                                     </button>
 
-                                    {c.type === "ics" && (
-                                        <button
-                                            className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
-                                            onClick={() => doTest(c)}
-                                            disabled={testingId === c.id}
-                                            title="Test Connection"
-                                        >
-                                            {testingId === c.id ? (
-                                                <RefreshCw
-                                                    size={12}
-                                                    className={s.spin}
-                                                />
-                                            ) : (
-                                                <Check size={12} />
-                                            )}
-                                        </button>
-                                    )}
+                                    <button
+                                        className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
+                                        onClick={() => doTest(c)}
+                                        disabled={testingId === c.id}
+                                        title="Test Connection"
+                                    >
+                                        {testingId === c.id ? (
+                                            <RefreshCw
+                                                size={12}
+                                                className={s.spin}
+                                            />
+                                        ) : (
+                                            <Check size={12} />
+                                        )}
+                                    </button>
 
-                                    {c.type === "ics" && (
-                                        <button
-                                            className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
-                                            onClick={() => doSync(c)}
-                                            disabled={syncingId === c.id}
-                                            title="Sync Calendar"
-                                        >
-                                            <RefreshCw size={12} />
-                                        </button>
-                                    )}
+                                    <button
+                                        className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
+                                        onClick={() => doSync(c)}
+                                        disabled={syncingId === c.id}
+                                        title="Sync Calendar"
+                                    >
+                                        <RefreshCw size={12} />
+                                    </button>
 
                                     <button
                                         className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
@@ -478,79 +484,143 @@ export default function GeneralTab() {
                                 <X size={18} />
                             </button>
                         </div>
+
+                        {!editingCalendar && (
+                            <div className={s.typeTabs}>
+                                <button
+                                    className={`${s.typeTab} ${importType === "ics" ? s.typeTabActive : ""}`}
+                                    onClick={() => setImportType("ics")}
+                                >
+                                    ICS / WebCal
+                                </button>
+                                <button
+                                    className={`${s.typeTab} ${importType === "google" ? s.typeTabActive : ""}`}
+                                    onClick={() => setImportType("google")}
+                                >
+                                    Google Calendar
+                                </button>
+                            </div>
+                        )}
+
                         <div className={s.formStack}>
-                            <div>
-                                <label className={s.fieldLabel}>Name</label>
-                                <input
-                                    className={s.input}
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className={s.fieldLabel}>ICS URL</label>
-                                <input
-                                    className={s.input}
-                                    value={url}
-                                    onChange={(e) => setUrl(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className={s.fieldLabel}>
-                                    Username (optional)
-                                </label>
-                                <input
-                                    className={s.input}
-                                    value={username}
-                                    onChange={(e) =>
-                                        setUsername(e.target.value)
-                                    }
-                                />
-                            </div>
-                            <div>
-                                <label className={s.fieldLabel}>
-                                    Password (optional)
-                                </label>
-                                <input
-                                    className={s.input}
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) =>
-                                        setPassword(e.target.value)
-                                    }
-                                />
-                            </div>
-                            <div>
-                                <label className={s.fieldLabel}>
-                                    Auto-sync (minutes)
-                                </label>
-                                <input
-                                    className={s.input}
-                                    type="number"
-                                    min={0}
-                                    value={sync}
-                                    onChange={(e) =>
-                                        setSync(Number(e.target.value))
-                                    }
-                                />
-                            </div>
-                            {error && <div className={s.error}>{error}</div>}
-                            <div className={s.formRow}>
-                                <button
-                                    className={`${s.btn} ${s.btnPrimary}`}
-                                    style={{ flex: 1 }}
-                                    onClick={saveCalendar}
-                                    disabled={saving}
-                                >
-                                    {saving ? "Saving…" : "Save"}
-                                </button>
-                                <button
-                                    className={`${s.btn} ${s.btnSecondary}`}
-                                    onClick={closeModal}
-                                >
-                                    Cancel
-                                </button>
-                            </div>
+                            {activeImportType === "ics" && (
+                                <>
+                                    <div>
+                                        <label className={s.fieldLabel}>
+                                            Name
+                                        </label>
+                                        <input
+                                            className={s.input}
+                                            value={name}
+                                            onChange={(e) =>
+                                                setName(e.target.value)
+                                            }
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={s.fieldLabel}>
+                                            ICS URL
+                                        </label>
+                                        <input
+                                            className={s.input}
+                                            value={url}
+                                            onChange={(e) =>
+                                                setUrl(e.target.value)
+                                            }
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={s.fieldLabel}>
+                                            Username (optional)
+                                        </label>
+                                        <input
+                                            className={s.input}
+                                            value={username}
+                                            onChange={(e) =>
+                                                setUsername(e.target.value)
+                                            }
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={s.fieldLabel}>
+                                            Password (optional)
+                                        </label>
+                                        <input
+                                            className={s.input}
+                                            type="password"
+                                            value={password}
+                                            onChange={(e) =>
+                                                setPassword(e.target.value)
+                                            }
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={s.fieldLabel}>
+                                            Auto-sync (minutes)
+                                        </label>
+                                        <input
+                                            className={s.input}
+                                            type="number"
+                                            min={0}
+                                            value={sync}
+                                            onChange={(e) =>
+                                                setSync(Number(e.target.value))
+                                            }
+                                        />
+                                    </div>
+                                    {error && (
+                                        <div className={s.error}>{error}</div>
+                                    )}
+                                    <div className={s.formRow}>
+                                        <button
+                                            className={`${s.btn} ${s.btnPrimary}`}
+                                            style={{ flex: 1 }}
+                                            onClick={saveIcsCalendar}
+                                            disabled={saving || !name || !url}
+                                        >
+                                            {saving ? "Saving…" : "Save"}
+                                        </button>
+                                        <button
+                                            className={`${s.btn} ${s.btnSecondary}`}
+                                            onClick={closeModal}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+
+                            {activeImportType === "google" && (
+                                <>
+                                    <p className={s.googleHint}>
+                                        Connect your Google account to import
+                                        your primary calendar. You will be
+                                        redirected to Google to authorize
+                                        access.
+                                    </p>
+                                    {error && (
+                                        <div className={s.error}>{error}</div>
+                                    )}
+                                    <div className={s.formRow}>
+                                        <button
+                                            className={`${s.btn} ${s.btnPrimary}`}
+                                            style={{ flex: 1 }}
+                                            onClick={connectGoogle}
+                                            disabled={googleLoading}
+                                        >
+                                            {googleLoading
+                                                ? "Redirecting…"
+                                                : "Connect with Google"}
+                                        </button>
+                                        <button
+                                            className={`${s.btn} ${s.btnSecondary}`}
+                                            onClick={closeModal}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>

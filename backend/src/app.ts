@@ -5,20 +5,20 @@ import calendarsRoutes from "./routes/calendars";
 import eventsRoutes from "./routes/events";
 import friendsRoutes from "./routes/friends";
 import icsRoutes from "./routes/ics";
+import importRoutes from "./routes/import";
 
 export async function buildApp(): Promise<FastifyInstance> {
     const app = Fastify({ logger: false });
 
     await app.register(cors);
-    app.get("/health", async () => {
-        return {
-            status: "ok",
-            uptime: process.uptime(),
-        };
-    });
+    app.get("/health", async () => ({
+        status: "ok",
+        uptime: process.uptime(),
+    }));
 
     await app.register(usersRoutes, { prefix: "/api/users" });
     await app.register(calendarsRoutes, { prefix: "/api/calendars" });
+    await app.register(importRoutes, { prefix: "/api/import" });
     await app.register(eventsRoutes, { prefix: "/api/events" });
     await app.register(friendsRoutes, { prefix: "/api/friends" });
     await app.register(icsRoutes, { prefix: "/api/ics" });

@@ -55,7 +55,7 @@ describe("syncCalendar", () => {
         expect(result.eventsSynced).toBe(3);
     });
 
-    it("returns error for unsupported calendar type", async () => {
+    it("returns for google", async () => {
         const calendar = createMockCalendar("user-1", { type: "google" });
         mockPrisma.calendar.findUnique.mockResolvedValue({
             ...calendar,
@@ -65,8 +65,21 @@ describe("syncCalendar", () => {
         const result = await syncCalendar(calendar.id);
 
         expect(result.success).toBe(false);
+        expect(result.error).toContain("Invalid Google config");
+    });
+
+    it("returns error for unsupported calendar type", async () => {
+        const calendar = createMockCalendar("user-1", { type: "undefined" });
+        mockPrisma.calendar.findUnique.mockResolvedValue({
+            ...calendar,
+            user: { email: "test@example.com" },
+        });
+
+        const result = await syncCalendar(calendar.id);
+
+        expect(result.success).toBe(false);
         expect(result.error).toContain("Unsupported type");
-        expect(result.error).toContain("google");
+        expect(result.error).toContain("undefined");
     });
 
     it("catches and returns unexpected errors", async () => {
@@ -136,14 +149,24 @@ describe("testCalendarConnection", () => {
         expect(testIcsConnection).not.toHaveBeenCalled();
     });
 
-    it("returns error for unsupported type", async () => {
+    it("returns for google type", async () => {
         const result = await testCalendarConnection({
             type: "google",
+            config: { accesToken: "token" },
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("Invalid Google config");
+    });
+
+    it("returns error for unsupported type", async () => {
+        const result = await testCalendarConnection({
+            type: undefined,
             config: { url: "https://example.com" },
         });
 
         expect(result.success).toBe(false);
-        expect(result.error).toContain("No test for type: google");
+        expect(result.error).toContain("No test for type: undefined");
     });
 
     it("uses type parameter over calendar.type", async () => {
