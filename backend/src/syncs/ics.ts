@@ -1,6 +1,6 @@
 import ical from "node-ical";
 import { CalendarSync, ParsedEvent } from "./base";
-import type { CalendarWithUser } from "../types";
+import type { CalendarWithUser, SyncResult } from "../types";
 
 export interface IcsConfig {
     url: string;
@@ -43,6 +43,99 @@ class IcsCalendarSync extends CalendarSync {
             endTime: e.end,
             allDay: e.datetype === "date",
         }));
+    }
+
+    public async syncCalendar(calendar: CalendarWithUser): Promise<SyncResult> {
+        let events: ParsedEvent[];
+        try {
+            events = await this.fetchEvents(calendar);
+        } catch (error) {
+            await prisma.calendar.update({
+                where: { id: calendar.id },
+                data: { lastSync: new Date() },
+            });
+            return {
+                success: false,
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to fetch events",
+                eventsSynced: 0,
+            };
+        }
+
+        if (!events.length) {
+            await prisma.calendar.update({
+                where: { id: calendar.id },
+                data: { lastSync: new Date() },
+            });
+            return { success: true, eventsSynced: 0 };
+        }
+
+        const externalIds = events.map((e) => e.externalId);
+        let createdCount = 0;
+
+        try {
+            await prisma.$transaction(async (tx: any) => {
+                const result = await tx.event.createMany({
+                    data: events.map((e) => ({
+                        calendarId: calendar.id,
+                        externalId: e.externalId,
+                        title: e.summary,
+                        description: e.description,
+                        location: e.location,
+                        startTime: e.startTime,
+                        endTime: e.endTime,
+                        allDay: e.allDay,
+                    })),
+                    skipDuplicates: true,
+                });
+                createdCount = result.count;
+
+                await tx.event.deleteMany({
+                    where: {
+                        calendarId: calendar.id,
+                        externalId: { notIn: externalIds },
+                    },
+                });
+
+                await tx.calendar.update({
+                    where: { id: calendar.id },
+                    data: { lastSync: new Date() },
+                });
+            });
+
+            return {
+                success: true,
+                eventsSynced: createdCount,
+            };
+        } catch (error) {
+            console.error(`[ics:sync:error] ${calendar.id}:`, error);
+            return {
+                success: false,
+                error: "Database error during sync",
+                eventsSynced: 0,
+            };
+        }
+    }
+
+    public async testCalendar(calendar: {
+        type: string;
+        config: IcsConfig;
+    }): Promise<{
+        success: boolean;
+        eventsPreview?: string[];
+        error?: string;
+    }> {
+        if (calendar.type !== "ics") {
+            return { success: false, error: "Unsupported type" };
+        }
+
+        if (!this.validateConfig(calendar.config)) {
+            return { success: false, error: "Invalid ICS config" };
+        }
+
+        return this.testConnection(calendar.config);
     }
 
     protected async testConnection(config: IcsConfig): Promise<{

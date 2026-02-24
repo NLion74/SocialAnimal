@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { Shield, Ticket, Save } from "lucide-react";
-import s from "./ProfileTab.module.css";
-import { apiClient } from "../lib/api";
-import type { Permission } from "../lib/types";
+import s from "./page.module.css";
+import { apiClient } from "../../../lib/api";
+import type { Permission } from "../../../lib/types";
 
 const PERM_LABELS: Record<Permission, string> = {
     busy: "🔴 Busy only — hide titles and details",
@@ -12,7 +12,7 @@ const PERM_LABELS: Record<Permission, string> = {
     full: "🟢 Full details — share everything",
 };
 
-export default function ProfileTab() {
+export default function ProfilePage() {
     const [user, setUser] = useState<any>(null);
     const [name, setName] = useState("");
     const [curPw, setCurPw] = useState("");
@@ -60,7 +60,7 @@ export default function ProfileTab() {
                 if (err?.status === 401 || err?.message?.includes("token")) {
                     setErr("You are not logged in.");
                 } else if (err?.status === 403) {
-                    setErr("You don’t have permission for this action.");
+                    setErr("You don't have permission for this action.");
                 } else {
                     setErr("Failed to load profile.");
                 }
@@ -244,15 +244,7 @@ export default function ProfileTab() {
                 </div>
                 <div className={s.formStack}>
                     {(Object.keys(PERM_LABELS) as Permission[]).map((p) => (
-                        <label
-                            key={p}
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.625rem",
-                                cursor: "pointer",
-                            }}
-                        >
+                        <label key={p} className={s.radioLabel}>
                             <input
                                 type="radio"
                                 name="defPerm"
@@ -260,12 +252,7 @@ export default function ProfileTab() {
                                 checked={defPerm === p}
                                 onChange={() => setDefPerm(p)}
                             />
-                            <span
-                                style={{
-                                    fontSize: "0.875rem",
-                                    color: "var(--text-primary)",
-                                }}
-                            >
+                            <span className={s.radioText}>
                                 {PERM_LABELS[p]}
                             </span>
                         </label>
@@ -277,11 +264,7 @@ export default function ProfileTab() {
                 </div>
             </div>
 
-            {msg && (
-                <div style={{ color: "var(--success)", fontSize: "0.875rem" }}>
-                    {msg}
-                </div>
-            )}
+            {msg && <div className={s.success}>{msg}</div>}
             {err && <div className={s.error}>{err}</div>}
 
             <button
@@ -301,36 +284,17 @@ export default function ProfileTab() {
                         </span>
                     </div>
                     <div className={s.formStack}>
-                        <label
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.625rem",
-                                cursor: "pointer",
-                            }}
-                        >
+                        <label className={s.checkboxLabel}>
                             <input
                                 type="checkbox"
                                 checked={regOpen}
                                 onChange={(e) => setRegOpen(e.target.checked)}
                             />
-                            <span
-                                style={{
-                                    fontSize: "0.875rem",
-                                    color: "var(--text-primary)",
-                                }}
-                            >
+                            <span className={s.checkboxText}>
                                 Allow new registrations
                             </span>
                         </label>
-                        <label
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.625rem",
-                                cursor: "pointer",
-                            }}
-                        >
+                        <label className={s.checkboxLabel}>
                             <input
                                 type="checkbox"
                                 checked={inviteOnly}
@@ -338,12 +302,7 @@ export default function ProfileTab() {
                                     setInviteOnly(e.target.checked)
                                 }
                             />
-                            <span
-                                style={{
-                                    fontSize: "0.875rem",
-                                    color: "var(--text-primary)",
-                                }}
-                            >
+                            <span className={s.checkboxText}>
                                 Require invite code to register
                             </span>
                         </label>
@@ -365,19 +324,7 @@ export default function ProfileTab() {
                         </div>
 
                         {inviteCode && (
-                            <div
-                                style={{
-                                    fontFamily: "monospace",
-                                    fontSize: "0.9rem",
-                                    color: "var(--purple-300)",
-                                    background: "var(--bg-elevated)",
-                                    padding: "0.5rem 0.75rem",
-                                    borderRadius: "var(--radius-md)",
-                                    border: "1px solid var(--border)",
-                                }}
-                            >
-                                {inviteCode}
-                            </div>
+                            <div className={s.inviteCode}>{inviteCode}</div>
                         )}
                     </div>
                 </div>

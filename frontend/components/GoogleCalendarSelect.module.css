@@ -1,0 +1,203 @@
+.googleSelectActions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.googleSelectInfo {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.btnGroup {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btnLink {
+    background: none;
+    border: none;
+    color: var(--purple-400);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color var(--transition);
+}
+
+.btnLink:hover:not(:disabled) {
+    color: var(--purple-300);
+}
+
+.btnLink:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.googleCalendarList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+}
+
+.googleCalendarRow {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition:
+        border-color var(--transition),
+        background var(--transition);
+}
+
+.googleCalendarRow:hover:not(.imported) {
+    border-color: var(--border-focus);
+    background: var(--bg-hover);
+}
+
+.googleCalendarRow.selected {
+    border-color: var(--purple-500);
+    background: rgba(124, 58, 237, 0.1);
+}
+
+.googleCalendarRow.imported {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.checkbox {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition);
+}
+
+.selected .checkbox {
+    background: var(--purple-500);
+    border-color: var(--purple-500);
+    color: #fff;
+}
+
+.calendarInfo {
+    flex: 1;
+}
+
+.calendarName {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+}
+
+.importedBadge {
+    display: inline-block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+.formRow {
+    display: flex;
+    gap: 0.625rem;
+}
+
+.btnPrimary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    background: var(--purple-500);
+    color: #fff;
+    border: 1px solid var(--purple-600);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.btnPrimary:hover:not(:disabled) {
+    background: var(--purple-600);
+    box-shadow: 0 0 16px var(--purple-glow);
+}
+
+.btnPrimary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.btnSecondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.btnSecondary:hover:not(:disabled) {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-focus);
+}
+
+.empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 1rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 2.5rem 1rem;
+    color: var(--text-muted);
+}
+
+.error {
+    padding: 0.625rem 0.875rem;
+    background: var(--danger-dim);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: var(--radius-md);
+    color: #fca5a5;
+    font-size: 0.8125rem;
+    margin-bottom: 1rem;
+}
+
+.spin {
+    animation: spin 550ms linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}

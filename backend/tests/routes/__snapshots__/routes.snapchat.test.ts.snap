@@ -22,7 +22,10 @@ exports[`Routes snapshot > prints the same route tree 1`] = `
     │       │   │   ├── ics (POST)
     │       │   │   ├── google/
     │       │   │   │   ├── auth-url (GET, HEAD)
-    │       │   │   │   └── callback (GET, HEAD)
+    │       │   │   │   ├── callback (GET, HEAD)
+    │       │   │   │   ├── list (POST)
+    │       │   │   │   └── import (POST)
+    │       │   │   │       └── ed (GET, HEAD)
     │       │   │   └── test-connection (POST)
     │       │   └── cs/
     │       │       ├── my-calendar.ics (GET, HEAD)

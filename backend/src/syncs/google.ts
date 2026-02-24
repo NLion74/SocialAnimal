@@ -1,5 +1,5 @@
 import { CalendarSync, ParsedEvent } from "./base";
-import type { CalendarWithUser } from "../types";
+import type { CalendarWithUser, SyncResult } from "../types";
 import { env } from "../utils/env";
 import { prisma } from "../utils/db";
 
@@ -61,6 +61,122 @@ class GoogleCalendarSync extends CalendarSync {
 
             return await this.fetchGoogleEvents(accessToken, config.calendarId);
         }
+    }
+
+    public async syncCalendar(calendar: CalendarWithUser): Promise<SyncResult> {
+        let events: GoogleEvent[];
+        try {
+            const parsed = await this.fetchEvents(calendar);
+            events = parsed.map((e) => ({
+                id: e.externalId,
+                summary: e.summary,
+                description: e.description ?? undefined,
+                location: e.location ?? undefined,
+                start: {
+                    dateTime: e.allDay ? undefined : e.startTime.toISOString(),
+                    date: e.allDay
+                        ? e.startTime.toISOString().split("T")[0]
+                        : undefined,
+                },
+                end: {
+                    dateTime: e.allDay ? undefined : e.endTime.toISOString(),
+                    date: e.allDay
+                        ? e.endTime.toISOString().split("T")[0]
+                        : undefined,
+                },
+            }));
+        } catch (error) {
+            await prisma.calendar.update({
+                where: { id: calendar.id },
+                data: { lastSync: new Date() },
+            });
+            return {
+                success: false,
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to fetch events",
+                eventsSynced: 0,
+            };
+        }
+
+        if (!events.length) {
+            await prisma.calendar.update({
+                where: { id: calendar.id },
+                data: { lastSync: new Date() },
+            });
+            return { success: true, eventsSynced: 0 };
+        }
+
+        const externalIds = events.map((e) => e.id);
+        let createdCount = 0;
+
+        try {
+            await prisma.$transaction(async (tx: any) => {
+                const result = await tx.event.createMany({
+                    data: events.map((e) => {
+                        const allDay = !e.start.dateTime;
+                        return {
+                            calendarId: calendar.id,
+                            externalId: e.id,
+                            title: e.summary ?? "Untitled",
+                            description: e.description ?? null,
+                            location: e.location ?? null,
+                            startTime: new Date(
+                                e.start.dateTime ?? e.start.date!,
+                            ),
+                            endTime: new Date(e.end.dateTime ?? e.end.date!),
+                            allDay,
+                        };
+                    }),
+                    skipDuplicates: true,
+                });
+                createdCount = result.count;
+
+                await tx.event.deleteMany({
+                    where: {
+                        calendarId: calendar.id,
+                        externalId: { notIn: externalIds },
+                    },
+                });
+
+                await tx.calendar.update({
+                    where: { id: calendar.id },
+                    data: { lastSync: new Date() },
+                });
+            });
+
+            return {
+                success: true,
+                eventsSynced: createdCount,
+            };
+        } catch (error) {
+            console.error(`[google:sync:error] ${calendar.id}:`, error);
+            return {
+                success: false,
+                error: "Database error during sync",
+                eventsSynced: 0,
+            };
+        }
+    }
+
+    public async testCalendar(calendar: {
+        type: string;
+        config: GoogleConfig;
+    }): Promise<{
+        success: boolean;
+        eventsPreview?: string[];
+        error?: string;
+    }> {
+        if (calendar.type !== "google") {
+            return { success: false, error: "Unsupported type" };
+        }
+
+        if (!this.validateConfig(calendar.config)) {
+            return { success: false, error: "Invalid Google config" };
+        }
+
+        return this.testConnection(calendar.config);
     }
 
     protected async testConnection(config: GoogleConfig): Promise<{

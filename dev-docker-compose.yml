@@ -33,9 +33,9 @@ services:
         ports:
             - "${BACKEND_PORT:-4000}:4000"
         environment:
-            NODE_ENV: development
-            PORT: 4000
-            DATABASE_URL: "postgresql://postgres:postgres@db:5432/socialanimal"
+            NODE_ENV: "${NODE_ENV:-development}"
+            PORT: "${BACKEND_PORT:-4000}"
+            DATABASE_URL: "${DATABASE_URL:-postgresql://postgres:postgres@db:5432/socialanimal}"
             JWT_SECRET: "${JWT_SECRET}"
             GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
             GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET}"
@@ -56,8 +56,8 @@ services:
         ports:
             - "${FRONTEND_PORT:-3001}:3001"
         environment:
-            NODE_ENV: development
-            PORT: 3001
+            NODE_ENV: "${NODE_ENV:-development}"
+            PORT: "${FRONTEND_PORT:-3001}"
             PUBLIC_URL: "${PUBLIC_URL:-http://localhost:3001}"
         depends_on:
             backend:

@@ -1,5 +1,4 @@
-import type { SyncResult, TestResult, CalendarWithUser } from "../types";
-import { prisma } from "../utils/db";
+import type { SyncResult, CalendarWithUser } from "../types";
 
 export interface ParsedEvent {
     externalId: string;
@@ -11,139 +10,31 @@ export interface ParsedEvent {
     allDay: boolean;
 }
 
-export abstract class CalendarSync {
+/**
+ * Fully abstract base class for calendar synchronization.
+ * All methods must be implemented by subclasses.
+ */
+export abstract class CalendarSync<TConfig = any> {
+    /** Returns a unique type identifier for this calendar provider */
     abstract getType(): string;
 
-    protected abstract validateConfig(config: unknown): boolean;
+    /** Validates the calendar configuration */
+    protected abstract validateConfig(config: TConfig): boolean;
 
+    /** Fetches events from the calendar */
     protected abstract fetchEvents(
         calendar: CalendarWithUser,
     ): Promise<ParsedEvent[]>;
 
-    protected abstract testConnection(
-        config: any,
-    ): Promise<{ success: boolean; eventsPreview?: string[]; error?: string }>;
+    /** Syncs the calendar and returns a summary of the result */
+    protected abstract syncCalendar(
+        calendar: CalendarWithUser,
+    ): Promise<SyncResult>;
 
-    async syncCalendar(calendar: CalendarWithUser): Promise<SyncResult> {
-        if (!this.validateConfig(calendar.config)) {
-            await this.updateLastSync(calendar.id);
-            return {
-                success: false,
-                error: "Invalid calendar configuration",
-                eventsSynced: 0,
-            };
-        }
-
-        let events: ParsedEvent[];
-        try {
-            events = await this.fetchEvents(calendar);
-        } catch (err: any) {
-            return {
-                success: false,
-                error: err?.message ?? "Failed to fetch events",
-                eventsSynced: 0,
-            };
-        }
-
-        if (!events.length) {
-            await this.updateLastSync(calendar.id);
-            return {
-                success: true,
-                eventsSynced: 0,
-            };
-        }
-
-        return await this.saveEvents(calendar.id, events);
-    }
-
-    async testCalendar(calendar: {
-        type: string;
-        config: any;
-    }): Promise<TestResult> {
-        if (calendar.type !== this.getType()) {
-            return {
-                success: false,
-                canConnect: false,
-                error: "Unsupported type",
-            };
-        }
-
-        if (!this.validateConfig(calendar.config)) {
-            return {
-                success: false,
-                canConnect: false,
-                error: "Invalid configuration",
-            };
-        }
-
-        try {
-            const result = await this.testConnection(calendar.config);
-            return {
-                success: result.success,
-                canConnect: result.success,
-                eventsPreview: result.eventsPreview,
-                error: result.error,
-            };
-        } catch (err: any) {
-            return {
-                success: false,
-                canConnect: false,
-                error: err?.message ?? "Connection test failed",
-            };
-        }
-    }
-
-    private async saveEvents(
-        calendarId: string,
-        events: ParsedEvent[],
-    ): Promise<SyncResult> {
-        const uids = events.map((e) => e.externalId);
-        let createdCount = 0;
-
-        try {
-            await prisma.$transaction(async (tx: any) => {
-                const result = await tx.event.createMany({
-                    data: events.map((e) => ({
-                        calendarId,
-                        externalId: e.externalId,
-                        title: e.summary,
-                        description: e.description,
-                        location: e.location,
-                        startTime: e.startTime,
-                        endTime: e.endTime,
-                        allDay: e.allDay,
-                    })),
-                    skipDuplicates: true,
-                });
-                createdCount = result.count;
-
-                await tx.event.deleteMany({
-                    where: {
-                        calendarId,
-                        externalId: { notIn: uids },
-                    },
-                });
-
-                await tx.calendar.update({
-                    where: { id: calendarId },
-                    data: { lastSync: new Date() },
-                });
-            });
-
-            return { success: true, eventsSynced: createdCount };
-        } catch (err) {
-            return {
-                success: false,
-                error: "Database error during sync",
-                eventsSynced: 0,
-            };
-        }
-    }
-
-    private async updateLastSync(calendarId: string): Promise<void> {
-        await prisma.calendar.update({
-            where: { id: calendarId },
-            data: { lastSync: new Date() },
-        });
-    }
+    /** Tests the calendar connection */
+    protected abstract testConnection(config: TConfig): Promise<{
+        success: boolean;
+        eventsPreview?: string[];
+        error?: string;
+    }>;
 }
