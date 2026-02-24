@@ -1,7 +1,7 @@
 import { prisma } from "./db";
 import type { SyncResult, TestResult } from "../types";
-import { syncIcsCalendar, testIcsConnection } from "../syncs/ics";
-import { syncGoogleCalendar, testGoogleConnection } from "../syncs/google";
+import { icsSync } from "../syncs/ics";
+import { googleSync } from "../syncs/google";
 import type { Calendar } from "@prisma/client";
 
 async function syncCalendar(calendarId: string): Promise<SyncResult> {
@@ -18,9 +18,9 @@ async function syncCalendar(calendarId: string): Promise<SyncResult> {
 
     try {
         if (calendar.type === "ics")
-            return await syncIcsCalendar(calendar as any);
+            return await icsSync.syncCalendar(calendar as any);
         if (calendar.type === "google")
-            return await syncGoogleCalendar(calendar as any);
+            return await googleSync.syncCalendar(calendar as any);
         return { success: false, error: `Unsupported type: ${calendar.type}` };
     } catch (error) {
         console.error(`[sync:error] ${calendarId}:`, error);
@@ -38,7 +38,7 @@ async function testCalendarConnection(
     const config = calendar.config;
 
     if (type === "ics" && config?.url) {
-        return testIcsConnection({
+        return icsSync.testCalendar({
             type: calendar.type ?? "ics",
             config: config as {
                 url: string;
@@ -49,7 +49,7 @@ async function testCalendarConnection(
     }
 
     if (type === "google" && config?.accessToken) {
-        return testGoogleConnection({
+        return googleSync.testCalendar({
             type: calendar.type ?? "google",
             config: config as {
                 accessToken: string;

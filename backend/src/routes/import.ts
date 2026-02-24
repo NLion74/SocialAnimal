@@ -7,7 +7,7 @@ import {
 import { authenticateToken } from "../utils/auth";
 import {
     importIcsCalendar,
-    importGoogleCalendar,
+    importAllGoogleCalendars,
     getGoogleAuthUrl,
     testImportConnection,
 } from "../services/importService";
@@ -59,8 +59,8 @@ const importRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.get(
         "/google/auth-url",
         auth,
-        async (_request: FastifyRequest, reply: FastifyReply) => {
-            const url = await getGoogleAuthUrl();
+        async (request: FastifyRequest, reply: FastifyReply) => {
+            const url = await getGoogleAuthUrl(request.user.id);
             if (url === "not-configured")
                 return serverError(reply, "Google OAuth not configured");
             return { url };
@@ -69,43 +69,46 @@ const importRoutes: FastifyPluginAsync = async (fastify) => {
 
     fastify.get(
         "/google/callback",
-        auth,
-        async (request: FastifyRequest, reply: FastifyReply) => {
-            const { code } = request.query as any;
-            if (!code) return badRequest(reply, "Missing OAuth code");
-
-            const result = await importGoogleCalendar({
-                userId: request.user.id,
-                code,
-            });
-            if (typeof result === "string") {
-                return serverError(reply, IMPORT_GOOGLE_ERRORS[result]);
-            }
-
-            return created(reply, result);
-        },
-    );
-
-    fastify.post(
-        "/google",
-        auth,
         async (request: FastifyRequest, reply: FastifyReply) => {
             try {
-                const { code } = request.body as any;
-                if (!code) return badRequest(reply, "Missing OAuth code");
+                const { code, state } = request.query as {
+                    code?: string;
+                    state?: string;
+                };
 
-                const result = await importGoogleCalendar({
-                    userId: request.user.id,
-                    code,
-                });
-                if (typeof result === "string") {
-                    return serverError(reply, IMPORT_GOOGLE_ERRORS[result]);
+                fastify.log.info({ code: !!code, state }, "Google callback");
+
+                if (!code || !state) {
+                    fastify.log.error("Missing code or state");
+                    return reply.redirect(
+                        `${process.env.publicUrl || "http://localhost:3000"}?import=error&reason=invalid-callback`,
+                    );
                 }
 
-                return created(reply, result);
-            } catch (err) {
-                fastify.log.error(err);
-                return serverError(reply, "Failed to import Google calendar");
+                const result = await importAllGoogleCalendars(state, code);
+
+                if (typeof result === "string") {
+                    fastify.log.error(
+                        { error: result },
+                        "Google import failed",
+                    );
+                    return reply.redirect(
+                        `${process.env.publicUrl || "http://localhost:3000"}?import=error&reason=${result}`,
+                    );
+                }
+
+                fastify.log.info(
+                    { count: result.count },
+                    "Google import success",
+                );
+                return reply.redirect(
+                    `${process.env.publicUrl || "http://localhost:3000"}?import=success&count=${result.count}`,
+                );
+            } catch (error) {
+                fastify.log.error(error, "Google callback error");
+                return reply.redirect(
+                    `${process.env.publicUrl || "http://localhost:3000"}?import=error`,
+                );
             }
         },
     );

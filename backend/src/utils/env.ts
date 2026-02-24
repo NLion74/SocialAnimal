@@ -27,6 +27,7 @@ export const env = {
             getOptionalEnv("GOOGLE_CALENDAR_API_URL") ??
             "https://www.googleapis.com/calendar/v3",
     },
+    publicUrl: getEnv("PUBLIC_URL", "http://localhost:3000"),
 };
 
 export function isGoogleConfigured(): boolean {

@@ -11,9 +11,12 @@ interface ImportIcsInput {
     config?: { url?: string; username?: string; password?: string };
 }
 
-interface ImportGoogleInput {
+interface ImportGoogleCalendarInput {
     userId: string;
-    code: string;
+    calendarId: string;
+    summary: string;
+    accessToken: string;
+    refreshToken: string;
 }
 
 interface ImportResult {
@@ -49,7 +52,9 @@ export async function importIcsCalendar(
     return { calendar, sync };
 }
 
-export async function getGoogleAuthUrl(): Promise<string | "not-configured"> {
+export async function getGoogleAuthUrl(
+    userId: string,
+): Promise<string | "not-configured"> {
     if (!isGoogleConfigured()) return "not-configured";
 
     const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
@@ -62,6 +67,7 @@ export async function getGoogleAuthUrl(): Promise<string | "not-configured"> {
     );
     url.searchParams.set("access_type", "offline");
     url.searchParams.set("prompt", "consent");
+    url.searchParams.set("state", userId);
 
     return url.toString();
 }
@@ -93,10 +99,10 @@ export async function exchangeGoogleCode(
     return { accessToken: data.access_token, refreshToken: data.refresh_token };
 }
 
-export async function fetchPrimaryGoogleCalendar(
+export async function fetchGoogleCalendars(
     accessToken: string,
 ): Promise<
-    | { id: string; summary: string }
+    | Array<{ id: string; summary: string }>
     | "calendar-fetch-failed"
     | "no-calendars-found"
 > {
@@ -107,41 +113,66 @@ export async function fetchPrimaryGoogleCalendar(
     if (!res.ok) return "calendar-fetch-failed";
 
     const data = (await res.json()) as any;
-    const primary = data.items?.find((c: any) => c.primary) ?? data.items?.[0];
 
-    if (!primary) return "no-calendars-found";
+    if (!data.items?.length) return "no-calendars-found";
 
-    return { id: primary.id, summary: primary.summary ?? "Google Calendar" };
+    return data.items.map((cal: any) => ({
+        id: cal.id,
+        summary: cal.summary || "Unnamed Calendar",
+    }));
 }
 
 export async function importGoogleCalendar(
-    input: ImportGoogleInput,
-): Promise<ImportResult | ImportGoogleError> {
-    if (!isGoogleConfigured()) return "not-configured";
+    input: ImportGoogleCalendarInput,
+): Promise<Calendar> {
+    const { userId, calendarId, summary, accessToken, refreshToken } = input;
 
-    const { userId, code } = input;
+    const calendar = await calendarService.createCalendar({
+        userId,
+        name: summary,
+        type: "google",
+        config: {
+            accessToken,
+            refreshToken,
+            calendarId,
+        },
+    });
+
+    syncCalendar(calendar.id).catch((err) =>
+        console.error("[sync] initial Google sync failed:", err),
+    );
+
+    return calendar;
+}
+
+export async function importAllGoogleCalendars(
+    userId: string,
+    code: string,
+): Promise<{ count: number; calendars: Calendar[] } | ImportGoogleError> {
+    if (!isGoogleConfigured()) return "not-configured";
 
     const tokens = await exchangeGoogleCode(code);
     if (tokens === "token-exchange-failed") return "token-exchange-failed";
 
-    const primary = await fetchPrimaryGoogleCalendar(tokens.accessToken);
-    if (primary === "calendar-fetch-failed") return "calendar-fetch-failed";
-    if (primary === "no-calendars-found") return "no-calendars-found";
+    const calendarList = await fetchGoogleCalendars(tokens.accessToken);
+    if (calendarList === "calendar-fetch-failed")
+        return "calendar-fetch-failed";
+    if (calendarList === "no-calendars-found") return "no-calendars-found";
 
-    const calendar = await calendarService.createCalendar({
-        userId,
-        name: primary.summary,
-        type: "google",
-        config: {
+    const calendars: Calendar[] = [];
+
+    for (const cal of calendarList) {
+        const calendar = await importGoogleCalendar({
+            userId,
+            calendarId: cal.id,
+            summary: cal.summary,
             accessToken: tokens.accessToken,
             refreshToken: tokens.refreshToken,
-            calendarId: primary.id,
-        },
-    });
+        });
+        calendars.push(calendar);
+    }
 
-    const sync = await syncCalendar(calendar.id);
-
-    return { calendar, sync };
+    return { count: calendars.length, calendars };
 }
 
 export async function testImportConnection(
