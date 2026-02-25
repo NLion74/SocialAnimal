@@ -10,29 +10,20 @@ export interface ParsedEvent {
     allDay: boolean;
 }
 
-/**
- * Fully abstract base class for calendar synchronization.
- * All methods must be implemented by subclasses.
- */
 export abstract class CalendarSync<TConfig = any> {
-    /** Returns a unique type identifier for this calendar provider */
     abstract getType(): string;
 
-    /** Validates the calendar configuration */
-    protected abstract validateConfig(config: TConfig): boolean;
+    protected abstract validateConfig(_config: TConfig): boolean;
 
-    /** Fetches events from the calendar */
     protected abstract fetchEvents(
-        calendar: CalendarWithUser,
+        _calendar: CalendarWithUser,
     ): Promise<ParsedEvent[]>;
 
-    /** Syncs the calendar and returns a summary of the result */
     protected abstract syncCalendar(
-        calendar: CalendarWithUser,
+        _calendar: CalendarWithUser,
     ): Promise<SyncResult>;
 
-    /** Tests the calendar connection */
-    protected abstract testConnection(config: TConfig): Promise<{
+    protected abstract testConnection(_config: TConfig): Promise<{
         success: boolean;
         eventsPreview?: string[];
         error?: string;

@@ -6,7 +6,6 @@ import {
     ChevronRight,
     Clock,
     MapPin,
-    X,
     Tag,
     Calendar,
     Check,
