@@ -86,7 +86,7 @@ jobs:
               uses: docker/setup-buildx-action@v3
 
             - name: Start services
-              run: docker-compose -f build-docker-compose.yml --env-file .env.build up -d
+              run: docker compose -f build-docker-compose.yml --env-file .env.build up -d
 
             - name: Wait for services to be healthy
               run: |
