@@ -21,6 +21,8 @@ services:
         image: nlion/socialanimal-backend:latest
         container_name: backend
         restart: unless-stopped
+        env_file:
+            - .env
         environment:
             NODE_ENV: "${NODE_ENV:-production}"
             PORT: "${BACKEND_PORT:-4000}"
@@ -52,6 +54,8 @@ services:
         restart: unless-stopped
         ports:
             - "3000:3000"
+        env_file:
+            - .env
         environment:
             NODE_ENV: "${NODE_ENV:-production}"
             PORT: "${FRONTEND_PORT:-3001}"

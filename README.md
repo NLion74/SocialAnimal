@@ -87,13 +87,11 @@ docker compose up -d
 
 The service will be available at http://localhost:3000
 
-### Additional options
-
-_Google Calendar Setup (Optional)_
+### Google Calendar Setup (Optional)
 
 To enable Google Calendar integration:
 
-1. Go to Google Cloud Console
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
 2. Create a new project or select an existing one
 3. Enable the Google Calendar API
 4. APIs and services → OAuth Consent Screen
@@ -108,6 +106,10 @@ Without Google credentials, users can still import calendars via ICS/iCal URL.
 
 This project is in early development and contributions are very much appreciated! Feel free to open issues, suggest features, or submit pull requests.
 
+### Development Setup
+
+To start a development instance use:
+
 ```bash
 git clone https://github.com/NLion74/SocialAnimal.git
 cd SocialAnimal
@@ -115,5 +117,28 @@ cd SocialAnimal
 # Adjust .env as needed
 cp example.env .env
 
-docker compose -f dev-docker-compose.yml up --build
+docker compose -f dev-docker-compose.yml up
+```
+
+### Testing Production Build
+
+```bash
+git clone https://github.com/NLion74/SocialAnimal.git
+cd SocialAnimal
+
+# Adjust .env as needed
+cp example.env .env.build
+
+docker-compose -f build-docker-compose.yml build --no-cache
+docker-compose -f build-docker-compose.yml --env-file .env.build up
+```
+
+### Running Tests
+
+```bash
+cd backend
+npm test
+
+cd ../frontend
+npm test
 ```

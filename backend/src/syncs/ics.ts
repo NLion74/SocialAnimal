@@ -1,6 +1,7 @@
 import ical from "node-ical";
 import { CalendarSync, ParsedEvent } from "./base";
 import type { CalendarWithUser, SyncResult } from "../types";
+import { prisma } from "../utils/db";
 
 export interface IcsConfig {
     url: string;

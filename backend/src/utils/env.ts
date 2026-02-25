@@ -31,9 +31,15 @@ export const env = {
 };
 
 export function isGoogleConfigured(): boolean {
-    return !!(
-        env.google.clientId &&
-        env.google.clientSecret &&
-        env.google.redirectUri
-    );
+    if (
+        !env.google.clientId ||
+        !env.google.clientSecret ||
+        !env.google.redirectUri
+    ) {
+        console.log(
+            "Google integration not configured. Missing one of: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI",
+        );
+        return false;
+    }
+    return true;
 }

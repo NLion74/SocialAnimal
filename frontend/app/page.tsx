@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import s from "./page.module.css";
 
 export default function HomePage() {
@@ -29,7 +30,13 @@ export default function HomePage() {
         <div className={s.landing}>
             <div className={s.landingInner}>
                 <div className={s.logoWrap}>
-                    <img src="/favicon.svg" className={s.logo} />
+                    <Image
+                        src="/favicon.svg"
+                        alt="SocialAnimal Logo"
+                        width={64}
+                        height={64}
+                        className={s.logo}
+                    />
                 </div>
 
                 <h1 className={s.h1}>SocialAnimal</h1>
