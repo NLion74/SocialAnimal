@@ -12,7 +12,7 @@ Friends can view shared calendars directly inside the app, or export them as an 
 
 ---
 
-## Current State - v0.1.0
+## Current State
 
 This is an early release. Current features include:
 
@@ -42,11 +42,11 @@ This is an early release. Current features include:
 ## Roadmap
 
 - [ ] Easy integration for Proton, Apple iCloud, Outlook, and other calendar providers
-- [ ] Per-event permission overrides or event exclusions
 - [ ] Admin dashboard with user management
 - [ ] Per Event Permission system, possibly with regex excludes
-- [ ] Comprehensive Unit Tests
 - [ ] Calendar color customization
+- [ ] More export types with direct push to calendars
+- [ ] Better Invite System
 - [ ] Many small improvements...
 
 ---
