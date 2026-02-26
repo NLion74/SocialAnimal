@@ -1,16 +1,16 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import {
     ChevronLeft,
     ChevronRight,
     Clock,
     MapPin,
-    X,
     Tag,
     Calendar,
     Check,
 } from "lucide-react";
-import s from "./CalendarTab.module.css";
+import s from "./page.module.css";
 import {
     MONTHS,
     DAYS,
@@ -21,14 +21,20 @@ import {
     fmtHour,
     getMonthDayHeaders,
     getMonthCells,
-} from "../lib/date";
-import { computeLayouts } from "../lib/utils";
-import { apiClient } from "../lib/api";
-import type { CalEvent, CalSource, EventLayout, FirstDay } from "../lib/types";
+} from "../../../lib/date";
+import { computeLayouts } from "../../../lib/utils";
+import { apiClient } from "../../../lib/api";
+import type {
+    CalEvent,
+    CalSource,
+    EventLayout,
+    FirstDay,
+} from "../../../lib/types";
+import Modal from "../../../components/Modal";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-export default function CalendarTab() {
+export default function CalendarPage() {
     const [myEvents, setMyEvents] = useState<CalEvent[]>([]);
     const [friendEvents, setFriendEvents] = useState<CalEvent[]>([]);
     const [loading, setLoading] = useState(true);
@@ -394,6 +400,53 @@ export default function CalendarTab() {
                                         </div>
                                     ))}
                                 </div>
+                                {weekDays.some(
+                                    (day) =>
+                                        eventsForDate(day).filter(
+                                            (e) => e.allDay,
+                                        ).length > 0,
+                                ) && (
+                                    <div className={s.weekAllDayRow}>
+                                        <div className={s.weekAllDayLabel}>
+                                            All day
+                                        </div>
+                                        <div className={s.weekAllDayColumns}>
+                                            {weekDays.map((day) => {
+                                                const dayAllDayEvents =
+                                                    eventsForDate(day).filter(
+                                                        (e) => e.allDay,
+                                                    );
+                                                return (
+                                                    <div
+                                                        key={day.toISOString()}
+                                                        className={
+                                                            s.weekAllDayCell
+                                                        }
+                                                    >
+                                                        {dayAllDayEvents.map(
+                                                            (e) => (
+                                                                <span
+                                                                    key={e.id}
+                                                                    className={`${s.pill} ${e.isFriend ? s.pillFriend : s.pillMine}`}
+                                                                    onClick={() =>
+                                                                        setDetail(
+                                                                            e,
+                                                                        )
+                                                                    }
+                                                                    title={
+                                                                        e.title
+                                                                    }
+                                                                >
+                                                                    {e.title}
+                                                                </span>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
                                 {renderTimeGrid(weekDays)}
                             </div>
                         </div>
@@ -441,70 +494,58 @@ export default function CalendarTab() {
             </div>
 
             {detail && (
-                <div className={s.overlay} onClick={() => setDetail(null)}>
-                    <div
-                        className={s.modal}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className={s.modalHeader}>
-                            <span className={s.modalTitle}>{detail.title}</span>
-                            <button
-                                className={s.closeBtn}
-                                onClick={() => setDetail(null)}
-                            >
-                                <X size={18} />
-                            </button>
+                <Modal
+                    isOpen={true}
+                    onClose={() => setDetail(null)}
+                    title={detail.title}
+                >
+                    <div className={s.metaList}>
+                        <div className={s.metaRow}>
+                            <Clock size={14} className={s.metaIcon} />
+                            <div>
+                                <div className={s.metaLabel}>Time</div>
+                                {detail.allDay
+                                    ? "All day"
+                                    : `${fmtDateTime(detail.startTime)} – ${fmtTime(detail.endTime)}`}
+                            </div>
                         </div>
-                        <div className={s.metaList}>
+                        {detail.location && (
                             <div className={s.metaRow}>
-                                <Clock size={14} className={s.metaIcon} />
+                                <MapPin size={14} className={s.metaIcon} />
                                 <div>
-                                    <div className={s.metaLabel}>Time</div>
-                                    {detail.allDay
-                                        ? "All day"
-                                        : `${fmtDateTime(detail.startTime)} – ${fmtTime(detail.endTime)}`}
+                                    <div className={s.metaLabel}>Location</div>
+                                    {detail.location}
                                 </div>
                             </div>
-                            {detail.location && (
-                                <div className={s.metaRow}>
-                                    <MapPin size={14} className={s.metaIcon} />
-                                    <div>
-                                        <div className={s.metaLabel}>
-                                            Location
-                                        </div>
-                                        {detail.location}
-                                    </div>
-                                </div>
-                            )}
-                            {detail.description && (
-                                <div className={s.metaRow}>
-                                    <Tag size={14} className={s.metaIcon} />
-                                    <div>
-                                        <div className={s.metaLabel}>Notes</div>
-                                        {detail.description}
-                                    </div>
-                                </div>
-                            )}
+                        )}
+                        {detail.description && (
                             <div className={s.metaRow}>
-                                <Calendar size={14} className={s.metaIcon} />
+                                <Tag size={14} className={s.metaIcon} />
                                 <div>
-                                    <div className={s.metaLabel}>Calendar</div>
-                                    <span
-                                        className={
-                                            detail.isFriend
-                                                ? s.calBadgeFriend
-                                                : s.calBadgeMine
-                                        }
-                                    >
-                                        {detail.isFriend
-                                            ? `${detail.owner?.name || detail.owner?.email} · ${detail.calendar.name}`
-                                            : detail.calendar.name}
-                                    </span>
+                                    <div className={s.metaLabel}>Notes</div>
+                                    {detail.description}
                                 </div>
+                            </div>
+                        )}
+                        <div className={s.metaRow}>
+                            <Calendar size={14} className={s.metaIcon} />
+                            <div>
+                                <div className={s.metaLabel}>Calendar</div>
+                                <span
+                                    className={
+                                        detail.isFriend
+                                            ? s.calBadgeFriend
+                                            : s.calBadgeMine
+                                    }
+                                >
+                                    {detail.isFriend
+                                        ? `${detail.owner?.name || detail.owner?.email} · ${detail.calendar.name}`
+                                        : detail.calendar.name}
+                                </span>
                             </div>
                         </div>
                     </div>
-                </div>
+                </Modal>
             )}
         </div>
     );

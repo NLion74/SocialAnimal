@@ -53,6 +53,8 @@
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.08em;
+    display: flex;
+    align-items: center;
 }
 
 .formStack {
@@ -65,32 +67,60 @@
     display: flex;
     gap: 0.75rem;
 }
+
 .firstDayGroup label {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    padding: 0.45rem 0.75rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.firstDayGroup label:hover {
+    border-color: var(--border-focus);
 }
 
 .firstDayGroup input[type="radio"] {
     display: none;
 }
 
-.firstDayGroup label {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    padding: 0.45rem 0.75rem;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-}
-
 .firstDayGroup input[type="radio"] + span {
     color: var(--text-muted);
     font-weight: 500;
+    font-size: 0.875rem;
 }
 
 .firstDayGroup input[type="radio"]:checked + span {
     color: var(--text-primary);
     font-weight: 700;
+}
+
+.radioLabel {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    cursor: pointer;
+}
+
+.radioText {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+}
+
+.checkboxLabel {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    cursor: pointer;
+}
+
+.checkboxText {
+    font-size: 0.875rem;
+    color: var(--text-primary);
 }
 
 .fieldLabel {
@@ -129,7 +159,16 @@
 .hint {
     font-size: 0.75rem;
     color: var(--text-muted);
-    margin-top: 0.3rem;
+    margin: 0;
+}
+
+.success {
+    color: var(--success);
+    font-size: 0.875rem;
+    padding: 0.625rem 0.875rem;
+    background: var(--success-dim);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: var(--radius-md);
 }
 
 .error {
@@ -189,9 +228,14 @@
     border-color: var(--border-focus);
 }
 
-.btnSm {
-    padding: 0.3rem 0.65rem;
-    font-size: 0.8rem;
+.inviteCode {
+    font-family: monospace;
+    fontsize: 0.9rem;
+    color: var(--purple-300);
+    background: var(--bg-elevated);
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
 }
 
 .loading {

@@ -3,8 +3,17 @@ import { mockPrisma, resetMocks } from "../helpers/prisma";
 import { createMockCalendar } from "../helpers/factories";
 
 vi.mock("../../src/syncs/ics", () => ({
-    syncIcsCalendar: vi.fn(),
-    testIcsConnection: vi.fn(),
+    icsSync: {
+        syncCalendar: vi.fn(),
+        testCalendar: vi.fn(),
+    },
+}));
+
+vi.mock("../../src/syncs/google", () => ({
+    googleSync: {
+        syncCalendar: vi.fn(),
+        testCalendar: vi.fn(),
+    },
 }));
 
 import {
@@ -12,12 +21,15 @@ import {
     testCalendarConnection,
     runDueCalendars,
 } from "../../src/utils/sync";
-import { syncIcsCalendar, testIcsConnection } from "../../src/syncs/ics";
+import { icsSync } from "../../src/syncs/ics";
+import { googleSync } from "../../src/syncs/google";
 
 beforeEach(() => {
     resetMocks();
-    vi.mocked(syncIcsCalendar).mockReset();
-    vi.mocked(testIcsConnection).mockReset();
+    vi.mocked(icsSync.syncCalendar).mockReset();
+    vi.mocked(icsSync.testCalendar).mockReset();
+    vi.mocked(googleSync.syncCalendar).mockReset();
+    vi.mocked(googleSync.testCalendar).mockReset();
 });
 
 afterEach(() => vi.restoreAllMocks());
@@ -41,14 +53,37 @@ describe("syncCalendar", () => {
             ...calendar,
             user: { email: "test@example.com" },
         });
-        vi.mocked(syncIcsCalendar).mockResolvedValue({
+        vi.mocked(icsSync.syncCalendar).mockResolvedValue({
             success: true,
             eventsSynced: 3,
         });
 
         const result = await syncCalendar(calendar.id);
 
-        expect(syncIcsCalendar).toHaveBeenCalledWith(
+        expect(icsSync.syncCalendar).toHaveBeenCalledWith(
+            expect.objectContaining({ id: calendar.id }),
+        );
+        expect(result.success).toBe(true);
+        expect(result.eventsSynced).toBe(3);
+    });
+
+    it("delegates to google sync for google type", async () => {
+        const calendar = createMockCalendar("user-1", {
+            type: "google",
+            config: { url: "https://example.com/cal.ics" },
+        });
+        mockPrisma.calendar.findUnique.mockResolvedValue({
+            ...calendar,
+            user: { email: "test@example.com" },
+        });
+        vi.mocked(googleSync.syncCalendar).mockResolvedValue({
+            success: true,
+            eventsSynced: 3,
+        });
+
+        const result = await syncCalendar(calendar.id);
+
+        expect(googleSync.syncCalendar).toHaveBeenCalledWith(
             expect.objectContaining({ id: calendar.id }),
         );
         expect(result.success).toBe(true);
@@ -56,7 +91,7 @@ describe("syncCalendar", () => {
     });
 
     it("returns error for unsupported calendar type", async () => {
-        const calendar = createMockCalendar("user-1", { type: "google" });
+        const calendar = createMockCalendar("user-1", { type: "undefined" });
         mockPrisma.calendar.findUnique.mockResolvedValue({
             ...calendar,
             user: { email: "test@example.com" },
@@ -66,7 +101,7 @@ describe("syncCalendar", () => {
 
         expect(result.success).toBe(false);
         expect(result.error).toContain("Unsupported type");
-        expect(result.error).toContain("google");
+        expect(result.error).toContain("undefined");
     });
 
     it("catches and returns unexpected errors", async () => {
@@ -75,7 +110,7 @@ describe("syncCalendar", () => {
             ...calendar,
             user: { email: "test@example.com" },
         });
-        vi.mocked(syncIcsCalendar).mockRejectedValue(
+        vi.mocked(icsSync.syncCalendar).mockRejectedValue(
             new Error("Unexpected crash"),
         );
 
@@ -91,7 +126,7 @@ describe("syncCalendar", () => {
             ...calendar,
             user: { email: "test@example.com" },
         });
-        vi.mocked(syncIcsCalendar).mockRejectedValue("string error");
+        vi.mocked(icsSync.syncCalendar).mockRejectedValue("string error");
 
         const result = await syncCalendar(calendar.id);
 
@@ -102,9 +137,8 @@ describe("syncCalendar", () => {
 
 describe("testCalendarConnection", () => {
     it("delegates to testIcsConnection for ics type with url", async () => {
-        vi.mocked(testIcsConnection).mockResolvedValue({
+        vi.mocked(icsSync.testCalendar).mockResolvedValue({
             success: true,
-            canConnect: true,
             eventsPreview: ["Event 1"],
         });
 
@@ -113,7 +147,7 @@ describe("testCalendarConnection", () => {
             config: { url: "https://example.com/cal.ics" },
         });
 
-        expect(testIcsConnection).toHaveBeenCalledWith(
+        expect(icsSync.testCalendar).toHaveBeenCalledWith(
             expect.objectContaining({
                 type: "ics",
                 config: expect.objectContaining({
@@ -122,7 +156,6 @@ describe("testCalendarConnection", () => {
             }),
         );
         expect(result.success).toBe(true);
-        expect(result.canConnect).toBe(true);
     });
 
     it("returns error when ics type has no url", async () => {
@@ -133,23 +166,32 @@ describe("testCalendarConnection", () => {
 
         expect(result.success).toBe(false);
         expect(result.error).toContain("No test for type");
-        expect(testIcsConnection).not.toHaveBeenCalled();
+        expect(icsSync.testCalendar).not.toHaveBeenCalled();
+    });
+
+    it("returns for google type", async () => {
+        const result = await testCalendarConnection({
+            type: "google",
+            config: {},
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("No test for type");
     });
 
     it("returns error for unsupported type", async () => {
         const result = await testCalendarConnection({
-            type: "google",
+            type: undefined,
             config: { url: "https://example.com" },
         });
 
         expect(result.success).toBe(false);
-        expect(result.error).toContain("No test for type: google");
+        expect(result.error).toContain("No test for type: undefined");
     });
 
     it("uses type parameter over calendar.type", async () => {
-        vi.mocked(testIcsConnection).mockResolvedValue({
+        vi.mocked(icsSync.testCalendar).mockResolvedValue({
             success: true,
-            canConnect: true,
         });
 
         await testCalendarConnection(
@@ -157,7 +199,7 @@ describe("testCalendarConnection", () => {
             "ics",
         );
 
-        expect(testIcsConnection).toHaveBeenCalled();
+        expect(icsSync.testCalendar).toHaveBeenCalled();
     });
 });
 
@@ -169,7 +211,7 @@ describe("runDueCalendars", () => {
             ...calendar,
             user: { email: "test@example.com" },
         });
-        vi.mocked(syncIcsCalendar).mockResolvedValue({
+        vi.mocked(icsSync.syncCalendar).mockResolvedValue({
             success: true,
             eventsSynced: 1,
         });
@@ -196,7 +238,7 @@ describe("runDueCalendars", () => {
 
         await runDueCalendars();
 
-        expect(syncIcsCalendar).not.toHaveBeenCalled();
+        expect(icsSync.syncCalendar).not.toHaveBeenCalled();
     });
 
     it("runs all due calendars in parallel", async () => {
@@ -209,7 +251,7 @@ describe("runDueCalendars", () => {
         mockPrisma.calendar.findUnique
             .mockResolvedValueOnce({ ...cal1, user: { email: "a@test.com" } })
             .mockResolvedValueOnce({ ...cal2, user: { email: "b@test.com" } });
-        vi.mocked(syncIcsCalendar).mockResolvedValue({
+        vi.mocked(icsSync.syncCalendar).mockResolvedValue({
             success: true,
             eventsSynced: 0,
         });
@@ -237,7 +279,7 @@ describe("runDueCalendars", () => {
                 type: "ics",
                 user: { email: "b@test.com" },
             });
-        vi.mocked(syncIcsCalendar)
+        vi.mocked(icsSync.syncCalendar)
             .mockRejectedValueOnce(new Error("Sync failed"))
             .mockResolvedValueOnce({ success: true, eventsSynced: 1 });
 
