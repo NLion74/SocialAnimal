@@ -12,7 +12,7 @@ Friends can view shared calendars directly inside the app, or export them as an 
 
 ---
 
-## Current State - v0.1.0
+## Current State
 
 This is an early release. Current features include:
 
@@ -42,11 +42,11 @@ This is an early release. Current features include:
 ## Roadmap
 
 - [ ] Easy integration for Proton, Apple iCloud, Outlook, and other calendar providers
-- [ ] Per-event permission overrides or event exclusions
 - [ ] Admin dashboard with user management
 - [ ] Per Event Permission system, possibly with regex excludes
-- [ ] Comprehensive Unit Tests
 - [ ] Calendar color customization
+- [ ] More export types with direct push to calendars
+- [ ] Better Invite System
 - [ ] Many small improvements...
 
 ---
@@ -67,15 +67,16 @@ cp example.env .env
 Edit .env with your configuration:
 
 ```bash
+# See Google Calendar Setup below
 GOOGLE_CLIENT_ID=clientid
 GOOGLE_CLIENT_SECRET=clientsecret
-GOOGLE_REDIRECT_URI=http://localhost:3001/api/import/google/callback
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/import/google/callback
 
 DATABASE_URL="postgresql://postgres:postgres@db:5432/socialanimal"
 JWT_SECRET="supersecretkey"
 NODE_ENV=production
-FRONTEND_PORT=3001
-PUBLIC_URL=http://localhost:3001
+FRONTEND_PORT=3000
+PUBLIC_URL=http://localhost:3000
 BACKEND_PORT=4000
 ```
 

@@ -85,7 +85,7 @@ const importRoutes: FastifyPluginAsync = async (fastify) => {
                 if (!code || !state) {
                     fastify.log.error("Missing code or state");
                     return reply.redirect(
-                        `${process.env.PUBLIC_URL || "http://localhost:3001"}/dashboard?import=error&reason=invalid-callback`,
+                        `${process.env.PUBLIC_URL || "http://localhost:3000"}/dashboard?import=error&reason=invalid-callback`,
                     );
                 }
 
@@ -94,7 +94,7 @@ const importRoutes: FastifyPluginAsync = async (fastify) => {
                 if (tokens === "token-exchange-failed") {
                     fastify.log.error("Token exchange failed");
                     return reply.redirect(
-                        `${process.env.PUBLIC_URL || "http://localhost:3001"}/dashboard?import=error&reason=token-exchange-failed`,
+                        `${process.env.PUBLIC_URL || "http://localhost:3000"}/dashboard?import=error&reason=token-exchange-failed`,
                     );
                 }
 
@@ -114,12 +114,12 @@ const importRoutes: FastifyPluginAsync = async (fastify) => {
                 );
 
                 return reply.redirect(
-                    `${process.env.PUBLIC_URL || "http://localhost:3001"}/dashboard?googleToken=${tempToken}&googleAuthSuccess=success`,
+                    `${process.env.PUBLIC_URL || "http://localhost:3000"}/dashboard?googleToken=${tempToken}&googleAuthSuccess=success`,
                 );
             } catch (error) {
                 fastify.log.error(error, "Google callback error");
                 return reply.redirect(
-                    `${process.env.PUBLIC_URL || "http://localhost:3001"}/dashboard?googleAuthSuccess=error`,
+                    `${process.env.PUBLIC_URL || "http://localhost:3000"}/dashboard?googleAuthSuccess=error`,
                 );
             }
         },

@@ -1,3 +1,5 @@
+version: "3.7"
+
 services:
     db:
         image: postgres:16
@@ -18,25 +20,22 @@ services:
             - app-network
 
     backend:
-        build:
-            context: ./backend
-            dockerfile: Dockerfile
+        image: nlion/socialanimal-backend:latest
         container_name: backend
         restart: unless-stopped
         env_file:
-            - .env.build
+            - .env
         environment:
-            NODE_ENV: "${NODE_ENV:-production}"
-            PORT: "${BACKEND_PORT:-4000}"
-            DATABASE_URL: "${DATABASE_URL:-postgresql://postgres:postgres@db:5432/socialanimal}"
+            NODE_ENV: "${NODE_ENV}"
+            PORT: "${BACKEND_PORT}"
+            DATABASE_URL: "${DATABASE_URL}"
             JWT_SECRET: "${JWT_SECRET}"
             GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
             GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET}"
             GOOGLE_REDIRECT_URI: "${GOOGLE_REDIRECT_URI}"
-            PUBLIC_URL: "${PUBLIC_URL:-http://localhost:3000}"
+            PUBLIC_URL: "${PUBLIC_URL}"
         depends_on:
-            db:
-                condition: service_healthy
+            - db
         healthcheck:
             test:
                 [
@@ -51,22 +50,19 @@ services:
             - app-network
 
     frontend:
-        build:
-            context: ./frontend
-            dockerfile: Dockerfile
+        image: nlion/socialanimal-frontend:latest
         container_name: frontend
         restart: unless-stopped
         ports:
             - "3000:3000"
         env_file:
-            - .env.build
+            - .env
         environment:
-            NODE_ENV: "${NODE_ENV:-production}"
-            PORT: "${FRONTEND_PORT:-3000}"
+            NODE_ENV: "${NODE_ENV}"
+            PORT: "${FRONTEND_PORT}"
             PUBLIC_URL: "${PUBLIC_URL}"
         depends_on:
-            backend:
-                condition: service_healthy
+            - backend
         healthcheck:
             test: ["CMD-SHELL", "wget -O- http://127.0.0.1:3000 || exit 1"]
             interval: 10s

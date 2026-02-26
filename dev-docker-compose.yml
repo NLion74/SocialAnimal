@@ -40,7 +40,7 @@ services:
             GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
             GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET}"
             GOOGLE_REDIRECT_URI: "${GOOGLE_REDIRECT_URI}"
-            PUBLIC_URL: "${PUBLIC_URL:-http://localhost:3001}"
+            PUBLIC_URL: "${PUBLIC_URL:-http://localhost:3000}"
         depends_on:
             db:
                 condition: service_healthy
@@ -54,11 +54,11 @@ services:
             - frontend-modules:/app/node_modules
         command: sh -c "npm install && npm run dev"
         ports:
-            - "${FRONTEND_PORT:-3001}:3001"
+            - "${FRONTEND_PORT:-3000}:3000"
         environment:
             NODE_ENV: "${NODE_ENV:-development}"
-            PORT: "${FRONTEND_PORT:-3001}"
-            PUBLIC_URL: "${PUBLIC_URL:-http://localhost:3001}"
+            PORT: "${FRONTEND_PORT:-3000}"
+            PUBLIC_URL: "${PUBLIC_URL:-http://localhost:3000}"
         depends_on:
             backend:
                 condition: service_started
