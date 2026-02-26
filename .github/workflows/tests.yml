@@ -84,6 +84,15 @@ jobs:
 
             - name: Set up Docker
               uses: docker/setup-buildx-action@v3
+              
+            - name: Create .env.build from example
+              run: |
+                  cp example.env .env.build
+
+                  # Remove Google credentials
+                  sed -i 's/^GOOGLE_CLIENT_ID=.*/GOOGLE_CLIENT_ID=/' .env.build
+                  sed -i 's/^GOOGLE_CLIENT_SECRET=.*/GOOGLE_CLIENT_SECRET=/' .env.build
+                  sed -i 's/^GOOGLE_REDIRECT_URI=.*/GOOGLE_REDIRECT_URI=/' .env.build
 
             - name: Start services
               run: docker compose -f build-docker-compose.yml --env-file .env.build up -d
