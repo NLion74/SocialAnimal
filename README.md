@@ -67,15 +67,16 @@ cp example.env .env
 Edit .env with your configuration:
 
 ```bash
+# See Google Calendar Setup below
 GOOGLE_CLIENT_ID=clientid
 GOOGLE_CLIENT_SECRET=clientsecret
-GOOGLE_REDIRECT_URI=http://localhost:3001/api/import/google/callback
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/import/google/callback
 
 DATABASE_URL="postgresql://postgres:postgres@db:5432/socialanimal"
 JWT_SECRET="supersecretkey"
 NODE_ENV=production
-FRONTEND_PORT=3001
-PUBLIC_URL=http://localhost:3001
+FRONTEND_PORT=3000
+PUBLIC_URL=http://localhost:3000
 BACKEND_PORT=4000
 ```
 
