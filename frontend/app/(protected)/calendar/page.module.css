@@ -777,6 +777,15 @@
     animation: spin 550ms linear infinite;
 }
 
+.nowMarker {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--purple-500);
+    z-index: 5;
+}
+
 @keyframes fadein {
     from {
         opacity: 0;

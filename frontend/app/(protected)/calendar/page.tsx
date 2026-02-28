@@ -34,20 +34,74 @@ import Modal from "../../../components/Modal";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
+const LS_KEYS = {
+    view: "calendar:view",
+    date: "calendar:date",
+    firstDay: "calendar:firstDay",
+    hidden: "calendar:hidden",
+};
+
 export default function CalendarPage() {
     const [myEvents, setMyEvents] = useState<CalEvent[]>([]);
     const [friendEvents, setFriendEvents] = useState<CalEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [firstDay, setFirstDay] = useState<FirstDay>("monday");
-    const [date, setDate] = useState(new Date());
-    const [view, setView] = useState<"month" | "week" | "day">("month");
+    const [date, setDate] = useState<Date>(() => {
+        try {
+            const raw = localStorage.getItem(LS_KEYS.date);
+            if (raw) return new Date(raw);
+        } catch (e) {
+            console.error("Failed to parse date from localStorage:", e);
+        }
+        return new Date();
+    });
+    const [view, setView] = useState<"month" | "week" | "day">(
+        () =>
+            (localStorage.getItem(LS_KEYS.view) as "month" | "week" | "day") ||
+            "month",
+    );
     const [detail, setDetail] = useState<CalEvent | null>(null);
     const [sources, setSources] = useState<CalSource[]>([]);
-    const [hidden, setHidden] = useState<Set<string>>(new Set());
+    const [hidden, setHidden] = useState<Set<string>>(() => {
+        try {
+            const raw = localStorage.getItem(LS_KEYS.hidden);
+            if (raw) return new Set<string>(JSON.parse(raw));
+        } catch (e) {
+            console.error(
+                "Failed to parse hidden sources from localStorage:",
+                e,
+            );
+        }
+        return new Set();
+    });
+
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem(LS_KEYS.firstDay);
+            if (raw && (raw === "monday" || raw === "sunday"))
+                setFirstDay(raw as FirstDay);
+        } catch (e) {
+            console.error("Failed to parse first day from localStorage:", e);
+        }
+    }, []);
 
     useEffect(() => {
         load();
     }, []);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(LS_KEYS.view, view);
+            localStorage.setItem(LS_KEYS.date, date.toISOString());
+            localStorage.setItem(LS_KEYS.firstDay, firstDay);
+            localStorage.setItem(
+                LS_KEYS.hidden,
+                JSON.stringify(Array.from(hidden)),
+            );
+        } catch (e) {
+            console.error("Failed to save calendar state to localStorage:", e);
+        }
+    }, [view, date, firstDay, hidden]);
 
     const load = async () => {
         setLoading(true);
@@ -81,8 +135,15 @@ export default function CalendarPage() {
         });
 
         setSources(newSources);
-        if (me?.settings?.firstDayOfWeek)
-            setFirstDay(me.settings.firstDayOfWeek as FirstDay);
+        if (me?.settings?.firstDayOfWeek) {
+            const apiFirstDay = me.settings.firstDayOfWeek as FirstDay;
+            setFirstDay(apiFirstDay);
+            try {
+                localStorage.setItem(LS_KEYS.firstDay, apiFirstDay);
+            } catch (e) {
+                console.error("Failed to save first day to localStorage:", e);
+            }
+        }
         setLoading(false);
     };
 
@@ -95,6 +156,17 @@ export default function CalendarPage() {
         setHidden((prev) => {
             const n = new Set(prev);
             n.has(id) ? n.delete(id) : n.add(id);
+            try {
+                localStorage.setItem(
+                    LS_KEYS.hidden,
+                    JSON.stringify(Array.from(n)),
+                );
+            } catch (e) {
+                console.error(
+                    "Failed to save hidden sources to localStorage:",
+                    e,
+                );
+            }
             return n;
         });
 
@@ -116,18 +188,43 @@ export default function CalendarPage() {
     };
 
     const eventsForDate = (d: Date) =>
-        allEvents.filter((e) => isSameDay(new Date(e.startTime), d));
+        allEvents.filter((e) => {
+            const start = new Date(e.startTime);
+            const end = new Date(e.endTime || e.startTime);
+            if (e.allDay) return start <= d && d <= end;
+            const dayStart = new Date(
+                d.getFullYear(),
+                d.getMonth(),
+                d.getDate(),
+                0,
+                0,
+                0,
+                0,
+            );
+            const dayEnd = new Date(
+                d.getFullYear(),
+                d.getMonth(),
+                d.getDate(),
+                23,
+                59,
+                59,
+                999,
+            );
+            return start <= dayEnd && end >= dayStart;
+        });
 
     const eventsForDay = (day: number) => {
         const y = date.getFullYear();
         const m = date.getMonth();
         return allEvents.filter((e) => {
-            const d = new Date(e.startTime);
-            return (
-                d.getFullYear() === y &&
-                d.getMonth() === m &&
-                d.getDate() === day
-            );
+            const start = new Date(e.startTime);
+            const end = new Date(e.endTime);
+            const d = new Date(y, m, day);
+            return e.allDay
+                ? start <= d && d <= end
+                : start.getFullYear() === y &&
+                      start.getMonth() === m &&
+                      start.getDate() === day;
         });
     };
 
@@ -165,7 +262,10 @@ export default function CalendarPage() {
             });
     };
 
-    const goToday = () => setDate(new Date());
+    const goToday = () => {
+        setDate(new Date());
+        setView(view);
+    };
 
     const monthLabel = () => {
         if (view === "month")
@@ -183,7 +283,10 @@ export default function CalendarPage() {
             <span
                 key={l.event.id}
                 className={`${s.weekPill} ${l.event.orig.isFriend ? s.pillFriend : s.pillMine} ${s.eventAbsolute}`}
-                onClick={() => setDetail(l.event.orig)}
+                onClick={(ev) => {
+                    ev.stopPropagation();
+                    setDetail(l.event.orig);
+                }}
                 title={l.event.orig.title}
                 style={{
                     top: `calc(${l.event.startMinutes} * var(--sa-minute-height))`,
@@ -200,41 +303,99 @@ export default function CalendarPage() {
         );
     };
 
-    const renderTimeGrid = (columns: Date[]) => (
-        <div className={s.weekBodyScroll}>
-            <div className={s.weekBodyGrid}>
-                <div className={s.timeGutter}>
-                    {HOURS.map((hour) => (
-                        <div key={hour} className={s.timeSlot}>
-                            <span className={s.timeLabel}>{fmtHour(hour)}</span>
-                        </div>
-                    ))}
-                </div>
-                <div className={s.weekDayColumns}>
-                    {columns.map((day) => {
-                        const layouts = computeLayouts(
-                            eventsForDate(day).filter((e) => !e.allDay),
-                        );
-                        return (
-                            <div
-                                key={day.toISOString()}
-                                className={s.weekDayColumn}
-                            >
-                                <div className={s.hourLines}>
-                                    {HOURS.map((h) => (
-                                        <div key={h} className={s.hourLine} />
-                                    ))}
-                                </div>
-                                <div className={s.weekEventsContainer}>
-                                    {layouts.map(renderEventPill)}
-                                </div>
+    const renderTimeGrid = (columns: Date[]) => {
+        const now = new Date();
+        return (
+            <div className={s.weekBodyScroll}>
+                <div className={s.weekBodyGrid}>
+                    <div className={s.timeGutter}>
+                        {HOURS.map((hour) => (
+                            <div key={hour} className={s.timeSlot}>
+                                <span className={s.timeLabel}>
+                                    {fmtHour(hour)}
+                                </span>
                             </div>
-                        );
-                    })}
+                        ))}
+                    </div>
+                    <div className={s.weekDayColumns}>
+                        {columns.map((day) => {
+                            const dayTimed = eventsForDate(day)
+                                .filter((e) => !e.allDay)
+                                .map((e) => {
+                                    const start = new Date(e.startTime);
+                                    const end = new Date(
+                                        e.endTime || e.startTime,
+                                    );
+                                    const dayStart = new Date(
+                                        day.getFullYear(),
+                                        day.getMonth(),
+                                        day.getDate(),
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                    );
+                                    const dayEnd = new Date(
+                                        day.getFullYear(),
+                                        day.getMonth(),
+                                        day.getDate(),
+                                        23,
+                                        59,
+                                        59,
+                                        999,
+                                    );
+                                    return {
+                                        ...e,
+                                        startTime:
+                                            start < dayStart
+                                                ? dayStart.toISOString()
+                                                : e.startTime,
+                                        endTime:
+                                            end > dayEnd
+                                                ? dayEnd.toISOString()
+                                                : e.endTime,
+                                    };
+                                });
+
+                            const layouts = computeLayouts(dayTimed);
+
+                            const showNow =
+                                isSameDay(day, now) && view !== "month";
+                            const topNow =
+                                now.getHours() * 60 + now.getMinutes();
+
+                            return (
+                                <div
+                                    key={day.toISOString()}
+                                    className={s.weekDayColumn}
+                                >
+                                    <div className={s.hourLines}>
+                                        {HOURS.map((h) => (
+                                            <div
+                                                key={h}
+                                                className={s.hourLine}
+                                            />
+                                        ))}
+                                    </div>
+                                    {showNow && (
+                                        <div
+                                            className={s.nowMarker}
+                                            style={{
+                                                top: `calc(${topNow} * var(--sa-minute-height))`,
+                                            }}
+                                        />
+                                    )}
+                                    <div className={s.weekEventsContainer}>
+                                        {layouts.map(renderEventPill)}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     const renderSource = (src: CalSource) => {
         const on = !hidden.has(src.id);
@@ -343,13 +504,25 @@ export default function CalendarPage() {
                                                 className={`${s.cell} ${s.cellEmpty}`}
                                             />
                                         );
+
                                     const dayEvs = eventsForDay(day);
                                     const visible = dayEvs.slice(0, 2);
                                     const overflow = dayEvs.length - 2;
+
                                     return (
                                         <div
                                             key={day}
                                             className={`${s.cell} ${isCalToday(day) ? s.cellToday : ""}`}
+                                            onClick={() => {
+                                                setDate(
+                                                    new Date(
+                                                        date.getFullYear(),
+                                                        date.getMonth(),
+                                                        day,
+                                                    ),
+                                                );
+                                                setView("day");
+                                            }}
                                         >
                                             <span className={s.dayNum}>
                                                 {day}
@@ -388,6 +561,11 @@ export default function CalendarPage() {
                                         <div
                                             key={day.toISOString()}
                                             className={s.weekColHeader}
+                                            onClick={() => {
+                                                setDate(day);
+                                                setView("day");
+                                            }}
+                                            style={{ cursor: "pointer" }}
                                         >
                                             <div className={s.weekDay}>
                                                 {DAYS[day.getDay()]}
@@ -422,17 +600,27 @@ export default function CalendarPage() {
                                                         className={
                                                             s.weekAllDayCell
                                                         }
+                                                        onClick={() => {
+                                                            setDate(day);
+                                                            setView("day");
+                                                        }}
+                                                        style={{
+                                                            cursor: "pointer",
+                                                        }}
                                                     >
                                                         {dayAllDayEvents.map(
                                                             (e) => (
                                                                 <span
                                                                     key={e.id}
                                                                     className={`${s.pill} ${e.isFriend ? s.pillFriend : s.pillMine}`}
-                                                                    onClick={() =>
+                                                                    onClick={(
+                                                                        ev,
+                                                                    ) => {
+                                                                        ev.stopPropagation();
                                                                         setDetail(
                                                                             e,
-                                                                        )
-                                                                    }
+                                                                        );
+                                                                    }}
                                                                     title={
                                                                         e.title
                                                                     }
@@ -478,7 +666,10 @@ export default function CalendarPage() {
                                                 <span
                                                     key={e.id}
                                                     className={`${s.pill} ${e.isFriend ? s.pillFriend : s.pillMine}`}
-                                                    onClick={() => setDetail(e)}
+                                                    onClick={(ev) => {
+                                                        ev.stopPropagation();
+                                                        setDetail(e);
+                                                    }}
                                                 >
                                                     {e.title}
                                                 </span>
