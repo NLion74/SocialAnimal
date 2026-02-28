@@ -75,7 +75,7 @@ export default function CalendarPage() {
             seen.add(e.calendar.id);
             newSources.push({
                 id: e.calendar.id,
-                name: `${e.owner.name || e.owner.email} – ${e.calendar.name}`,
+                name: `${e.owner.name || e.owner.email} - ${e.calendar.name}`,
                 isFriend: true,
             });
         });
@@ -173,7 +173,7 @@ export default function CalendarPage() {
         if (view === "day")
             return `${DAYS[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()} ${date.getFullYear()}`;
         const days = getWeekDays();
-        return `${MONTHS[days[0].getMonth()]} ${days[0].getDate()} – ${days[6].getDate()}, ${days[6].getFullYear()}`;
+        return `${MONTHS[days[0].getMonth()]} ${days[0].getDate()} - ${days[6].getDate()}, ${days[6].getFullYear()}`;
     };
 
     const renderEventPill = (l: EventLayout) => {
@@ -506,7 +506,7 @@ export default function CalendarPage() {
                                 <div className={s.metaLabel}>Time</div>
                                 {detail.allDay
                                     ? "All day"
-                                    : `${fmtDateTime(detail.startTime)} – ${fmtTime(detail.endTime)}`}
+                                    : `${fmtDateTime(detail.startTime)} - ${fmtTime(detail.endTime)}`}
                             </div>
                         </div>
                         {detail.location && (

@@ -306,6 +306,18 @@
         box-shadow var(--transition);
 }
 
+.inputStatic {
+    width: 100%;
+    padding: 9px 12px;
+    font-size: 13px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-sizing: border-box;
+    user-select: none;
+    cursor: default;
+}
+
 .input::placeholder {
     color: var(--text-muted);
 }

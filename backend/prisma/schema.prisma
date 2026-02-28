@@ -87,7 +87,7 @@ model CalendarShare {
   calendar     Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
   sharedWithId String
   sharedWith   User     @relation("SharedWith", fields: [sharedWithId], references: [id], onDelete: Cascade)
-  permission SharePermission @default(full)
+  permission   SharePermission @default(full)
   createdAt    DateTime @default(now())
 
   @@unique([calendarId, sharedWithId])

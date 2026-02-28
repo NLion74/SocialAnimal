@@ -94,6 +94,30 @@ describe("Users Routes", () => {
 
             expect(res.statusCode).toBe(400);
         });
+
+        it("should return 403 for invalid invite code", async () => {
+            mockPrisma.user.count = vi.fn().mockResolvedValue(1);
+            mockPrisma.appSettings.upsert.mockResolvedValue({
+                id: "global",
+                registrationsOpen: true,
+                inviteOnly: true,
+                updatedAt: new Date(),
+            });
+            mockPrisma.user.findUnique.mockResolvedValue(null);
+            mockPrisma.inviteCode.findUnique.mockResolvedValue(null);
+
+            const res = await app.inject({
+                method: "POST",
+                url: "/api/users/register",
+                payload: {
+                    email: "test@example.com",
+                    password: "pass123",
+                    inviteCode: "INVALID",
+                },
+            });
+
+            expect(res.statusCode).toBe(403);
+        });
     });
 
     describe("POST /api/users/login", () => {
@@ -265,6 +289,80 @@ describe("Users Routes", () => {
         });
     });
 
+    describe("PUT /api/users/app-settings", () => {
+        it("should update app settings for admin", async () => {
+            const admin = createMockUser({ isAdmin: true });
+            mockPrisma.user.findUnique
+                .mockResolvedValueOnce(admin)
+                .mockResolvedValueOnce(admin);
+
+            mockPrisma.appSettings.upsert.mockResolvedValue({
+                id: "global",
+                registrationsOpen: false,
+                inviteOnly: true,
+                updatedAt: new Date(),
+            });
+
+            const res = await app.inject({
+                method: "PUT",
+                url: "/api/users/app-settings",
+                headers: createAuthHeader(admin.id),
+                payload: { registrationsOpen: false, inviteOnly: true },
+            });
+
+            expect(res.statusCode).toBe(200);
+            const body = JSON.parse(res.body);
+            expect(body.registrationsOpen).toBe(false);
+            expect(body.inviteOnly).toBe(true);
+        });
+
+        it("should reject non-admin users", async () => {
+            const user = createMockUser({ isAdmin: false });
+            mockPrisma.user.findUnique
+                .mockResolvedValueOnce(user)
+                .mockResolvedValueOnce(user);
+
+            const res = await app.inject({
+                method: "PUT",
+                url: "/api/users/app-settings",
+                headers: createAuthHeader(user.id),
+                payload: { registrationsOpen: true },
+            });
+
+            expect(res.statusCode).toBe(403);
+        });
+
+        it("should require authentication", async () => {
+            const res = await app.inject({
+                method: "PUT",
+                url: "/api/users/app-settings",
+                payload: { registrationsOpen: true },
+            });
+
+            expect(res.statusCode).toBe(401);
+        });
+
+        it("should return 500 when service throws", async () => {
+            const admin = createMockUser({ isAdmin: true });
+            mockPrisma.user.findUnique
+                .mockResolvedValueOnce(admin)
+                .mockResolvedValueOnce(admin);
+
+            mockPrisma.appSettings.upsert.mockRejectedValue(
+                new Error("DB crash"),
+            );
+
+            const res = await app.inject({
+                method: "PUT",
+                url: "/api/users/app-settings",
+                headers: createAuthHeader(admin.id),
+                payload: { registrationsOpen: true },
+            });
+
+            expect(res.statusCode).toBe(500);
+        });
+    });
+
     describe("POST /api/users/invite", () => {
         it("should create invite code for admin", async () => {
             const admin = createMockUser({ isAdmin: true });
@@ -305,6 +403,25 @@ describe("Users Routes", () => {
             });
 
             expect(res.statusCode).toBe(403);
+        });
+
+        it("should return 500 when service throws", async () => {
+            const admin = createMockUser({ isAdmin: true });
+            mockPrisma.user.findUnique
+                .mockResolvedValueOnce(admin)
+                .mockResolvedValueOnce(admin);
+
+            mockPrisma.inviteCode.create.mockRejectedValue(
+                new Error("DB crash"),
+            );
+
+            const res = await app.inject({
+                method: "POST",
+                url: "/api/users/invite",
+                headers: createAuthHeader(admin.id),
+            });
+
+            expect(res.statusCode).toBe(500);
         });
     });
 });

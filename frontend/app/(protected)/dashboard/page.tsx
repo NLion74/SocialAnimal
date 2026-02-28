@@ -10,13 +10,14 @@ import {
     Calendar,
     Edit,
     Loader2,
+    Share2,
+    Copy,
 } from "lucide-react";
 import { apiClient } from "../../../lib/api";
-import type { CalendarData, Friend } from "../../../lib/types";
+import type { CalendarData, Friend, Permission } from "../../../lib/types";
 import s from "./page.module.css";
 import { env } from "../../../lib/env";
 import Modal from "../../../components/Modal";
-import ExportLinkModal from "../../../components/ExportLinkModal";
 import GoogleCalendarSelect from "../../../components/GoogleCalendarSelect";
 
 type ImportType = "ics" | "google";
@@ -26,9 +27,26 @@ interface GoogleCalendar {
     summary: string;
 }
 
+const PERM_LABELS: Record<Permission, string> = {
+    busy: "Busy Only",
+    titles: "Titles Only",
+    full: "Full Details",
+};
+
+interface IncomingShare {
+    friendshipId: string;
+    calendarId: string;
+    calendarName: string;
+    ownerName: string;
+    ownerEmail: string;
+    permission: Permission;
+    ownerId: string;
+}
+
 export default function DashboardPage() {
     const [calendars, setCalendars] = useState<CalendarData[]>([]);
     const [friends, setFriends] = useState<Friend[]>([]);
+    const [incomingShares, setIncomingShares] = useState<IncomingShare[]>([]);
     const [loading, setLoading] = useState(true);
     const [syncingId, setSyncingId] = useState<string | null>(null);
     const [testingId, setTestingId] = useState<string | null>(null);
@@ -54,9 +72,14 @@ export default function DashboardPage() {
     const [selectedGoogleIds, setSelectedGoogleIds] = useState<string[]>([]);
     const [googleSelectLoading, setGoogleSelectLoading] = useState(false);
     const [googleImporting, setGoogleImporting] = useState(false);
-    const [showExport, setShowExport] = useState(false);
-    const [exportLink, setExportLink] = useState("");
     const [copied, setCopied] = useState(false);
+    const [exportCtx, setExportCtx] = useState<{
+        title: string;
+        subtitle?: string;
+        link: string;
+    } | null>(null);
+
+    const uid = apiClient.getUid();
 
     useEffect(() => {
         loadAll();
@@ -123,9 +146,33 @@ export default function DashboardPage() {
                 }),
             );
             setFriends(frRaw);
+            setIncomingShares(deriveIncomingShares(frRaw, uid as string));
         } finally {
             setLoading(false);
         }
+    };
+
+    const deriveIncomingShares = (
+        frRaw: Friend[],
+        currentUid: string,
+    ): IncomingShare[] => {
+        const shares: IncomingShare[] = [];
+        for (const f of frRaw) {
+            if (f.status !== "accepted") continue;
+            const owner = f.user1.id === currentUid ? f.user2 : f.user1;
+            for (const cal of f.sharedWithMe ?? []) {
+                shares.push({
+                    friendshipId: f.id,
+                    calendarId: cal.id,
+                    calendarName: cal.name,
+                    ownerName: owner.name ?? "",
+                    ownerEmail: owner.email,
+                    permission: cal.permission ?? "full",
+                    ownerId: owner.id,
+                });
+            }
+        }
+        return shares;
     };
 
     const openCreate = () => {
@@ -205,10 +252,7 @@ export default function DashboardPage() {
         try {
             await apiClient.request(`/api/calendars/${editingCalendar.id}`, {
                 method: "PUT",
-                body: {
-                    name,
-                    syncInterval: sync,
-                },
+                body: { name, syncInterval: sync },
             });
             closeModal();
             await loadAll();
@@ -280,9 +324,7 @@ export default function DashboardPage() {
         setSelectedGoogleIds(availableIds);
     };
 
-    const deselectAllGoogle = () => {
-        setSelectedGoogleIds([]);
-    };
+    const deselectAllGoogle = () => setSelectedGoogleIds([]);
 
     const importSelectedGoogle = async () => {
         if (!googleToken || selectedGoogleIds.length === 0) return;
@@ -377,9 +419,12 @@ export default function DashboardPage() {
         }
     };
 
-    const openExportLink = (
+    const openExport = (
+        title: string,
+        subtitle: string | undefined,
         type: "all" | "calendar" | "friend",
         id?: string,
+        calendarId?: string,
     ) => {
         const token = localStorage.getItem("token");
         if (!token) return;
@@ -387,17 +432,17 @@ export default function DashboardPage() {
         const t = encodeURIComponent(token);
         const link =
             type === "all"
-                ? `${base}/api/ics/my-calendar.ics?token=${t}`
+                ? `${base}/api/export/subscription/ics/my-calendar.ics?token=${t}`
                 : type === "calendar"
-                  ? `${base}/api/ics/calendar/${id}.ics?token=${t}`
-                  : `${base}/api/ics/friend/${id}.ics?token=${t}`;
-        setExportLink(link);
-        setShowExport(true);
+                  ? `${base}/api/export/subscription/ics/calendar/${id}.ics?token=${t}`
+                  : `${base}/api/export/subscription/ics/friend/${id}/${calendarId}.ics?token=${t}`;
+        setExportCtx({ title, subtitle, link });
         setCopied(false);
     };
 
     const doCopy = () => {
-        navigator.clipboard.writeText(exportLink);
+        if (!exportCtx) return;
+        navigator.clipboard.writeText(exportCtx.link);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -423,7 +468,9 @@ export default function DashboardPage() {
                 <div className={s.btnRow}>
                     <button
                         className={`${s.btn} ${s.btnSecondary}`}
-                        onClick={() => openExportLink("all")}
+                        onClick={() =>
+                            openExport("My Calendars", undefined, "all")
+                        }
                     >
                         <Link size={14} /> Export All
                     </button>
@@ -506,47 +553,48 @@ export default function DashboardPage() {
                                     <button
                                         className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
                                         onClick={() =>
-                                            openExportLink("calendar", c.id)
+                                            openExport(
+                                                c.name,
+                                                `${c.events?.length || 0} events`,
+                                                "calendar",
+                                                c.id,
+                                            )
                                         }
-                                        title="Export ICS Link"
+                                        title="Export ICS link"
                                     >
                                         <Link size={12} />
                                     </button>
 
-                                    <>
-                                        <button
-                                            className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
-                                            onClick={() => doTest(c)}
-                                            disabled={testingId === c.id}
-                                            title="Test Connection"
-                                        >
-                                            {testingId === c.id ? (
-                                                <Loader2
-                                                    size={12}
-                                                    className={s.spin}
-                                                />
-                                            ) : (
-                                                <Check size={12} />
-                                            )}
-                                        </button>
-
-                                        <button
-                                            className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
-                                            onClick={() => doSync(c)}
-                                            disabled={syncingId === c.id}
-                                            title="Sync Calendar"
-                                        >
-                                            {syncingId === c.id ? (
-                                                <Loader2
-                                                    size={12}
-                                                    className={s.spin}
-                                                />
-                                            ) : (
-                                                <RefreshCw size={12} />
-                                            )}
-                                        </button>
-                                    </>
-
+                                    <button
+                                        className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
+                                        onClick={() => doTest(c)}
+                                        disabled={testingId === c.id}
+                                        title="Test Connection"
+                                    >
+                                        {testingId === c.id ? (
+                                            <Loader2
+                                                size={12}
+                                                className={s.spin}
+                                            />
+                                        ) : (
+                                            <Check size={12} />
+                                        )}
+                                    </button>
+                                    <button
+                                        className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
+                                        onClick={() => doSync(c)}
+                                        disabled={syncingId === c.id}
+                                        title="Sync Calendar"
+                                    >
+                                        {syncingId === c.id ? (
+                                            <Loader2
+                                                size={12}
+                                                className={s.spin}
+                                            />
+                                        ) : (
+                                            <RefreshCw size={12} />
+                                        )}
+                                    </button>
                                     <button
                                         className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
                                         onClick={() => openEdit(c)}
@@ -554,13 +602,71 @@ export default function DashboardPage() {
                                     >
                                         <Edit size={12} />
                                     </button>
-
                                     <button
                                         className={`${s.btn} ${s.btnDanger} ${s.btnSm} ${s.btnIcon}`}
                                         onClick={() => doDelete(c.id)}
                                         title="Delete calendar"
                                     >
                                         <Trash2 size={13} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            <div className={s.section}>
+                <div className={s.sectionHeader}>
+                    <span className={s.sectionTitle}>
+                        Shared with you ({incomingShares.length})
+                    </span>
+                </div>
+
+                {incomingShares.length === 0 ? (
+                    <div className={s.empty}>
+                        <Share2 size={38} className={s.emptyIcon} />
+                        <span>No calendars shared with you yet</span>
+                    </div>
+                ) : (
+                    <div className={s.list}>
+                        {incomingShares.map((share) => (
+                            <div
+                                key={`${share.friendshipId}-${share.calendarId}`}
+                                className={s.row}
+                            >
+                                <div className={s.rowInfo}>
+                                    <div className={s.rowName}>
+                                        {share.calendarName}
+                                    </div>
+                                    <div className={s.rowMeta}>
+                                        <span className={s.metaText}>
+                                            {share.ownerName ||
+                                                share.ownerEmail}
+                                        </span>
+                                        <span
+                                            className={`${s.badge} ${s.badgeMuted}`}
+                                        >
+                                            {PERM_LABELS[share.permission]}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className={s.rowActions}>
+                                    <button
+                                        className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
+                                        onClick={() =>
+                                            openExport(
+                                                share.calendarName,
+                                                share.ownerName ||
+                                                    share.ownerEmail,
+                                                "friend",
+                                                share.ownerId,
+                                                share.calendarId,
+                                            )
+                                        }
+                                        title="Export ICS link"
+                                    >
+                                        <Link size={12} />
                                     </button>
                                 </div>
                             </div>
@@ -764,13 +870,68 @@ export default function DashboardPage() {
                 importing={googleImporting}
             />
 
-            <ExportLinkModal
-                isOpen={showExport}
-                onClose={() => setShowExport(false)}
-                link={exportLink}
-                copied={copied}
-                onCopy={doCopy}
-            />
+            <Modal
+                isOpen={!!exportCtx}
+                onClose={() => setExportCtx(null)}
+                title="Export Calendar"
+            >
+                <div className={s.formStack}>
+                    <div>
+                        <label className={s.fieldLabel}>Calendar</label>
+                        <div className={s.inputStatic}>
+                            {exportCtx?.title ?? ""}
+                        </div>
+                        {exportCtx?.subtitle && (
+                            <p className={s.hint}>{exportCtx.subtitle}</p>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className={s.fieldLabel}>Type</label>
+                        <div className={s.inputStatic}>ICS / iCal</div>
+                    </div>
+
+                    <div>
+                        <label className={s.fieldLabel}>
+                            Subscription link
+                        </label>
+                        <input
+                            className={s.input}
+                            value={exportCtx?.link ?? ""}
+                            readOnly
+                            onFocus={(e) => e.target.select()}
+                            style={{
+                                fontFamily: "ui-monospace, monospace",
+                                fontSize: 12,
+                            }}
+                        />
+                    </div>
+
+                    <p className={s.hint}>
+                        Use this link to subscribe to your calendar in other
+                        apps (e.g. Google Calendar, Apple Calendar). Do not
+                        share this link with others, as it contains a secret
+                        token that grants access to your calendar data.
+                    </p>
+
+                    <div className={s.formRow}>
+                        <button
+                            className={`${s.btn} ${s.btnPrimary}`}
+                            style={{ flex: 1 }}
+                            onClick={doCopy}
+                        >
+                            {copied ? <Check size={14} /> : <Copy size={14} />}
+                            {copied ? "Copied" : "Copy link"}
+                        </button>
+                        <button
+                            className={`${s.btn} ${s.btnSecondary}`}
+                            onClick={() => setExportCtx(null)}
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

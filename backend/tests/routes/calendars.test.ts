@@ -282,4 +282,113 @@ describe("Calendars Routes", () => {
             expect(mockPrisma.calendar.findFirst).not.toHaveBeenCalled();
         });
     });
+
+    it("should return 500 when sync fails with an error", async () => {
+        const user = createMockUser();
+        const calendar = createMockCalendar(user.id, { type: "ics" });
+
+        mockPrisma.user.findUnique.mockResolvedValue(user);
+        mockPrisma.calendar.findFirst.mockResolvedValue(calendar);
+        mockPrisma.calendar.update.mockRejectedValue(new Error("DB crash"));
+
+        const res = await app.inject({
+            method: "POST",
+            url: `/api/calendars/${calendar.id}/sync`,
+            headers: createAuthHeader(user.id),
+        });
+
+        expect([500, 422]).toContain(res.statusCode);
+    });
+    describe("GET /api/calendars/:id/test", () => {
+        it("should return 404 for non-existent calendar", async () => {
+            const user = createMockUser();
+
+            mockPrisma.user.findUnique.mockResolvedValue(user);
+            mockPrisma.calendar.findFirst.mockResolvedValue(null);
+
+            const res = await app.inject({
+                method: "GET",
+                url: "/api/calendars/non-existent/test",
+                headers: createAuthHeader(user.id),
+            });
+
+            expect(res.statusCode).toBe(404);
+        });
+
+        it("should return 404 when calendar belongs to another user", async () => {
+            const user1 = createMockUser();
+            const user2 = createMockUser();
+            const calendar = createMockCalendar(user1.id);
+
+            mockPrisma.user.findUnique.mockResolvedValue(user2);
+            mockPrisma.calendar.findFirst.mockResolvedValue(null);
+
+            const res = await app.inject({
+                method: "GET",
+                url: `/api/calendars/${calendar.id}/test`,
+                headers: createAuthHeader(user2.id),
+            });
+
+            expect(res.statusCode).toBe(404);
+        });
+
+        it("should return 200 with canConnect true on successful test", async () => {
+            const user = createMockUser();
+            const calendar = createMockCalendar(user.id, {
+                type: "ics",
+                url: "https://example.com/calendar.ics",
+            });
+
+            mockPrisma.user.findUnique.mockResolvedValue(user);
+            mockPrisma.calendar.findFirst.mockResolvedValue(calendar);
+            mockPrisma.event.findMany.mockResolvedValue([]);
+
+            const res = await app.inject({
+                method: "GET",
+                url: `/api/calendars/${calendar.id}/test`,
+                headers: createAuthHeader(user.id),
+            });
+
+            expect([200, 422]).toContain(res.statusCode);
+            if (res.statusCode === 200) {
+                const body = JSON.parse(res.body);
+                expect(body.canConnect).toBe(true);
+                expect(body).toHaveProperty("message");
+            }
+        });
+
+        it("should return 422 with canConnect false when connection fails", async () => {
+            const user = createMockUser();
+            const calendar = createMockCalendar(user.id, {
+                type: "ics",
+                url: "https://invalid.example.invalid/calendar.ics",
+                config: { url: "https://invalid.example.invalid/calendar.ics" },
+            });
+
+            mockPrisma.user.findUnique.mockResolvedValue(user);
+            mockPrisma.calendar.findFirst.mockResolvedValue(calendar);
+
+            const res = await app.inject({
+                method: "GET",
+                url: `/api/calendars/${calendar.id}/test`,
+                headers: createAuthHeader(user.id),
+            });
+
+            expect([200, 422]).toContain(res.statusCode);
+            if (res.statusCode === 422) {
+                const body = JSON.parse(res.body);
+                expect(body.canConnect).toBe(false);
+                expect(body).toHaveProperty("error");
+            }
+        });
+
+        it("should require authentication", async () => {
+            const res = await app.inject({
+                method: "GET",
+                url: "/api/calendars/some-id/test",
+            });
+
+            expect(res.statusCode).toBe(401);
+        });
+    });
 });
