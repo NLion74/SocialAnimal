@@ -40,6 +40,7 @@ export default function ProtectedLayout({
                     setUser(res);
                 }
             } catch (err) {
+                console.error("Failed to load user:", err);
                 if (retries > 0) {
                     setTimeout(() => loadUser(retries - 1), 1000);
                 } else {
