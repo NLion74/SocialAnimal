@@ -3,6 +3,19 @@ import { verifyToken } from "../utils/auth";
 import type { CalendarEvent } from "../exports/subscription/base";
 import type { SharePermission } from "@prisma/client";
 
+function maskEvents(
+    events: CalendarEvent[],
+    permission: SharePermission,
+): CalendarEvent[] {
+    if (permission === "full") return events;
+    return events.map((e) => ({
+        ...e,
+        title: permission === "busy" ? "Busy" : e.title,
+        description: null,
+        location: null,
+    }));
+}
+
 export async function userFromToken(token: string | undefined) {
     if (!token) return null;
     try {
@@ -92,18 +105,50 @@ export async function getSharedCalendars(
     sharedWithId: string,
     ownerId: string,
 ): Promise<{ calendarId: string; permission: SharePermission }[]> {
-    const shares = await prisma.calendarShare.findMany({
-        where: {
-            sharedWithId,
-            calendar: { userId: ownerId },
-        },
-        select: {
-            calendarId: true,
-            permission: true,
-        },
-    });
+    const shares =
+        (await prisma.calendarShare.findMany({
+            where: {
+                sharedWithId,
+                calendar: { userId: ownerId },
+            },
+            select: {
+                calendarId: true,
+                permission: true,
+            },
+        })) ?? [];
     return shares.map((s: any) => ({
         calendarId: s.calendarId,
         permission: s.permission ?? "full",
     }));
+}
+
+export async function getSharedEventsForUser(
+    userId: string,
+): Promise<CalendarEvent[]> {
+    const shares =
+        (await prisma.calendarShare.findMany({
+            where: { sharedWithId: userId },
+            select: {
+                calendarId: true,
+                permission: true,
+            },
+        })) ?? [];
+
+    const eventsByCalendar = await Promise.all(
+        shares.map(
+            async ({
+                calendarId,
+                permission,
+            }: {
+                calendarId: string;
+                permission: SharePermission;
+            }) => {
+                const events = await getEventsByCalendarId(calendarId);
+                const effectivePermission = permission ?? "full";
+                return maskEvents(events, effectivePermission);
+            },
+        ),
+    );
+
+    return eventsByCalendar.flat();
 }

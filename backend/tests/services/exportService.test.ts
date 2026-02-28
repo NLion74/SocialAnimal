@@ -284,3 +284,170 @@ describe("getSharedCalendars", () => {
         ).toEqual([]);
     });
 });
+
+describe("getSharedEventsForUser", () => {
+    it("returns empty array when user has no shared calendars", async () => {
+        mockPrisma.calendarShare.findMany.mockResolvedValue([]);
+
+        const result = await exportService.getSharedEventsForUser("user-1");
+
+        expect(result).toEqual([]);
+        expect(mockPrisma.calendarShare.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: { sharedWithId: "user-1" },
+            }),
+        );
+    });
+
+    it("does not crash when prisma returns undefined (defensive default)", async () => {
+        // Simulate missing mock / broken prisma
+        mockPrisma.calendarShare.findMany.mockResolvedValue(undefined as any);
+
+        const result = await exportService.getSharedEventsForUser("user-1");
+
+        expect(result).toEqual([]);
+    });
+
+    it("returns full event details when permission is full", async () => {
+        const event = createMockEvent("cal-1", {
+            title: "Meeting",
+            description: "Secret",
+            location: "HQ",
+        });
+
+        mockPrisma.calendarShare.findMany.mockResolvedValue([
+            { calendarId: "cal-1", permission: "full" },
+        ]);
+
+        mockPrisma.event.findMany.mockResolvedValue([event]);
+
+        const result = await exportService.getSharedEventsForUser("user-1");
+
+        expect(result).toHaveLength(1);
+        expect(result[0].title).toBe("Meeting");
+        expect(result[0].description).toBe("Secret");
+        expect(result[0].location).toBe("HQ");
+    });
+
+    it("strips description and location for titles permission", async () => {
+        const event = createMockEvent("cal-1", {
+            title: "Meeting",
+            description: "Secret",
+            location: "HQ",
+        });
+
+        mockPrisma.calendarShare.findMany.mockResolvedValue([
+            { calendarId: "cal-1", permission: "titles" },
+        ]);
+
+        mockPrisma.event.findMany.mockResolvedValue([event]);
+
+        const result = await exportService.getSharedEventsForUser("user-1");
+
+        expect(result[0].title).toBe("Meeting");
+        expect(result[0].description).toBeNull();
+        expect(result[0].location).toBeNull();
+    });
+
+    it("replaces title and strips all details for busy permission", async () => {
+        const event = createMockEvent("cal-1", {
+            title: "Meeting",
+            description: "Secret",
+            location: "HQ",
+        });
+
+        mockPrisma.calendarShare.findMany.mockResolvedValue([
+            { calendarId: "cal-1", permission: "busy" },
+        ]);
+
+        mockPrisma.event.findMany.mockResolvedValue([event]);
+
+        const result = await exportService.getSharedEventsForUser("user-1");
+
+        expect(result[0].title).toBe("Busy");
+        expect(result[0].description).toBeNull();
+        expect(result[0].location).toBeNull();
+    });
+
+    it("defaults to full permission when permission is null", async () => {
+        const event = createMockEvent("cal-1", {
+            title: "Meeting",
+            description: "Secret",
+        });
+
+        mockPrisma.calendarShare.findMany.mockResolvedValue([
+            { calendarId: "cal-1", permission: null },
+        ]);
+
+        mockPrisma.event.findMany.mockResolvedValue([event]);
+
+        const result = await exportService.getSharedEventsForUser("user-1");
+
+        expect(result[0].title).toBe("Meeting");
+        expect(result[0].description).toBe("Secret");
+    });
+
+    it("aggregates events from multiple shared calendars independently", async () => {
+        const fullEvent = createMockEvent("cal-full", {
+            title: "Visible",
+            description: "Shown",
+        });
+
+        const busyEvent = createMockEvent("cal-busy", {
+            title: "Hidden",
+            description: "Hidden Desc",
+        });
+
+        mockPrisma.calendarShare.findMany.mockResolvedValue([
+            { calendarId: "cal-full", permission: "full" },
+            { calendarId: "cal-busy", permission: "busy" },
+        ]);
+
+        mockPrisma.event.findMany
+            .mockResolvedValueOnce([fullEvent])
+            .mockResolvedValueOnce([busyEvent]);
+
+        const result = await exportService.getSharedEventsForUser("user-1");
+
+        expect(result).toHaveLength(2);
+
+        expect(result).toContainEqual(
+            expect.objectContaining({
+                title: "Visible",
+                description: "Shown",
+            }),
+        );
+
+        expect(result).toContainEqual(
+            expect.objectContaining({
+                title: "Busy",
+                description: null,
+            }),
+        );
+    });
+
+    it("queries events by calendarId for each shared calendar", async () => {
+        mockPrisma.calendarShare.findMany.mockResolvedValue([
+            { calendarId: "cal-1", permission: "full" },
+            { calendarId: "cal-2", permission: "full" },
+        ]);
+
+        mockPrisma.event.findMany.mockResolvedValue([]);
+
+        await exportService.getSharedEventsForUser("user-1");
+
+        expect(mockPrisma.event.findMany).toHaveBeenNthCalledWith(
+            1,
+            expect.objectContaining({
+                where: { calendarId: "cal-1" },
+            }),
+        );
+
+        expect(mockPrisma.event.findMany).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({
+                where: { calendarId: "cal-2" },
+            }),
+        );
+    });
+});

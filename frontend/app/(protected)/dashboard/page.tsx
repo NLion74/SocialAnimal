@@ -644,9 +644,7 @@ export default function DashboardPage() {
                                             {share.ownerName ||
                                                 share.ownerEmail}
                                         </span>
-                                        <span
-                                            className={`${s.badge} ${s.badgeMuted}`}
-                                        >
+                                        <span className={s.permLabel}>
                                             {PERM_LABELS[share.permission]}
                                         </span>
                                     </div>

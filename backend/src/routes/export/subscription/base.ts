@@ -16,13 +16,21 @@ export function registerSubscriptionRoutes(
         authOptions,
         async (request: FastifyRequest, reply: FastifyReply) => {
             const user = (request as any).user;
-            const events = await exportService.getUserEvents(user.id);
+
+            const ownEvents = await exportService.getUserEvents(user.id);
+
+            const sharedEvents = await exportService.getSharedEventsForUser(
+                user.id,
+            );
+
+            const allEvents = [...ownEvents, ...sharedEvents];
+
             exporter.sendReply(
                 reply,
                 "my-calendar",
                 exporter.serialize({
                     calendarName: "My Calendar",
-                    events,
+                    events: allEvents,
                     permission: "full",
                 }),
             );
