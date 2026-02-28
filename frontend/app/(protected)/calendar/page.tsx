@@ -41,46 +41,17 @@ const LS_KEYS = {
     hidden: "calendar:hidden",
 };
 
-function occursOnDate(e: CalEvent, d: Date) {
-    // day start / end in local time
-    const dayStart = new Date(
-        d.getFullYear(),
-        d.getMonth(),
-        d.getDate(),
-        0,
-        0,
-        0,
-        0,
-    );
-    const dayEnd = new Date(
-        d.getFullYear(),
-        d.getMonth(),
-        d.getDate(),
-        23,
-        59,
-        59,
-        999,
-    );
-    const evStart = new Date(e.startTime);
-    const evEnd = new Date(e.endTime || e.startTime);
-    return (
-        evStart.getTime() <= dayEnd.getTime() &&
-        evEnd.getTime() >= dayStart.getTime()
-    );
-}
-
 export default function CalendarPage() {
     const [myEvents, setMyEvents] = useState<CalEvent[]>([]);
     const [friendEvents, setFriendEvents] = useState<CalEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [firstDay, setFirstDay] = useState<FirstDay>("monday");
     const [date, setDate] = useState<Date>(() => {
-        // try to restore from localStorage synchronously
         try {
             const raw = localStorage.getItem(LS_KEYS.date);
             if (raw) return new Date(raw);
         } catch (e) {
-            /* ignore */
+            console.error("Failed to parse date from localStorage:", e);
         }
         return new Date();
     });
@@ -96,19 +67,21 @@ export default function CalendarPage() {
             const raw = localStorage.getItem(LS_KEYS.hidden);
             if (raw) return new Set<string>(JSON.parse(raw));
         } catch (e) {
-            /* ignore */
+            console.error(
+                "Failed to parse hidden sources from localStorage:",
+                e,
+            );
         }
         return new Set();
     });
 
-    // restore firstDay from storage as well if present (but allow user-specific setting from API to override)
     useEffect(() => {
         try {
             const raw = localStorage.getItem(LS_KEYS.firstDay);
             if (raw && (raw === "monday" || raw === "sunday"))
                 setFirstDay(raw as FirstDay);
         } catch (e) {
-            /* ignore */
+            console.error("Failed to parse first day from localStorage:", e);
         }
     }, []);
 
@@ -116,7 +89,6 @@ export default function CalendarPage() {
         load();
     }, []);
 
-    // persist state whenever it changes
     useEffect(() => {
         try {
             localStorage.setItem(LS_KEYS.view, view);
@@ -127,7 +99,7 @@ export default function CalendarPage() {
                 JSON.stringify(Array.from(hidden)),
             );
         } catch (e) {
-            // ignore storage errors
+            console.error("Failed to save calendar state to localStorage:", e);
         }
     }, [view, date, firstDay, hidden]);
 
@@ -168,7 +140,9 @@ export default function CalendarPage() {
             setFirstDay(apiFirstDay);
             try {
                 localStorage.setItem(LS_KEYS.firstDay, apiFirstDay);
-            } catch (e) {}
+            } catch (e) {
+                console.error("Failed to save first day to localStorage:", e);
+            }
         }
         setLoading(false);
     };
@@ -187,7 +161,12 @@ export default function CalendarPage() {
                     LS_KEYS.hidden,
                     JSON.stringify(Array.from(n)),
                 );
-            } catch (e) {}
+            } catch (e) {
+                console.error(
+                    "Failed to save hidden sources to localStorage:",
+                    e,
+                );
+            }
             return n;
         });
 
@@ -534,7 +513,6 @@ export default function CalendarPage() {
                                         <div
                                             key={day}
                                             className={`${s.cell} ${isCalToday(day) ? s.cellToday : ""}`}
-                                            // <-- ADD HERE
                                             onClick={() => {
                                                 setDate(
                                                     new Date(
