@@ -8,9 +8,9 @@ import type { Friend, CalendarData, Permission } from "../../../lib/types";
 import Modal from "../../../components/Modal";
 
 const PERM_LABELS: Record<Permission, string> = {
-    busy: "🔴 Busy only",
-    titles: "🟡 Titles only",
-    full: "🟢 Full details",
+    busy: "Busy Only",
+    titles: "Titles Only",
+    full: "Full Details",
 };
 
 export default function FriendsPage() {

@@ -47,15 +47,25 @@ export function verifyToken(token: string): { sub: string } {
     return jwt.verify(token, JWT_SECRET) as { sub: string };
 }
 
+function extractToken(request: FastifyRequest): string | null {
+    const query = (request.query as any).token;
+    if (query) return query;
+
+    const authHeader = request.headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) return authHeader.substring(7);
+
+    return null;
+}
+
 export async function authenticateToken(
     request: FastifyRequest,
     reply: FastifyReply,
 ) {
     try {
-        const authHeader = request.headers.authorization;
-        if (!authHeader?.startsWith("Bearer "))
+        const token = extractToken(request);
+        if (!token)
             return reply.status(401).send({ error: "No token provided" });
-        const token = authHeader.substring(7);
+
         const payload = verifyToken(token);
         const user = await prisma.user.findUnique({
             where: { id: payload.sub },

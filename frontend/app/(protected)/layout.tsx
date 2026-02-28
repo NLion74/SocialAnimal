@@ -24,16 +24,36 @@ export default function ProtectedLayout({
     const [user, setUser] = useState<any>(null);
 
     useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (!token) {
-            router.push("/");
-            return;
-        }
+        let cancelled = false;
 
-        apiClient
-            .get("/api/users/me")
-            .then(setUser)
-            .catch(() => router.push("/"));
+        const loadUser = async (retries = 5) => {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                router.push("/");
+                return;
+            }
+
+            try {
+                const res = await apiClient.get("/api/users/me");
+
+                if (!cancelled) {
+                    setUser(res);
+                }
+            } catch (err) {
+                console.error("Failed to load user:", err);
+                if (retries > 0) {
+                    setTimeout(() => loadUser(retries - 1), 1000);
+                } else {
+                    router.push("/");
+                }
+            }
+        };
+
+        loadUser();
+
+        return () => {
+            cancelled = true;
+        };
     }, [router]);
 
     const handleLogout = () => {

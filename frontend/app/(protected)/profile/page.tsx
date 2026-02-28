@@ -7,9 +7,9 @@ import { apiClient } from "../../../lib/api";
 import type { Permission } from "../../../lib/types";
 
 const PERM_LABELS: Record<Permission, string> = {
-    busy: "🔴 Busy only — hide titles and details",
-    titles: "🟡 Titles only — show event names, no descriptions",
-    full: "🟢 Full details — share everything",
+    busy: "Busy only - hide titles and details",
+    titles: "Titles only - show event names, no descriptions",
+    full: "Full details - share everything",
 };
 
 export default function ProfilePage() {
@@ -280,7 +280,7 @@ export default function ProfilePage() {
                     <div className={s.sectionHeader}>
                         <span className={s.sectionTitle}>
                             <Shield size={13} style={{ marginRight: 4 }} />
-                            Admin — Registration
+                            Admin - Registration
                         </span>
                     </div>
                     <div className={s.formStack}>

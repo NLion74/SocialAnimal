@@ -25,6 +25,12 @@ export interface FriendUser {
     name?: string;
 }
 
+export interface SharedCalendar {
+    id: string;
+    name: string;
+    permission: Permission;
+}
+
 export interface Friend {
     id: string;
     user1: FriendUser;
@@ -33,7 +39,7 @@ export interface Friend {
     createdAt?: string;
     sharedCalendarIds?: string[];
     sharedCalendarPermissions?: Record<string, Permission>;
-    sharedWithMe?: { id: string; name: string }[];
+    sharedWithMe?: SharedCalendar[];
 }
 
 export interface CalEvent extends CalendarEvent {

@@ -4,7 +4,7 @@ import usersRoutes from "./routes/users";
 import calendarsRoutes from "./routes/calendars";
 import eventsRoutes from "./routes/events";
 import friendsRoutes from "./routes/friends";
-import icsRoutes from "./routes/ics";
+import icsSubscriptionRoutes from "./routes/export/subscription/ics";
 import importRoutes from "./routes/import";
 
 export async function buildApp(): Promise<FastifyInstance> {
@@ -19,9 +19,11 @@ export async function buildApp(): Promise<FastifyInstance> {
     await app.register(usersRoutes, { prefix: "/api/users" });
     await app.register(calendarsRoutes, { prefix: "/api/calendars" });
     await app.register(importRoutes, { prefix: "/api/import" });
+    await app.register(icsSubscriptionRoutes, {
+        prefix: "/api/export/subscription/ics",
+    });
     await app.register(eventsRoutes, { prefix: "/api/events" });
     await app.register(friendsRoutes, { prefix: "/api/friends" });
-    await app.register(icsRoutes, { prefix: "/api/ics" });
 
     await app.ready();
     return app;

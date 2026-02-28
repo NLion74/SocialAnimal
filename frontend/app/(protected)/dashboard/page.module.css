@@ -209,6 +209,16 @@
     text-transform: uppercase;
 }
 
+.permLabel {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--bg-tertiary, var(--bg-secondary));
+    border: 1px solid var(--border);
+}
+
 .badgePurple {
     background: rgba(124, 58, 237, 0.2);
     color: var(--purple-300);
@@ -304,6 +314,18 @@
     transition:
         border-color var(--transition),
         box-shadow var(--transition);
+}
+
+.inputStatic {
+    width: 100%;
+    padding: 9px 12px;
+    font-size: 13px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-sizing: border-box;
+    user-select: none;
+    cursor: default;
 }
 
 .input::placeholder {

@@ -17,25 +17,28 @@ exports[`Routes snapshot > prints the same route tree 1`] = `
     │       │           └── /
     │       │               ├── sync (POST)
     │       │               └── test (GET, HEAD)
-    │       ├── i
-    │       │   ├── mport/
-    │       │   │   ├── ics (POST)
-    │       │   │   ├── google/
-    │       │   │   │   ├── auth-url (GET, HEAD)
-    │       │   │   │   ├── callback (GET, HEAD)
-    │       │   │   │   ├── list (POST)
-    │       │   │   │   └── import (POST)
-    │       │   │   │       └── ed (GET, HEAD)
-    │       │   │   └── test-connection (POST)
-    │       │   └── cs/
-    │       │       ├── my-calendar.ics (GET, HEAD)
-    │       │       ├── calendar/
-    │       │       │   └── :calendarId.ics (GET, HEAD)
-    │       │       └── friend/
-    │       │           └── :friendUserId.ics (GET, HEAD)
-    │       ├── events (GET, HEAD)
-    │       │   └── / (GET, HEAD)
-    │       │       └── friends (GET, HEAD)
+    │       ├── import/
+    │       │   ├── ics (POST)
+    │       │   ├── google/
+    │       │   │   ├── auth-url (GET, HEAD)
+    │       │   │   ├── callback (GET, HEAD)
+    │       │   │   ├── list (POST)
+    │       │   │   └── import (POST)
+    │       │   │       └── ed (GET, HEAD)
+    │       │   └── test-connection (POST)
+    │       ├── e
+    │       │   ├── xport/subscription/ics/
+    │       │   │   ├── my-calendar.ics (GET, HEAD)
+    │       │   │   ├── calendar/
+    │       │   │   │   └── :calendarId.ics (GET, HEAD)
+    │       │   │   └── friend/
+    │       │   │       ├── :friendUserId.ics (GET, HEAD)
+    │       │   │       └── :friendUserId
+    │       │   │           └── /
+    │       │   │               └── :calendarId.ics (GET, HEAD)
+    │       │   └── vents (GET, HEAD)
+    │       │       └── / (GET, HEAD)
+    │       │           └── friends (GET, HEAD)
     │       └── friends (GET, HEAD)
     │           └── / (GET, HEAD)
     │               ├── request (POST)
