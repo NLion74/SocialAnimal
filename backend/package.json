@@ -31,6 +31,7 @@
         "ical-generator": "^10.0.0",
         "jsonwebtoken": "^9.0.0",
         "node-ical": "^0.25.4",
+        "tsdav": "^2.1.8",
         "pg": "^8.19.0"
     },
     "devDependencies": {
@@ -38,7 +39,7 @@
         "@types/bcrypt": "^6.0.0",
         "@types/bcryptjs": "^2.4.6",
         "@types/jsonwebtoken": "^9.0.10",
-        "@types/node": "^25.3.2",
+        "@types/node": "^25.3.3",
         "@types/pg": "^8.18.0",
         "@typescript-eslint/eslint-plugin": "^8.56.1",
         "@typescript-eslint/parser": "^8.56.1",

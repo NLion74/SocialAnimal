@@ -8,6 +8,10 @@ import jwt from "jsonwebtoken";
 import { authenticateToken } from "../utils/auth";
 import {
     importIcsCalendar,
+    discoverCaldavCalendars,
+    importCaldavCalendars,
+    discoverICloudCalendars,
+    importICloudCalendars,
     getGoogleAuthUrl,
     testImportConnection,
     exchangeGoogleCode,
@@ -33,6 +37,14 @@ const IMPORT_GOOGLE_ERRORS = {
     "calendar-fetch-failed": "Failed to fetch Google calendars",
     "no-calendars-found": "No Google calendars found",
 } as const;
+const IMPORT_CALDAV_ERRORS = {
+    "missing-calendars": "At least one calendar must be selected",
+    "missing-credentials": "url, username and password are required",
+} as const;
+const IMPORT_ICLOUD_ERRORS = {
+    "missing-calendars": "At least one calendar must be selected",
+    "missing-credentials": "Apple ID and app-specific password required",
+} as const;
 
 const importRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.post(
@@ -56,6 +68,110 @@ const importRoutes: FastifyPluginAsync = async (fastify) => {
             } catch (err) {
                 fastify.log.error(err);
                 return serverError(reply, "Failed to import ICS calendar");
+            }
+        },
+    );
+
+    fastify.post(
+        "/caldav/discover",
+        auth,
+        async (request: FastifyRequest, reply: FastifyReply) => {
+            try {
+                const { url, username, password } = request.body as any;
+
+                if (!url || !username || !password) {
+                    return badRequest(
+                        reply,
+                        "url, username and password are required",
+                    );
+                }
+
+                const calendars = await discoverCaldavCalendars({
+                    url,
+                    username,
+                    password,
+                });
+                return reply.send({ calendars });
+            } catch (err) {
+                fastify.log.error(err);
+                return serverError(reply, "Failed to discover calendars");
+            }
+        },
+    );
+
+    fastify.post(
+        "/caldav",
+        auth,
+        async (request: FastifyRequest, reply: FastifyReply) => {
+            try {
+                const { credentials, calendars } = request.body as any;
+                const result = await importCaldavCalendars({
+                    userId: request.user.id,
+                    credentials,
+                    calendars,
+                });
+
+                if (typeof result === "string") {
+                    return badRequest(reply, IMPORT_CALDAV_ERRORS[result]);
+                }
+
+                return created(reply, result);
+            } catch (err) {
+                fastify.log.error(err);
+                return serverError(reply, "Failed to import CalDAV calendars");
+            }
+        },
+    );
+
+    fastify.post(
+        "/icloud/discover",
+        auth,
+        async (request: FastifyRequest, reply: FastifyReply) => {
+            try {
+                const { username, password } = request.body as any;
+
+                if (!username || !password) {
+                    return badRequest(
+                        reply,
+                        "username and password are required",
+                    );
+                }
+
+                const calendars = await discoverICloudCalendars({
+                    username,
+                    password,
+                });
+                return reply.send({ calendars });
+            } catch (err) {
+                fastify.log.error(err);
+                return serverError(
+                    reply,
+                    "Failed to discover iCloud calendars",
+                );
+            }
+        },
+    );
+
+    fastify.post(
+        "/icloud",
+        auth,
+        async (request: FastifyRequest, reply: FastifyReply) => {
+            try {
+                const { credentials, calendars } = request.body as any;
+                const result = await importICloudCalendars({
+                    userId: request.user.id,
+                    credentials,
+                    calendars,
+                });
+
+                if (typeof result === "string") {
+                    return badRequest(reply, IMPORT_ICLOUD_ERRORS[result]);
+                }
+
+                return created(reply, result);
+            } catch (err) {
+                fastify.log.error(err);
+                return serverError(reply, "Failed to import iCloud calendars");
             }
         },
     );

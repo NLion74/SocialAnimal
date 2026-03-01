@@ -19,8 +19,11 @@ enum FriendshipStatus {
 
 enum CalendarType {
   ics
+  caldav
   google
-  apple
+  icloud
+  outlook
+  fastmail
 }
 
 model User {

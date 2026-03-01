@@ -2,6 +2,8 @@ import { prisma } from "./db";
 import type { SyncResult, TestResult } from "../types";
 import { icsSync } from "../syncs/ics";
 import { googleSync } from "../syncs/google";
+import { caldavSync } from "../syncs/caldav";
+import { icloudSync } from "../syncs/icloud";
 import type { Calendar } from "@prisma/client";
 
 async function syncCalendar(calendarId: string): Promise<SyncResult> {
@@ -21,6 +23,10 @@ async function syncCalendar(calendarId: string): Promise<SyncResult> {
             return await icsSync.syncCalendar(calendar as any);
         if (calendar.type === "google")
             return await googleSync.syncCalendar(calendar as any);
+        if (calendar.type === "caldav")
+            return await caldavSync.syncCalendar(calendar as any);
+        if (calendar.type === "icloud")
+            return await icloudSync.syncCalendar(calendar as any);
         return { success: false, error: `Unsupported type: ${calendar.type}` };
     } catch (error) {
         console.error(`[sync:error] ${calendarId}:`, error);
@@ -55,6 +61,29 @@ async function testCalendarConnection(
                 accessToken: string;
                 refreshToken: string;
                 calendarId: string;
+            },
+        });
+    }
+
+    if (type === "caldav" && config?.url) {
+        return caldavSync.testCalendar({
+            type: calendar.type ?? "caldav",
+            config: config as {
+                url: string;
+                username: string;
+                password: string;
+                calendarPath?: string;
+            },
+        });
+    }
+
+    if (type === "icloud" && config?.username) {
+        return icloudSync.testCalendar({
+            type: calendar.type ?? "icloud",
+            config: config as {
+                username: string;
+                password: string;
+                calendarPath?: string;
             },
         });
     }

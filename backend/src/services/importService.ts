@@ -3,6 +3,10 @@ import { syncCalendar, testCalendarConnection } from "../utils/sync";
 import { env, isGoogleConfigured } from "../utils/env";
 import type { SyncResult, TestResult } from "../types";
 import type { Calendar } from "@prisma/client";
+import type { CaldavConfig } from "../syncs/caldav";
+import type { ICloudConfig } from "../syncs/icloud";
+import { caldavSync } from "../syncs/caldav";
+import { icloudSync } from "../syncs/icloud";
 
 interface ImportIcsInput {
     userId: string;
@@ -11,12 +15,23 @@ interface ImportIcsInput {
     config?: { url?: string; username?: string; password?: string };
 }
 
+interface ImportCaldavInput {
+    userId: string;
+    calendars: { name: string; calendarPath: string }[];
+    credentials: { url: string; username: string; password: string };
+}
 interface ImportGoogleCalendarInput {
     userId: string;
     calendarId: string;
     summary: string;
     accessToken: string;
     refreshToken: string;
+}
+
+interface ImportICloudInput {
+    userId: string;
+    calendars: { name: string; calendarPath: string }[];
+    credentials: { username: string; password: string };
 }
 
 interface ImportResult {
@@ -30,6 +45,68 @@ type ImportGoogleError =
     | "token-exchange-failed"
     | "calendar-fetch-failed"
     | "no-calendars-found";
+type ImportCaldavError = "missing-calendars" | "missing-credentials";
+type ImportICloudError = "missing-calendars" | "missing-credentials";
+
+export async function discoverCaldavCalendars(config: CaldavConfig) {
+    return caldavSync.discoverCalendars(config);
+}
+
+export async function discoverICloudCalendars(config: ICloudConfig) {
+    return icloudSync.discoverCalendars(config);
+}
+
+export async function importICloudCalendars(
+    input: ImportICloudInput,
+): Promise<ImportResult[] | ImportICloudError> {
+    const { userId, calendars, credentials } = input;
+
+    if (!credentials?.username || !credentials?.password)
+        return "missing-credentials";
+    if (!calendars?.length) return "missing-calendars";
+
+    const results: ImportResult[] = [];
+
+    for (const { name, calendarPath } of calendars) {
+        const calendar = await calendarService.createCalendar({
+            userId,
+            name,
+            type: "icloud",
+            config: { ...credentials, calendarPath },
+        });
+
+        const sync = await syncCalendar(calendar.id);
+        results.push({ calendar, sync });
+    }
+
+    return results;
+}
+
+export async function importCaldavCalendars(
+    input: ImportCaldavInput,
+): Promise<ImportResult[] | ImportCaldavError> {
+    const { userId, calendars, credentials } = input;
+
+    if (!credentials?.url || !credentials?.username || !credentials?.password)
+        return "missing-credentials";
+    if (!calendars?.length) return "missing-calendars";
+
+    const results: ImportResult[] = [];
+
+    for (const { name, calendarPath } of calendars) {
+        const calendar = await calendarService.createCalendar({
+            userId,
+            name,
+            type: "caldav",
+            config: { ...credentials, calendarPath },
+        });
+
+        const sync = await syncCalendar(calendar.id);
+        results.push({ calendar, sync });
+    }
+
+    return results;
+}
 
 export async function importIcsCalendar(
     input: ImportIcsInput,
