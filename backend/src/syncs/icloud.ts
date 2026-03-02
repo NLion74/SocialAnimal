@@ -32,8 +32,12 @@ class ICloudSync extends CaldavSync {
     public async discoverCalendars(
         config: ICloudConfig,
     ): Promise<DiscoveredCalendar[]> {
-        if (!this.validateConfig(config)) return [];
-        return super.discoverCalendars(toICloudCaldavConfig(config));
+        try {
+            return await super.discoverCalendars(toICloudCaldavConfig(config));
+        } catch (e) {
+            console.warn("iCloud discovery failed:", e);
+            return [];
+        }
     }
 
     protected async fetchEvents(
@@ -41,6 +45,7 @@ class ICloudSync extends CaldavSync {
     ): Promise<ParsedEvent[]> {
         const config = calendar.config as unknown as ICloudConfig;
         if (!this.validateConfig(config)) return [];
+
         return super.fetchEvents({
             ...calendar,
             config: toICloudCaldavConfig(

@@ -37,14 +37,30 @@ const IMPORT_GOOGLE_ERRORS = {
     "calendar-fetch-failed": "Failed to fetch Google calendars",
     "no-calendars-found": "No Google calendars found",
 } as const;
+
 const IMPORT_CALDAV_ERRORS = {
     "missing-calendars": "At least one calendar must be selected",
     "missing-credentials": "url, username and password are required",
 } as const;
+
 const IMPORT_ICLOUD_ERRORS = {
     "missing-calendars": "At least one calendar must be selected",
     "missing-credentials": "Apple ID and app-specific password required",
 } as const;
+
+function normalizeCalendars(
+    calendars: any[],
+    credentialsUrl?: string,
+): { name: string; url: string; calendarPath: string }[] {
+    return calendars.map((cal) => {
+        const resolvedUrl = cal.url || cal.calendarPath || credentialsUrl || "";
+        return {
+            name: cal.name || resolvedUrl,
+            url: resolvedUrl,
+            calendarPath: resolvedUrl,
+        };
+    });
+}
 
 const importRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.post(
@@ -79,18 +95,12 @@ const importRoutes: FastifyPluginAsync = async (fastify) => {
             try {
                 const { url, username, password } = request.body as any;
 
-                if (!url || !username || !password) {
-                    return badRequest(
-                        reply,
-                        "url, username and password are required",
-                    );
-                }
-
                 const calendars = await discoverCaldavCalendars({
-                    url,
-                    username,
-                    password,
+                    url: url || "",
+                    username: username || "",
+                    password: password || "",
                 });
+
                 return reply.send({ calendars });
             } catch (err) {
                 fastify.log.error(err);
@@ -105,10 +115,23 @@ const importRoutes: FastifyPluginAsync = async (fastify) => {
         async (request: FastifyRequest, reply: FastifyReply) => {
             try {
                 const { credentials, calendars } = request.body as any;
+
+                if (!calendars?.length) {
+                    return badRequest(
+                        reply,
+                        IMPORT_CALDAV_ERRORS["missing-calendars"],
+                    );
+                }
+
+                const normalized = normalizeCalendars(
+                    calendars,
+                    credentials?.url,
+                );
+
                 const result = await importCaldavCalendars({
                     userId: request.user.id,
                     credentials,
-                    calendars,
+                    calendars: normalized,
                 });
 
                 if (typeof result === "string") {
@@ -130,17 +153,11 @@ const importRoutes: FastifyPluginAsync = async (fastify) => {
             try {
                 const { username, password } = request.body as any;
 
-                if (!username || !password) {
-                    return badRequest(
-                        reply,
-                        "username and password are required",
-                    );
-                }
-
                 const calendars = await discoverICloudCalendars({
-                    username,
-                    password,
+                    username: username || "",
+                    password: password || "",
                 });
+
                 return reply.send({ calendars });
             } catch (err) {
                 fastify.log.error(err);
@@ -158,10 +175,20 @@ const importRoutes: FastifyPluginAsync = async (fastify) => {
         async (request: FastifyRequest, reply: FastifyReply) => {
             try {
                 const { credentials, calendars } = request.body as any;
+
+                if (!calendars?.length) {
+                    return badRequest(
+                        reply,
+                        IMPORT_ICLOUD_ERRORS["missing-calendars"],
+                    );
+                }
+
+                const normalized = normalizeCalendars(calendars);
+
                 const result = await importICloudCalendars({
                     userId: request.user.id,
                     credentials,
-                    calendars,
+                    calendars: normalized,
                 });
 
                 if (typeof result === "string") {

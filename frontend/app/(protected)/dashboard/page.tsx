@@ -1,28 +1,4 @@
-// Save a new CalDAV calendar (not editing)
-const saveCaldavCalendar = async () => {
-    if (!name || !url || !username || !password) return;
-    setSaving(true);
-    setError("");
-    try {
-        await apiClient.post("/api/import/caldav", {
-            credentials: { url, username, password },
-            calendars: [
-                {
-                    name: name || url,
-                    calendarPath: url,
-                },
-            ],
-        });
-        closeModal();
-        alert("Successfully imported calendar!");
-        await loadAll();
-    } catch (e: any) {
-        setError(e.message || "Failed to import calendar");
-    } finally {
-        setSaving(false);
-    }
-};
-("use client");
+"use client";
 
 import { useState, useEffect } from "react";
 import {
@@ -57,6 +33,21 @@ interface DiscoveredCalendar {
     displayName: string;
     color?: string;
 }
+
+type ServerSelectType = "caldav" | "icloud";
+
+type CaldavCredentials = {
+    url: string;
+    username: string;
+    password: string;
+};
+
+type IcloudCredentials = {
+    username: string;
+    password: string;
+};
+
+type ServerCredentials = CaldavCredentials | IcloudCredentials;
 
 const PERM_LABELS: Record<Permission, string> = {
     busy: "Busy Only",
@@ -107,14 +98,10 @@ export default function DashboardPage() {
     const [googleImporting, setGoogleImporting] = useState(false);
 
     const [showServerSelect, setShowServerSelect] = useState(false);
-    const [serverSelectType, setServerSelectType] = useState<
-        "caldav" | "icloud" | null
-    >(null);
-    const [serverCredentials, setServerCredentials] = useState<{
-        url?: string;
-        username: string;
-        password: string;
-    } | null>(null);
+    const [serverSelectType, setServerSelectType] =
+        useState<ServerSelectType | null>(null);
+    const [serverCredentials, setServerCredentials] =
+        useState<ServerCredentials | null>(null);
     const [discoveredCalendars, setDiscoveredCalendars] = useState<
         DiscoveredCalendar[]
     >([]);
@@ -140,15 +127,15 @@ export default function DashboardPage() {
     }, []);
 
     useEffect(() => {
-        if (editingCalendar) {
-            setName(editingCalendar.name);
-            setUrl(editingCalendar.config?.url || "");
-            setUsername(editingCalendar.config?.username || "");
-            setPassword(editingCalendar.config?.password || "");
-            setSync(editingCalendar.syncInterval ?? 60);
-        } else {
+        if (!editingCalendar) {
             resetForm();
+            return;
         }
+        setName(editingCalendar.name);
+        setUrl(editingCalendar.config?.url || "");
+        setUsername(editingCalendar.config?.username || "");
+        setPassword(editingCalendar.config?.password || "");
+        setSync(editingCalendar.syncInterval ?? 60);
     }, [editingCalendar]);
 
     const resetForm = () => {
@@ -170,6 +157,7 @@ export default function DashboardPage() {
                     .catch(() => []),
                 apiClient.request<Friend[]>("/api/friends").catch(() => []),
             ]);
+
             setCalendars((prev) =>
                 crRaw.map((c) => {
                     const old = prev.find((p) => p.id === c.id);
@@ -183,6 +171,7 @@ export default function DashboardPage() {
                     };
                 }),
             );
+
             setFriends(frRaw);
             setIncomingShares(deriveIncomingShares(frRaw, uid as string));
         } finally {
@@ -218,10 +207,12 @@ export default function DashboardPage() {
         resetForm();
         setShowModal(true);
     };
+
     const openEdit = (c: CalendarData) => {
         setEditingCalendar(c);
         setShowModal(true);
     };
+
     const closeModal = () => {
         setShowModal(false);
         setEditingCalendar(null);
@@ -242,22 +233,30 @@ export default function DashboardPage() {
 
     const saveIcsCalendar = async () => {
         if (!name || !url) return;
+
         setSaving(true);
         setError("");
+
         const config = {
             url,
             ...(username && { username }),
             ...(password && { password }),
         };
+
         try {
             const testRes = await apiClient.post(
                 "/api/import/test-connection",
-                { type: "ics", config },
+                {
+                    type: "ics",
+                    config,
+                },
             );
+
             if (!testRes?.success) {
                 setError(testRes?.error || "Connection test failed");
                 return;
             }
+
             if (editingCalendar) {
                 await apiClient.request(
                     `/api/calendars/${editingCalendar.id}`,
@@ -269,6 +268,7 @@ export default function DashboardPage() {
             } else {
                 await apiClient.post("/api/import/ics", { name, url, config });
             }
+
             closeModal();
             await loadAll();
         } catch (e: any) {
@@ -278,16 +278,26 @@ export default function DashboardPage() {
         }
     };
 
-    const saveCaldavEditing = async () => {
+    const saveServerEditing = async () => {
         if (!editingCalendar) return;
+
         setSaving(true);
         setError("");
-        const config = { url, username, password };
+
+        const existingUrl = editingCalendar.config?.url || url;
+
+        const config = {
+            url: existingUrl,
+            username,
+            password,
+        };
+
         try {
             await apiClient.request(`/api/calendars/${editingCalendar.id}`, {
                 method: "PUT",
                 body: { name, syncInterval: sync, config },
             });
+
             closeModal();
             await loadAll();
         } catch (e: any) {
@@ -297,42 +307,71 @@ export default function DashboardPage() {
         }
     };
 
-    const discoverAndOpenSelect = async (type: "caldav" | "icloud") => {
-        if (!username || !password || (type === "caldav" && !url)) return;
+    const discoverAndOpenSelect = async (type: ServerSelectType) => {
         setDiscoveringCalendars(true);
         setServerError("");
-        const creds =
+        setError("");
+
+        const creds: ServerCredentials =
             type === "caldav"
                 ? { url, username, password }
                 : { username, password };
+
         try {
             const endpoint =
                 type === "caldav"
                     ? "/api/import/caldav/discover"
                     : "/api/import/icloud/discover";
+
             const res = await apiClient.post<{
                 calendars: DiscoveredCalendar[];
             }>(endpoint, creds);
-            if (res.calendars && res.calendars.length > 0) {
-                setDiscoveredCalendars(res.calendars);
-                setSelectedCalendarUrls([]);
-                setServerCredentials(creds);
-                setServerSelectType(type);
-                closeModal();
-                setShowServerSelect(true);
-            } else {
-                // No calendars found, allow direct import fallback
+
+            const found = res?.calendars ?? [];
+
+            if (found.length === 0 && type === "caldav") {
                 setError(
-                    "No calendars discovered. You can import the direct calendar URL below.",
+                    "No calendars discovered. If your server blocks discovery, paste a direct calendar URL and use Direct Import.",
                 );
+                return;
             }
+
+            setDiscoveredCalendars(found);
+            setSelectedCalendarUrls([]);
+            setServerCredentials(creds);
+            setServerSelectType(type);
+
+            closeModal();
+            setShowServerSelect(true);
         } catch (e: any) {
-            setError(
-                (e.message || "Failed to discover calendars") +
-                    " You can import the direct calendar URL below.",
-            );
+            setError(e.message || "Failed to discover calendars");
         } finally {
             setDiscoveringCalendars(false);
+        }
+    };
+
+    const importDirectCaldav = async () => {
+        if (!name || !url) {
+            setError("Name and URL are required for direct import.");
+            return;
+        }
+
+        setSaving(true);
+        setError("");
+
+        const payload = {
+            credentials: { url, username, password },
+            calendars: [{ name, url }],
+        };
+
+        try {
+            await apiClient.post("/api/import/caldav", payload);
+            closeModal();
+            await loadAll();
+        } catch (e: any) {
+            setError(e.message || "Failed to import calendar");
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -345,14 +384,15 @@ export default function DashboardPage() {
         setServerError("");
     };
 
-    const toggleServerCalendar = (url: string) => {
+    const toggleServerCalendar = (u: string) => {
         setSelectedCalendarUrls((prev) =>
-            prev.includes(url) ? prev.filter((u) => u !== url) : [...prev, url],
+            prev.includes(u) ? prev.filter((x) => x !== u) : [...prev, u],
         );
     };
 
     const selectAllServer = () =>
         setSelectedCalendarUrls(discoveredCalendars.map((c) => c.url));
+
     const deselectAllServer = () => setSelectedCalendarUrls([]);
 
     const importSelectedServer = async () => {
@@ -362,26 +402,35 @@ export default function DashboardPage() {
             selectedCalendarUrls.length === 0
         )
             return;
+
         setServerImporting(true);
         setServerError("");
+
         try {
-            const calendarsPayload = selectedCalendarUrls.map((url) => ({
+            const calendarsPayload = selectedCalendarUrls.map((u) => ({
                 name:
-                    discoveredCalendars.find((c) => c.url === url)
-                        ?.displayName ?? url,
-                calendarPath: url,
+                    discoveredCalendars.find((c) => c.url === u)?.displayName ??
+                    u,
+                url: u,
             }));
+
             const endpoint =
                 serverSelectType === "caldav"
                     ? "/api/import/caldav"
                     : "/api/import/icloud";
-            await apiClient.post(endpoint, {
+
+            const body = {
                 credentials: serverCredentials,
                 calendars: calendarsPayload,
-            });
+            };
+
+            await apiClient.post(endpoint, body);
+
             closeServerSelect();
             alert(
-                `Successfully imported ${selectedCalendarUrls.length} calendar${selectedCalendarUrls.length !== 1 ? "s" : ""}!`,
+                `Successfully imported ${selectedCalendarUrls.length} calendar${
+                    selectedCalendarUrls.length !== 1 ? "s" : ""
+                }!`,
             );
             await loadAll();
         } catch (e: any) {
@@ -395,13 +444,19 @@ export default function DashboardPage() {
         const params = new URLSearchParams(window.location.search);
         const token = params.get("googleToken");
         const status = params.get("googleAuthSuccess");
+
         if (token && status === "success") {
             setGoogleToken(token);
             openGoogleSelect(token);
             window.history.replaceState({}, "", "");
-        } else if (status === "error") {
+            return;
+        }
+
+        if (status === "error") {
             alert(
-                `Google authentication failed: ${params.get("reason") || "Unknown error"}`,
+                `Google authentication failed: ${
+                    params.get("reason") || "Unknown error"
+                }`,
             );
             window.history.replaceState({}, "", "");
         }
@@ -410,6 +465,7 @@ export default function DashboardPage() {
     const connectGoogle = async () => {
         setGoogleLoading(true);
         setError("");
+
         try {
             const res = await apiClient.request<{ url: string }>(
                 "/api/import/google/auth-url",
@@ -427,6 +483,7 @@ export default function DashboardPage() {
         setGoogleToken(token);
         setGoogleSelectLoading(true);
         setError("");
+
         try {
             const [calendarsRes, importedRes] = await Promise.all([
                 apiClient.post<{ calendars: GoogleCalendar[] }>(
@@ -437,6 +494,7 @@ export default function DashboardPage() {
                     "/api/import/google/imported",
                 ),
             ]);
+
             setGoogleCalendars(calendarsRes.calendars);
             setImportedGoogleIds(importedRes.importedCalendarIds);
         } catch (err: any) {
@@ -457,22 +515,36 @@ export default function DashboardPage() {
     const toggleGoogleCalendar = (id: string) => {
         if (importedGoogleIds.includes(id)) return;
         setSelectedGoogleIds((prev) =>
-            prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
         );
     };
 
+    const selectAllGoogle = () => {
+        const availableIds = googleCalendars
+            .filter((cal) => !importedGoogleIds.includes(cal.id))
+            .map((cal) => cal.id);
+        setSelectedGoogleIds(availableIds);
+    };
+
+    const deselectAllGoogle = () => setSelectedGoogleIds([]);
+
     const importSelectedGoogle = async () => {
         if (!googleToken || selectedGoogleIds.length === 0) return;
+
         setGoogleImporting(true);
         setError("");
+
         try {
             await apiClient.post("/api/import/google/import", {
                 token: googleToken,
                 calendarIds: selectedGoogleIds,
             });
+
             closeGoogleSelect();
             alert(
-                `Successfully imported ${selectedGoogleIds.length} calendar${selectedGoogleIds.length !== 1 ? "s" : ""}!`,
+                `Successfully imported ${selectedGoogleIds.length} calendar${
+                    selectedGoogleIds.length !== 1 ? "s" : ""
+                }!`,
             );
             await loadAll();
         } catch (err: any) {
@@ -484,13 +556,16 @@ export default function DashboardPage() {
 
     const saveGoogleCalendar = async () => {
         if (!name || !editingCalendar) return;
+
         setSaving(true);
         setError("");
+
         try {
             await apiClient.request(`/api/calendars/${editingCalendar.id}`, {
                 method: "PUT",
                 body: { name, syncInterval: sync },
             });
+
             closeModal();
             await loadAll();
         } catch (e: any) {
@@ -579,14 +654,17 @@ export default function DashboardPage() {
     ) => {
         const token = localStorage.getItem("token");
         if (!token) return;
+
         const base = env.ICS_BASE_URL;
         const t = encodeURIComponent(token);
+
         const link =
             type === "all"
                 ? `${base}/api/export/subscription/ics/my-calendar.ics?token=${t}`
                 : type === "calendar"
                   ? `${base}/api/export/subscription/ics/calendar/${id}.ics?token=${t}`
                   : `${base}/api/export/subscription/ics/friend/${id}/${calendarId}.ics?token=${t}`;
+
         setExportCtx({ title, subtitle, link });
         setCopied(false);
     };
@@ -601,16 +679,18 @@ export default function DashboardPage() {
     const activeImportType = editingCalendar
         ? (editingCalendar.type as ImportType)
         : importType;
+
     const accepted = friends.filter((f) => f.status === "accepted");
     const total = calendars.reduce((n, c) => n + (c.events?.length || 0), 0);
 
-    if (loading)
+    if (loading) {
         return (
             <div className={s.loading}>
                 <div className={s.spinner} />
                 <span>Loading...</span>
             </div>
         );
+    }
 
     return (
         <div className={s.page}>
@@ -657,6 +737,7 @@ export default function DashboardPage() {
                         <Plus size={12} /> Add
                     </button>
                 </div>
+
                 {calendars.length === 0 ? (
                     <div className={s.empty}>
                         <Calendar size={38} className={s.emptyIcon} />
@@ -699,6 +780,7 @@ export default function DashboardPage() {
                                         )}
                                     </div>
                                 </div>
+
                                 <div className={s.rowActions}>
                                     <button
                                         className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
@@ -714,6 +796,7 @@ export default function DashboardPage() {
                                     >
                                         <Link size={12} />
                                     </button>
+
                                     <button
                                         className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
                                         onClick={() => doTest(c)}
@@ -729,6 +812,7 @@ export default function DashboardPage() {
                                             <Check size={12} />
                                         )}
                                     </button>
+
                                     <button
                                         className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
                                         onClick={() => doSync(c)}
@@ -744,6 +828,7 @@ export default function DashboardPage() {
                                             <RefreshCw size={12} />
                                         )}
                                     </button>
+
                                     <button
                                         className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
                                         onClick={() => openEdit(c)}
@@ -751,6 +836,7 @@ export default function DashboardPage() {
                                     >
                                         <Edit size={12} />
                                     </button>
+
                                     <button
                                         className={`${s.btn} ${s.btnDanger} ${s.btnSm} ${s.btnIcon}`}
                                         onClick={() => doDelete(c.id)}
@@ -771,6 +857,7 @@ export default function DashboardPage() {
                         Shared with you ({incomingShares.length})
                     </span>
                 </div>
+
                 {incomingShares.length === 0 ? (
                     <div className={s.empty}>
                         <Share2 size={38} className={s.emptyIcon} />
@@ -797,6 +884,7 @@ export default function DashboardPage() {
                                         </span>
                                     </div>
                                 </div>
+
                                 <div className={s.rowActions}>
                                     <button
                                         className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
@@ -876,6 +964,7 @@ export default function DashboardPage() {
                                 onChange={(e) => setName(e.target.value)}
                             />
                         </div>
+
                         <div>
                             <label className={s.fieldLabel}>ICS URL</label>
                             <input
@@ -885,6 +974,7 @@ export default function DashboardPage() {
                                 disabled={!!editingCalendar}
                             />
                         </div>
+
                         <div>
                             <label className={s.fieldLabel}>
                                 Username (optional)
@@ -895,6 +985,7 @@ export default function DashboardPage() {
                                 onChange={(e) => setUsername(e.target.value)}
                             />
                         </div>
+
                         <div>
                             <label className={s.fieldLabel}>
                                 Password (optional)
@@ -906,6 +997,7 @@ export default function DashboardPage() {
                                 onChange={(e) => setPassword(e.target.value)}
                             />
                         </div>
+
                         <div>
                             <label className={s.fieldLabel}>
                                 Auto-sync (minutes)
@@ -920,7 +1012,9 @@ export default function DashboardPage() {
                                 }
                             />
                         </div>
+
                         {error && <div className={s.error}>{error}</div>}
+
                         <div className={s.formRow}>
                             <button
                                 className={`${s.btn} ${s.btnPrimary}`}
@@ -940,139 +1034,7 @@ export default function DashboardPage() {
                     </div>
                 )}
 
-                {activeImportType === "caldav" && (
-                    <div className={s.formStack}>
-                        <label className={s.fieldLabel}>Name</label>
-                        <input
-                            className={s.input}
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                        />
-
-                        <label className={s.fieldLabel}>CalDAV URL</label>
-                        <input
-                            className={s.input}
-                            value={url}
-                            onChange={(e) => setUrl(e.target.value)}
-                            disabled={!!editingCalendar}
-                            placeholder="https://caldav.example.com/ OR direct calendar path"
-                        />
-
-                        <p className={s.hint}>
-                            Server root (auto-discovers calendars):
-                            <br />
-                            <code>https://caldav.example.com/</code>
-                            <br />
-                            <br />
-                            Direct calendar (if discovery fails):
-                            <br />
-                            <code>
-                                https://caldav.icloud.com/12345678/calendars/personal/
-                            </code>
-                        </p>
-
-                        <label className={s.fieldLabel}>Username</label>
-                        <input
-                            className={s.input}
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                        />
-
-                        <label className={s.fieldLabel}>Password</label>
-                        <input
-                            className={s.input}
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                        />
-
-                        <label className={s.fieldLabel}>
-                            Auto-sync (minutes)
-                        </label>
-                        <input
-                            className={s.input}
-                            type="number"
-                            min={0}
-                            value={sync}
-                            onChange={(e) => setSync(Number(e.target.value))}
-                        />
-
-                        {editingCalendar && (
-                            <p className={s.hint}>
-                                URL cannot be changed. Delete and re-import if
-                                needed.
-                            </p>
-                        )}
-
-                        {error && <div className={s.error}>{error}</div>}
-
-                        <div className={s.formRow}>
-                            <button
-                                className={s.btn + " " + s.btnPrimary}
-                                style={{ flex: 1 }}
-                                onClick={saveCaldavCalendar}
-                                disabled={saving}
-                            >
-                                {saving ? "Saving..." : "Save"}
-                            </button>
-                            <button
-                                className={s.btn + " " + s.btnSecondary}
-                                onClick={closeModal}
-                            >
-                                Cancel
-                            </button>
-                            {/* Fallback: Import direct calendar URL if discovery fails */}
-                            {!editingCalendar && (
-                                <button
-                                    className={s.btn + " " + s.btnSecondary}
-                                    style={{ marginLeft: 8 }}
-                                    onClick={async () => {
-                                        setSaving(true);
-                                        setError("");
-                                        try {
-                                            await apiClient.post(
-                                                "/api/import/caldav",
-                                                {
-                                                    credentials: {
-                                                        url,
-                                                        username,
-                                                        password,
-                                                    },
-                                                    calendars: [
-                                                        {
-                                                            name: name || url,
-                                                            calendarPath: url,
-                                                        },
-                                                    ],
-                                                },
-                                            );
-                                            closeModal();
-                                            alert(
-                                                "Successfully imported calendar!",
-                                            );
-                                            await loadAll();
-                                        } catch (e: any) {
-                                            setError(
-                                                e.message ||
-                                                    "Failed to import direct calendar",
-                                            );
-                                        } finally {
-                                            setSaving(false);
-                                        }
-                                    }}
-                                    disabled={
-                                        saving || !url || !username || !password
-                                    }
-                                    title="Import direct calendar URL (if discovery fails)"
-                                >
-                                    Import Direct Calendar URL
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {activeImportType === "icloud" && editingCalendar && (
+                {activeImportType === "caldav" && editingCalendar && (
                     <div className={s.formStack}>
                         <div>
                             <label className={s.fieldLabel}>Name</label>
@@ -1082,18 +1044,23 @@ export default function DashboardPage() {
                                 onChange={(e) => setName(e.target.value)}
                             />
                         </div>
+
                         <div>
-                            <label className={s.fieldLabel}>Apple ID</label>
+                            <label className={s.fieldLabel}>CalDAV URL</label>
+                            <input className={s.input} value={url} disabled />
+                        </div>
+
+                        <div>
+                            <label className={s.fieldLabel}>Username</label>
                             <input
                                 className={s.input}
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                             />
                         </div>
+
                         <div>
-                            <label className={s.fieldLabel}>
-                                App-specific password
-                            </label>
+                            <label className={s.fieldLabel}>Password</label>
                             <input
                                 className={s.input}
                                 type="password"
@@ -1101,6 +1068,7 @@ export default function DashboardPage() {
                                 onChange={(e) => setPassword(e.target.value)}
                             />
                         </div>
+
                         <div>
                             <label className={s.fieldLabel}>
                                 Auto-sync (minutes)
@@ -1115,12 +1083,205 @@ export default function DashboardPage() {
                                 }
                             />
                         </div>
+
+                        <p className={s.hint}>
+                            URL cannot be changed. Delete and re-import if
+                            needed.
+                        </p>
+
                         {error && <div className={s.error}>{error}</div>}
+
                         <div className={s.formRow}>
                             <button
                                 className={`${s.btn} ${s.btnPrimary}`}
                                 style={{ flex: 1 }}
-                                onClick={saveCaldavEditing}
+                                onClick={saveServerEditing}
+                                disabled={saving}
+                            >
+                                {saving ? "Saving…" : "Save"}
+                            </button>
+                            <button
+                                className={`${s.btn} ${s.btnSecondary}`}
+                                onClick={closeModal}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {activeImportType === "caldav" && !editingCalendar && (
+                    <div className={s.formStack}>
+                        <div>
+                            <label className={s.fieldLabel}>Name</label>
+                            <input
+                                className={s.input}
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder="Used for direct import"
+                            />
+                        </div>
+
+                        <div>
+                            <label className={s.fieldLabel}>CalDAV URL</label>
+                            <input
+                                className={s.input}
+                                value={url}
+                                onChange={(e) => setUrl(e.target.value)}
+                                placeholder="https://caldav.example.com/ or direct calendar URL"
+                            />
+                        </div>
+
+                        <p className={s.hint}>
+                            Server root (auto-discovers):
+                            <br />
+                            <span
+                                style={{
+                                    fontFamily: "ui-monospace, monospace",
+                                }}
+                            >
+                                https://caldav.example.com/
+                            </span>
+                            <br />
+                            <br />
+                            Direct calendar (fallback):
+                            <br />
+                            <span
+                                style={{
+                                    fontFamily: "ui-monospace, monospace",
+                                }}
+                            >
+                                https://caldav.icloud.com/12345678/calendars/personal/
+                            </span>
+                        </p>
+
+                        <div>
+                            <label className={s.fieldLabel}>Username</label>
+                            <input
+                                className={s.input}
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                            />
+                        </div>
+
+                        <div>
+                            <label className={s.fieldLabel}>Password</label>
+                            <input
+                                className={s.input}
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                            />
+                        </div>
+
+                        <div>
+                            <label className={s.fieldLabel}>
+                                Auto-sync (minutes)
+                            </label>
+                            <input
+                                className={s.input}
+                                type="number"
+                                min={0}
+                                value={sync}
+                                onChange={(e) =>
+                                    setSync(Number(e.target.value))
+                                }
+                            />
+                        </div>
+
+                        {error && <div className={s.error}>{error}</div>}
+
+                        <div className={s.formRow} style={{ gap: 8 }}>
+                            <button
+                                className={`${s.btn} ${s.btnPrimary}`}
+                                style={{ flex: 1 }}
+                                onClick={() => discoverAndOpenSelect("caldav")}
+                                disabled={discoveringCalendars}
+                            >
+                                {discoveringCalendars ? (
+                                    <>
+                                        <Loader2 size={14} className={s.spin} />{" "}
+                                        Discovering…
+                                    </>
+                                ) : (
+                                    "Discover Calendars"
+                                )}
+                            </button>
+
+                            <button
+                                className={`${s.btn} ${s.btnSecondary}`}
+                                onClick={importDirectCaldav}
+                                disabled={saving}
+                                title="Use this when discovery is blocked and you have a direct calendar URL"
+                            >
+                                {saving ? "Importing…" : "Direct Import"}
+                            </button>
+
+                            <button
+                                className={`${s.btn} ${s.btnSecondary}`}
+                                onClick={closeModal}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {activeImportType === "icloud" && editingCalendar && (
+                    <div className={s.formStack}>
+                        <div>
+                            <label className={s.fieldLabel}>Name</label>
+                            <input
+                                className={s.input}
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                            />
+                        </div>
+
+                        <div>
+                            <label className={s.fieldLabel}>Apple ID</label>
+                            <input
+                                className={s.input}
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                placeholder="you@icloud.com"
+                            />
+                        </div>
+
+                        <div>
+                            <label className={s.fieldLabel}>
+                                App-specific password
+                            </label>
+                            <input
+                                className={s.input}
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                            />
+                        </div>
+
+                        <div>
+                            <label className={s.fieldLabel}>
+                                Auto-sync (minutes)
+                            </label>
+                            <input
+                                className={s.input}
+                                type="number"
+                                min={0}
+                                value={sync}
+                                onChange={(e) =>
+                                    setSync(Number(e.target.value))
+                                }
+                            />
+                        </div>
+
+                        {error && <div className={s.error}>{error}</div>}
+
+                        <div className={s.formRow}>
+                            <button
+                                className={`${s.btn} ${s.btnPrimary}`}
+                                style={{ flex: 1 }}
+                                onClick={saveServerEditing}
                                 disabled={saving}
                             >
                                 {saving ? "Saving…" : "Save"}
@@ -1146,6 +1307,7 @@ export default function DashboardPage() {
                                 placeholder="you@icloud.com"
                             />
                         </div>
+
                         <div>
                             <label className={s.fieldLabel}>
                                 App-specific password
@@ -1157,38 +1319,44 @@ export default function DashboardPage() {
                                 onChange={(e) => setPassword(e.target.value)}
                             />
                         </div>
+
+                        <div>
+                            <label className={s.fieldLabel}>
+                                Auto-sync (minutes)
+                            </label>
+                            <input
+                                className={s.input}
+                                type="number"
+                                min={0}
+                                value={sync}
+                                onChange={(e) =>
+                                    setSync(Number(e.target.value))
+                                }
+                            />
+                        </div>
+
                         <p className={s.hint}>
                             Generate an app-specific password at
                             appleid.apple.com under Security.
                         </p>
+
                         {error && <div className={s.error}>{error}</div>}
-                        <div className={s.formRow}>
-                            <button
-                                className={`${s.btn} ${s.btnPrimary}`}
-                                style={{ flex: 1 }}
-                                onClick={() => discoverAndOpenSelect("icloud")}
-                                disabled={
-                                    discoveringCalendars ||
-                                    !username ||
-                                    !password
-                                }
-                            >
-                                {discoveringCalendars ? (
-                                    <>
-                                        <Loader2 size={14} className={s.spin} />{" "}
-                                        Discovering…
-                                    </>
-                                ) : (
-                                    "Discover Calendars"
-                                )}
-                            </button>
-                            <button
-                                className={`${s.btn} ${s.btnSecondary}`}
-                                onClick={closeModal}
-                            >
-                                Cancel
-                            </button>
-                        </div>
+
+                        <button
+                            className={`${s.btn} ${s.btnPrimary}`}
+                            style={{ flex: 1 }}
+                            onClick={() => discoverAndOpenSelect("icloud")}
+                            disabled={discoveringCalendars}
+                        >
+                            {discoveringCalendars ? (
+                                <>
+                                    <Loader2 size={14} className={s.spin} />{" "}
+                                    Discovering…
+                                </>
+                            ) : (
+                                "Discover Calendars"
+                            )}
+                        </button>
                     </div>
                 )}
 
@@ -1199,7 +1367,9 @@ export default function DashboardPage() {
                             calendars to import. You will be redirected to
                             Google to authorize access.
                         </p>
+
                         {error && <div className={s.error}>{error}</div>}
+
                         <div className={s.formRow}>
                             <button
                                 className={`${s.btn} ${s.btnPrimary}`}
@@ -1231,6 +1401,7 @@ export default function DashboardPage() {
                                 onChange={(e) => setName(e.target.value)}
                             />
                         </div>
+
                         <div>
                             <label className={s.fieldLabel}>
                                 Auto-sync (minutes)
@@ -1245,11 +1416,14 @@ export default function DashboardPage() {
                                 }
                             />
                         </div>
+
                         <p className={s.hint}>
                             Google Calendar URL cannot be changed. Delete and
                             re-import if needed.
                         </p>
+
                         {error && <div className={s.error}>{error}</div>}
+
                         <div className={s.formRow}>
                             <button
                                 className={`${s.btn} ${s.btnPrimary}`}
@@ -1279,14 +1453,8 @@ export default function DashboardPage() {
                 importedIds={importedGoogleIds}
                 selectedIds={selectedGoogleIds}
                 onToggle={toggleGoogleCalendar}
-                onSelectAll={() =>
-                    setSelectedGoogleIds(
-                        googleCalendars
-                            .filter((c) => !importedGoogleIds.includes(c.id))
-                            .map((c) => c.id),
-                    )
-                }
-                onDeselectAll={() => setSelectedGoogleIds([])}
+                onSelectAll={selectAllGoogle}
+                onDeselectAll={deselectAllGoogle}
                 onImport={importSelectedGoogle}
                 importing={googleImporting}
             />
@@ -1325,10 +1493,12 @@ export default function DashboardPage() {
                             <p className={s.hint}>{exportCtx.subtitle}</p>
                         )}
                     </div>
+
                     <div>
                         <label className={s.fieldLabel}>Type</label>
-                        <div className={s.inputStatic}>ICS / iCal</div>
+                        <div className={s.inputStatic}>ICS iCal</div>
                     </div>
+
                     <div>
                         <label className={s.fieldLabel}>
                             Subscription link
@@ -1343,11 +1513,13 @@ export default function DashboardPage() {
                                 fontSize: 12,
                             }}
                         />
+                        <p className={s.hint}>
+                            Use this link to subscribe in other apps. Do not
+                            share it: it contains a secret token that grants
+                            access to your calendar data.
+                        </p>
                     </div>
-                    <p className={s.hint}>
-                        Use this link to subscribe in other apps. Do not share
-                        it — it contains a secret token.
-                    </p>
+
                     <div className={s.formRow}>
                         <button
                             className={`${s.btn} ${s.btnPrimary}`}

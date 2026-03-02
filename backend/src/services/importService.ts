@@ -17,21 +17,22 @@ interface ImportIcsInput {
 
 interface ImportCaldavInput {
     userId: string;
-    calendars: { name: string; calendarPath: string }[];
+    calendars: { name: string; calendarPath?: string; url?: string }[];
     credentials: { url: string; username: string; password: string };
 }
+
+interface ImportICloudInput {
+    userId: string;
+    calendars: { name: string; calendarPath?: string; url?: string }[];
+    credentials: { username: string; password: string };
+}
+
 interface ImportGoogleCalendarInput {
     userId: string;
     calendarId: string;
     summary: string;
     accessToken: string;
     refreshToken: string;
-}
-
-interface ImportICloudInput {
-    userId: string;
-    calendars: { name: string; calendarPath: string }[];
-    credentials: { username: string; password: string };
 }
 
 interface ImportResult {
@@ -67,10 +68,11 @@ export async function importICloudCalendars(
 
     const results: ImportResult[] = [];
 
-    for (const { name, calendarPath } of calendars) {
+    for (const cal of calendars) {
+        const calendarPath = cal.calendarPath || cal.url || "";
         const calendar = await calendarService.createCalendar({
             userId,
-            name,
+            name: cal.name,
             type: "icloud",
             config: { ...credentials, calendarPath },
         });
@@ -93,10 +95,11 @@ export async function importCaldavCalendars(
 
     const results: ImportResult[] = [];
 
-    for (const { name, calendarPath } of calendars) {
+    for (const cal of calendars) {
+        const calendarPath = cal.calendarPath || cal.url || credentials.url;
         const calendar = await calendarService.createCalendar({
             userId,
-            name,
+            name: cal.name,
             type: "caldav",
             config: { ...credentials, calendarPath },
         });
@@ -125,7 +128,6 @@ export async function importIcsCalendar(
     });
 
     const sync = await syncCalendar(calendar.id);
-
     return { calendar, sync };
 }
 
@@ -190,7 +192,6 @@ export async function fetchGoogleCalendars(
     if (!res.ok) return "calendar-fetch-failed";
 
     const data = (await res.json()) as any;
-
     if (!data.items?.length) return "no-calendars-found";
 
     return data.items.map((cal: any) => ({
@@ -208,11 +209,7 @@ export async function importGoogleCalendar(
         userId,
         name: summary,
         type: "google",
-        config: {
-            accessToken,
-            refreshToken,
-            calendarId,
-        },
+        config: { accessToken, refreshToken, calendarId },
     });
 
     syncCalendar(calendar.id).catch((err) =>

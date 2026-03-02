@@ -32,6 +32,15 @@ function buildTimeRange() {
     return { start: start.toISOString(), end: end.toISOString() };
 }
 
+function extractServerRoot(url: string): string {
+    try {
+        const parsed = new URL(url);
+        return `${parsed.protocol}//${parsed.host}`;
+    } catch {
+        return url;
+    }
+}
+
 export class CaldavSync extends ICalendarBaseSync<CaldavConfig> {
     getType(): string {
         return "caldav";
@@ -43,7 +52,7 @@ export class CaldavSync extends ICalendarBaseSync<CaldavConfig> {
 
     protected createClient(config: CaldavConfig): Promise<any> {
         return createDAVClient({
-            serverUrl: config.url,
+            serverUrl: extractServerRoot(config.url),
             credentials: {
                 username: config.username,
                 password: config.password,
@@ -56,16 +65,22 @@ export class CaldavSync extends ICalendarBaseSync<CaldavConfig> {
     public async discoverCalendars(
         config: CaldavConfig,
     ): Promise<DiscoveredCalendar[]> {
-        if (!this.validateConfig(config)) return [];
-
-        const client = await this.createClient(config);
-        const calendars = await client.fetchCalendars();
-
-        return calendars.map((c: DAVCalendar) => ({
-            url: c.url,
-            displayName: (c as any).displayName ?? c.url,
-            color: (c as any).calendarColor ?? undefined,
-        }));
+        try {
+            const client = await this.createClient(
+                this.validateConfig(config)
+                    ? config
+                    : { ...config, url: config.url || "https://placeholder" },
+            );
+            const calendars = await client.fetchCalendars();
+            return calendars.map((c: DAVCalendar) => ({
+                url: c.url,
+                displayName: (c as any).displayName ?? c.url,
+                color: (c as any).calendarColor ?? undefined,
+            }));
+        } catch (e) {
+            console.warn("CalDAV discovery failed:", e);
+            return [];
+        }
     }
 
     protected async fetchEvents(
@@ -76,49 +91,78 @@ export class CaldavSync extends ICalendarBaseSync<CaldavConfig> {
             url: (rawConfig?.url as string) || "",
             username: (rawConfig?.username as string) || "",
             password: (rawConfig?.password as string) || "",
+            calendarPath: rawConfig?.calendarPath,
         };
 
         if (!this.validateConfig(config)) return [];
 
         const client = await this.createClient(config);
-
-        let allCalendars = await client.fetchCalendars();
-
-        // FALLBACK: If no calendars found, assume config.url is DIRECT calendar URL
-        if (!allCalendars.length) {
-            console.log(
-                "Discovery failed, trying direct calendar:",
-                config.url,
-            );
-            const directCal = {
-                url: config.url,
-                displayName: "Direct Calendar",
-            } as DAVCalendar;
-            allCalendars = [directCal];
-        }
-
-        if (!allCalendars.length) return [];
-
         const timeRange = buildTimeRange();
-        const events: ParsedEvent[] = [];
 
-        for (const target of allCalendars) {
-            try {
-                const objects = await client.fetchCalendarObjects({
-                    calendar: target,
-                    timeRange,
-                });
-                for (const obj of objects as DAVCalendarObject[]) {
-                    if (obj.data) {
-                        events.push(...this.parseICalData(obj.data));
-                    }
-                }
-            } catch (e) {
-                console.warn("Failed to fetch from", target.url, e);
+        const target = await this.resolveTargetCalendar(client, config);
+        if (!target) return [];
+
+        try {
+            const objects = await client.fetchCalendarObjects({
+                calendar: target,
+                timeRange,
+            });
+
+            const events: ParsedEvent[] = [];
+            for (const obj of objects as DAVCalendarObject[]) {
+                if (obj.data) events.push(...this.parseICalData(obj.data));
             }
+            return events;
+        } catch (e) {
+            console.warn(
+                "Failed to fetch calendar objects from",
+                target.url,
+                e,
+            );
+            return [];
         }
+    }
 
-        return events;
+    private async resolveTargetCalendar(
+        client: any,
+        config: CaldavConfig,
+    ): Promise<DAVCalendar | null> {
+        const targetUrl = config.calendarPath || config.url;
+
+        try {
+            const discovered: DAVCalendar[] = await client.fetchCalendars();
+
+            if (discovered.length === 0) {
+                return { url: targetUrl } as DAVCalendar;
+            }
+
+            const normalize = (u: string) => u.replace(/\/$/, "").toLowerCase();
+
+            const exact = discovered.find(
+                (c) => normalize(c.url) === normalize(targetUrl),
+            );
+            if (exact) return exact;
+
+            const partial = discovered.find(
+                (c) =>
+                    normalize(c.url).includes(normalize(targetUrl)) ||
+                    normalize(targetUrl).includes(normalize(c.url)),
+            );
+            if (partial) return partial;
+
+            if (config.calendarPath) {
+                return { url: config.calendarPath } as DAVCalendar;
+            }
+
+            if (discovered.length === 1) return discovered[0];
+
+            console.warn(
+                `Multiple calendars discovered for ${config.url} but no match for calendarPath ${config.calendarPath} — using first`,
+            );
+            return discovered[0];
+        } catch {
+            return { url: targetUrl } as DAVCalendar;
+        }
     }
 
     protected async testConnection(config: CaldavConfig): Promise<{
