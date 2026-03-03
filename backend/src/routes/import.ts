@@ -40,12 +40,11 @@ const IMPORT_GOOGLE_ERRORS = {
 
 const IMPORT_CALDAV_ERRORS = {
     "missing-calendars": "At least one calendar must be selected",
-    "missing-credentials": "url, username and password are required",
+    "missing-url": "CalDAV server URL is required",
 } as const;
 
 const IMPORT_ICLOUD_ERRORS = {
     "missing-calendars": "At least one calendar must be selected",
-    "missing-credentials": "Apple ID and app-specific password required",
 } as const;
 
 function normalizeCalendars(

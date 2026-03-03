@@ -4,8 +4,8 @@ import type { CalendarWithUser } from "../types";
 import type { ParsedEvent } from "./ical-base";
 
 export interface ICloudConfig {
-    username: string;
-    password: string;
+    username?: string;
+    password?: string;
     calendarPath?: string;
 }
 
@@ -14,8 +14,8 @@ const ICLOUD_CALDAV_URL = "https://caldav.icloud.com";
 function toICloudCaldavConfig(config: ICloudConfig): CaldavConfig {
     return {
         url: ICLOUD_CALDAV_URL,
-        username: config.username,
-        password: config.password,
+        username: config.username || "",
+        password: config.password || "",
         calendarPath: config.calendarPath,
     };
 }
@@ -44,8 +44,6 @@ class ICloudSync extends CaldavSync {
         calendar: CalendarWithUser,
     ): Promise<ParsedEvent[]> {
         const config = calendar.config as unknown as ICloudConfig;
-        if (!this.validateConfig(config)) return [];
-
         return super.fetchEvents({
             ...calendar,
             config: toICloudCaldavConfig(
@@ -59,12 +57,6 @@ class ICloudSync extends CaldavSync {
         eventsPreview?: string[];
         error?: string;
     }> {
-        if (!this.validateConfig(config)) {
-            return {
-                success: false,
-                error: "Missing required fields: username, password",
-            };
-        }
         return super.testConnection(toICloudCaldavConfig(config));
     }
 

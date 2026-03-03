@@ -6,8 +6,8 @@ import type { CalendarWithUser } from "../types";
 
 export interface CaldavConfig {
     url: string;
-    username: string;
-    password: string;
+    username?: string;
+    password?: string;
     calendarPath?: string;
 }
 
@@ -41,21 +41,30 @@ function extractServerRoot(url: string): string {
     }
 }
 
+function isDeepCalendarPath(url: string): boolean {
+    try {
+        const pathname = new URL(url).pathname;
+        return pathname.length > 1 && pathname !== "/";
+    } catch {
+        return false;
+    }
+}
+
 export class CaldavSync extends ICalendarBaseSync<CaldavConfig> {
     getType(): string {
         return "caldav";
     }
 
     protected validateConfig(config: CaldavConfig): boolean {
-        return !!(config?.url && config?.username && config?.password);
+        return !!config?.url;
     }
 
     protected createClient(config: CaldavConfig): Promise<any> {
         return createDAVClient({
             serverUrl: extractServerRoot(config.url),
             credentials: {
-                username: config.username,
-                password: config.password,
+                username: config.username || "",
+                password: config.password || "",
             },
             authMethod: "Basic",
             defaultAccountType: "caldav",
@@ -67,9 +76,7 @@ export class CaldavSync extends ICalendarBaseSync<CaldavConfig> {
     ): Promise<DiscoveredCalendar[]> {
         try {
             const client = await this.createClient(
-                this.validateConfig(config)
-                    ? config
-                    : { ...config, url: config.url || "https://placeholder" },
+                config.url ? config : { ...config, url: "https://placeholder" },
             );
             const calendars = await client.fetchCalendars();
             return calendars.map((c: DAVCalendar) => ({
@@ -127,7 +134,13 @@ export class CaldavSync extends ICalendarBaseSync<CaldavConfig> {
         client: any,
         config: CaldavConfig,
     ): Promise<DAVCalendar | null> {
-        const targetUrl = config.calendarPath || config.url;
+        const calendarPath = config.calendarPath;
+
+        if (calendarPath && isDeepCalendarPath(calendarPath)) {
+            return { url: calendarPath } as DAVCalendar;
+        }
+
+        const targetUrl = calendarPath || config.url;
 
         try {
             const discovered: DAVCalendar[] = await client.fetchCalendars();
@@ -150,14 +163,10 @@ export class CaldavSync extends ICalendarBaseSync<CaldavConfig> {
             );
             if (partial) return partial;
 
-            if (config.calendarPath) {
-                return { url: config.calendarPath } as DAVCalendar;
-            }
-
             if (discovered.length === 1) return discovered[0];
 
             console.warn(
-                `Multiple calendars discovered for ${config.url} but no match for calendarPath ${config.calendarPath} — using first`,
+                `Multiple calendars discovered but no match for ${targetUrl} — using first`,
             );
             return discovered[0];
         } catch {
@@ -171,10 +180,7 @@ export class CaldavSync extends ICalendarBaseSync<CaldavConfig> {
         error?: string;
     }> {
         if (!this.validateConfig(config)) {
-            return {
-                success: false,
-                error: "Missing required fields: url, username, password",
-            };
+            return { success: false, error: "Missing required field: url" };
         }
 
         try {
