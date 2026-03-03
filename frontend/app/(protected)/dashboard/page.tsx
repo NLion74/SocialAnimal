@@ -16,7 +16,6 @@ import {
 import { apiClient } from "../../../lib/api";
 import type { CalendarData, Friend, Permission } from "../../../lib/types";
 import s from "./page.module.css";
-import { env } from "../../../lib/env";
 import Modal from "../../../components/Modal";
 import GoogleCalendarSelect from "../../../components/GoogleCalendarSelect";
 import ServerCalendarSelect from "../../../components/ServerCalendarSelect";
@@ -121,9 +120,31 @@ export default function DashboardPage() {
 
     const uid = apiClient.getUid();
 
+    const withTimeout = async <T,>(
+        promise: Promise<T>,
+        timeoutMs = 12000,
+    ): Promise<T> => {
+        return await new Promise<T>((resolve, reject) => {
+            const timeout = setTimeout(
+                () => reject(new Error("Request timed out")),
+                timeoutMs,
+            );
+
+            promise
+                .then((value) => {
+                    clearTimeout(timeout);
+                    resolve(value);
+                })
+                .catch((error) => {
+                    clearTimeout(timeout);
+                    reject(error);
+                });
+        });
+    };
+
     useEffect(() => {
-        loadAll();
         checkGoogleCallback();
+        void loadAll();
     }, []);
 
     useEffect(() => {
@@ -152,10 +173,12 @@ export default function DashboardPage() {
         setLoading(true);
         try {
             const [crRaw, frRaw] = await Promise.all([
-                apiClient
-                    .request<CalendarData[]>("/api/calendars")
-                    .catch(() => []),
-                apiClient.request<Friend[]>("/api/friends").catch(() => []),
+                withTimeout(
+                    apiClient.request<CalendarData[]>("/api/calendars"),
+                ).catch(() => []),
+                withTimeout(apiClient.request<Friend[]>("/api/friends")).catch(
+                    () => [],
+                ),
             ]);
 
             setCalendars((prev) =>
@@ -184,6 +207,45 @@ export default function DashboardPage() {
     ): creds is CaldavCredentials {
         return typeof (creds as CaldavCredentials).url === "string";
     }
+
+    const normalizeRef = (value?: string | null) =>
+        String(value || "")
+            .trim()
+            .replace(/\/$/, "")
+            .toLowerCase();
+
+    const getImportedGoogleIds = () =>
+        calendars
+            .filter((c) => c.type === "google")
+            .map((c) => (c.config as any)?.calendarId)
+            .filter((id): id is string => !!id);
+
+    const parseGoogleOAuthToken = (
+        token: string,
+    ): { accessToken: string; refreshToken: string } | null => {
+        try {
+            const [, payloadBase64] = token.split(".");
+            if (!payloadBase64) return null;
+            const payload = JSON.parse(atob(payloadBase64));
+            if (!payload?.accessToken) return null;
+            return {
+                accessToken: String(payload.accessToken),
+                refreshToken: String(payload.refreshToken || ""),
+            };
+        } catch {
+            return null;
+        }
+    };
+
+    const getImportedServerUrls = (type: ServerSelectType | null) => {
+        if (!type) return [] as string[];
+        return calendars
+            .filter((c) => c.type === type)
+            .map((c) => (c.config as any)?.calendarPath || c.config?.url)
+            .filter((url): url is string => !!url);
+    };
+
+    const importedServerUrls = getImportedServerUrls(serverSelectType);
 
     const deriveIncomingShares = (
         frRaw: Friend[],
@@ -251,11 +313,8 @@ export default function DashboardPage() {
 
         try {
             const testRes = await apiClient.post(
-                "/api/import/test-connection",
-                {
-                    type: "ics",
-                    config,
-                },
+                "/api/providers/ics/test",
+                config,
             );
 
             if (!testRes?.success) {
@@ -272,7 +331,11 @@ export default function DashboardPage() {
                     },
                 );
             } else {
-                await apiClient.post("/api/import/ics", { name, url, config });
+                await apiClient.post("/api/providers/ics/import", {
+                    name,
+                    url,
+                    config,
+                });
             }
 
             closeModal();
@@ -323,13 +386,11 @@ export default function DashboardPage() {
         setError("");
 
         try {
-            const testRes = await apiClient.post(
-                "/api/import/test-connection",
-                {
-                    type: "caldav",
-                    config: { url, username, password },
-                },
-            );
+            const testRes = await apiClient.post("/api/providers/caldav/test", {
+                url,
+                username,
+                password,
+            });
 
             if (!testRes?.success) {
                 setError(testRes?.error || "Connection test failed");
@@ -337,11 +398,16 @@ export default function DashboardPage() {
             }
 
             const creds = { url, username, password };
-            const res = await apiClient.post<{
-                calendars: DiscoveredCalendar[];
-            }>("/api/import/caldav/discover", creds);
+            let found: DiscoveredCalendar[] = [];
 
-            const found = res?.calendars ?? [];
+            try {
+                const res = await apiClient.post<{
+                    calendars: DiscoveredCalendar[];
+                }>("/api/providers/caldav/discover", creds);
+                found = res?.calendars ?? [];
+            } catch {
+                found = [];
+            }
 
             if (found.length > 0) {
                 setDiscoveredCalendars(found);
@@ -353,16 +419,9 @@ export default function DashboardPage() {
                 return;
             }
 
-            if (!name) {
-                setError(
-                    "No calendars discovered. Enter a name above to import this URL directly.",
-                );
-                return;
-            }
-
-            await apiClient.post("/api/import/caldav", {
+            await apiClient.post("/api/providers/caldav/import", {
                 credentials: creds,
-                calendars: [{ name, url }],
+                calendars: [{ name: name || url, url }],
             });
 
             closeModal();
@@ -379,13 +438,10 @@ export default function DashboardPage() {
         setError("");
 
         try {
-            const testRes = await apiClient.post(
-                "/api/import/test-connection",
-                {
-                    type: "icloud",
-                    config: { username, password },
-                },
-            );
+            const testRes = await apiClient.post("/api/providers/icloud/test", {
+                username,
+                password,
+            });
 
             if (!testRes?.success) {
                 setError(testRes?.error || "Connection test failed");
@@ -395,7 +451,7 @@ export default function DashboardPage() {
             const creds = { username, password };
             const res = await apiClient.post<{
                 calendars: DiscoveredCalendar[];
-            }>("/api/import/icloud/discover", creds);
+            }>("/api/providers/icloud/discover", creds);
 
             const found = res?.calendars ?? [];
 
@@ -422,13 +478,31 @@ export default function DashboardPage() {
     };
 
     const toggleServerCalendar = (u: string) => {
+        const normalized = normalizeRef(u);
+        if (
+            importedServerUrls.some(
+                (existing) => normalizeRef(existing) === normalized,
+            )
+        ) {
+            return;
+        }
         setSelectedCalendarUrls((prev) =>
             prev.includes(u) ? prev.filter((x) => x !== u) : [...prev, u],
         );
     };
 
     const selectAllServer = () =>
-        setSelectedCalendarUrls(discoveredCalendars.map((c) => c.url));
+        setSelectedCalendarUrls(
+            discoveredCalendars
+                .map((c) => c.url)
+                .filter(
+                    (url) =>
+                        !importedServerUrls.some(
+                            (existing) =>
+                                normalizeRef(existing) === normalizeRef(url),
+                        ),
+                ),
+        );
 
     const deselectAllServer = () => setSelectedCalendarUrls([]);
 
@@ -444,17 +518,30 @@ export default function DashboardPage() {
         setServerError("");
 
         try {
-            const calendarsPayload = selectedCalendarUrls.map((u) => ({
-                name:
-                    discoveredCalendars.find((c) => c.url === u)?.displayName ??
-                    u,
-                url: u,
-            }));
+            const calendarsPayload = selectedCalendarUrls
+                .filter(
+                    (url) =>
+                        !importedServerUrls.some(
+                            (existing) =>
+                                normalizeRef(existing) === normalizeRef(url),
+                        ),
+                )
+                .map((u) => ({
+                    name:
+                        discoveredCalendars.find((c) => c.url === u)
+                            ?.displayName ?? u,
+                    url: u,
+                }));
+
+            if (!calendarsPayload.length) {
+                setServerError("All selected calendars are already imported.");
+                return;
+            }
 
             const endpoint =
                 serverSelectType === "caldav"
-                    ? "/api/import/caldav"
-                    : "/api/import/icloud";
+                    ? "/api/providers/caldav/import"
+                    : "/api/providers/icloud/import";
 
             const credentials = isCaldavCreds(serverCredentials)
                 ? {
@@ -488,12 +575,21 @@ export default function DashboardPage() {
 
     const checkGoogleCallback = () => {
         const params = new URLSearchParams(window.location.search);
-        const token = params.get("googleToken");
         const status = params.get("googleAuthSuccess");
+        const googleTokenParam = params.get("googleToken");
+        const importedCount = params.get("imported");
 
-        if (token && status === "success") {
-            setGoogleToken(token);
-            openGoogleSelect(token);
+        if (status === "success" && googleTokenParam) {
+            setGoogleToken(googleTokenParam);
+            void openGoogleSelect(googleTokenParam);
+            window.history.replaceState({}, "", "");
+            return;
+        }
+
+        if (status === "success") {
+            if (importedCount) {
+                alert(`Google import complete: ${importedCount} calendar(s).`);
+            }
             window.history.replaceState({}, "", "");
             return;
         }
@@ -514,7 +610,7 @@ export default function DashboardPage() {
 
         try {
             const res = await apiClient.request<{ url: string }>(
-                "/api/import/google/auth-url",
+                "/api/providers/google/auth-url",
             );
             window.location.href = res.url;
         } catch (err: any) {
@@ -531,18 +627,19 @@ export default function DashboardPage() {
         setError("");
 
         try {
-            const [calendarsRes, importedRes] = await Promise.all([
-                apiClient.post<{ calendars: GoogleCalendar[] }>(
-                    "/api/import/google/list",
-                    { token },
-                ),
-                apiClient.request<{ importedCalendarIds: string[] }>(
-                    "/api/import/google/imported",
-                ),
-            ]);
+            const parsed = parseGoogleOAuthToken(token);
+            if (!parsed) {
+                throw new Error("Invalid Google OAuth token");
+            }
+
+            const calendarsRes = await apiClient.post<{
+                calendars: GoogleCalendar[];
+            }>("/api/providers/google/discover", {
+                accessToken: parsed.accessToken,
+            });
 
             setGoogleCalendars(calendarsRes.calendars);
-            setImportedGoogleIds(importedRes.importedCalendarIds);
+            setImportedGoogleIds(getImportedGoogleIds());
         } catch (err: any) {
             setError(err.message || "Failed to load calendars");
         } finally {
@@ -581,15 +678,38 @@ export default function DashboardPage() {
         setError("");
 
         try {
-            await apiClient.post("/api/import/google/import", {
-                token: googleToken,
-                calendarIds: selectedGoogleIds,
-            });
+            const parsed = parseGoogleOAuthToken(googleToken);
+            if (!parsed) {
+                throw new Error("Invalid Google OAuth token");
+            }
+
+            const importableIds = selectedGoogleIds.filter(
+                (calendarId) => !importedGoogleIds.includes(calendarId),
+            );
+
+            if (!importableIds.length) {
+                setError("All selected calendars are already imported.");
+                return;
+            }
+
+            await Promise.all(
+                importableIds.map((calendarId) => {
+                    const calendar = googleCalendars.find(
+                        (c) => c.id === calendarId,
+                    );
+                    return apiClient.post("/api/providers/google/import", {
+                        calendarId,
+                        summary: calendar?.summary,
+                        accessToken: parsed.accessToken,
+                        refreshToken: parsed.refreshToken,
+                    });
+                }),
+            );
 
             closeGoogleSelect();
             alert(
-                `Successfully imported ${selectedGoogleIds.length} calendar${
-                    selectedGoogleIds.length !== 1 ? "s" : ""
+                `Successfully imported ${importableIds.length} calendar${
+                    importableIds.length !== 1 ? "s" : ""
                 }!`,
             );
             await loadAll();
@@ -691,28 +811,31 @@ export default function DashboardPage() {
         }
     };
 
-    const openExport = (
+    const openExport = async (
         title: string,
         subtitle: string | undefined,
-        type: "all" | "calendar" | "friend",
         id?: string,
-        calendarId?: string,
     ) => {
-        const token = localStorage.getItem("token");
-        if (!token) return;
+        try {
+            let link = "";
 
-        const base = env.ICS_BASE_URL;
-        const t = encodeURIComponent(token);
+            if (id) {
+                const res = await apiClient.request<{ url: string }>(
+                    `/api/providers/ics/export/${id}?type=link`,
+                );
+                link = res.url;
+            }
 
-        const link =
-            type === "all"
-                ? `${base}/api/export/subscription/ics/my-calendar.ics?token=${t}`
-                : type === "calendar"
-                  ? `${base}/api/export/subscription/ics/calendar/${id}.ics?token=${t}`
-                  : `${base}/api/export/subscription/ics/friend/${id}/${calendarId}.ics?token=${t}`;
+            if (!link) {
+                setError("Failed to generate export link");
+                return;
+            }
 
-        setExportCtx({ title, subtitle, link });
-        setCopied(false);
+            setExportCtx({ title, subtitle, link });
+            setCopied(false);
+        } catch (err: any) {
+            setError(err?.message || "Failed to generate export link");
+        }
     };
 
     const doCopy = () => {
@@ -743,14 +866,6 @@ export default function DashboardPage() {
             <div className={s.pageHeader}>
                 <h1 className={s.pageTitle}>Dashboard</h1>
                 <div className={s.btnRow}>
-                    <button
-                        className={`${s.btn} ${s.btnSecondary}`}
-                        onClick={() =>
-                            openExport("My Calendars", undefined, "all")
-                        }
-                    >
-                        <Link size={14} /> Export All
-                    </button>
                     <button
                         className={`${s.btn} ${s.btnPrimary}`}
                         onClick={openCreate}
@@ -834,7 +949,6 @@ export default function DashboardPage() {
                                             openExport(
                                                 c.name,
                                                 `${c.events?.length || 0} events`,
-                                                "calendar",
                                                 c.id,
                                             )
                                         }
@@ -939,8 +1053,6 @@ export default function DashboardPage() {
                                                 share.calendarName,
                                                 share.ownerName ||
                                                     share.ownerEmail,
-                                                "friend",
-                                                share.ownerId,
                                                 share.calendarId,
                                             )
                                         }
@@ -1465,6 +1577,7 @@ export default function DashboardPage() {
                 loading={false}
                 error={serverError}
                 calendars={discoveredCalendars}
+                importedUrls={importedServerUrls}
                 selectedUrls={selectedCalendarUrls}
                 onToggle={toggleServerCalendar}
                 onSelectAll={selectAllServer}

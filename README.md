@@ -70,7 +70,7 @@ Edit .env with your configuration:
 # See Google Calendar Setup below
 GOOGLE_CLIENT_ID=clientid
 GOOGLE_CLIENT_SECRET=clientsecret
-GOOGLE_REDIRECT_URI=http://localhost:3000/api/import/google/callback
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/providers/google/callback
 
 DATABASE_URL="postgresql://postgres:postgres@db:5432/socialanimal"
 JWT_SECRET="supersecretkey"

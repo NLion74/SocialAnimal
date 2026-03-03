@@ -64,9 +64,19 @@
     background: var(--bg-hover);
 }
 
+.calendarRow:hover.imported {
+    border-color: var(--border);
+    background: var(--bg-elevated);
+}
+
 .calendarRow.selected {
     border-color: var(--purple-500);
     background: rgba(124, 58, 237, 0.1);
+}
+
+.calendarRow.imported {
+    opacity: 0.55;
+    cursor: not-allowed;
 }
 
 .checkbox {
@@ -98,6 +108,13 @@
     font-weight: 500;
     color: var(--text-primary);
     font-size: 0.9375rem;
+}
+
+.importedBadge {
+    display: inline-block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
 }
 
 .colorDot {

@@ -17,7 +17,6 @@ export function applyPermission(event: any, permission: SharePermission) {
         };
     }
 
-    // permission === "busy"
     return {
         id: event.id,
         title: "Busy",

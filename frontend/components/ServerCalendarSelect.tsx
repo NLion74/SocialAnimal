@@ -14,6 +14,7 @@ interface Props {
     loading: boolean;
     error: string;
     calendars: DiscoveredCalendar[];
+    importedUrls: string[];
     selectedUrls: string[];
     onToggle: (url: string) => void;
     onSelectAll: () => void;
@@ -29,6 +30,7 @@ export default function ServerCalendarSelect({
     loading,
     error,
     calendars,
+    importedUrls,
     selectedUrls,
     onToggle,
     onSelectAll,
@@ -37,6 +39,15 @@ export default function ServerCalendarSelect({
     importing,
     title = "Select Calendars",
 }: Props) {
+    const isImported = (url: string) =>
+        importedUrls.some(
+            (existing) =>
+                existing.replace(/\/$/, "").toLowerCase() ===
+                url.replace(/\/$/, "").toLowerCase(),
+        );
+
+    const availableCount = calendars.filter((c) => !isImported(c.url)).length;
+
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={title}>
             {loading ? (
@@ -49,13 +60,13 @@ export default function ServerCalendarSelect({
                     {error && <div className={s.error}>{error}</div>}
                     <div className={s.selectActions}>
                         <div className={s.selectInfo}>
-                            {selectedUrls.length} of {calendars.length} selected
+                            {selectedUrls.length} of {availableCount} selected
                         </div>
                         <div className={s.btnGroup}>
                             <button
                                 className={s.btnLink}
                                 onClick={onSelectAll}
-                                disabled={calendars.length === 0}
+                                disabled={availableCount === 0}
                             >
                                 Select All
                             </button>
@@ -73,14 +84,18 @@ export default function ServerCalendarSelect({
                     ) : (
                         <div className={s.calendarList}>
                             {calendars.map((cal) => {
+                                const imported = isImported(cal.url);
                                 const isSelected = selectedUrls.includes(
                                     cal.url,
                                 );
                                 return (
                                     <div
                                         key={cal.url}
-                                        className={`${s.calendarRow} ${isSelected ? s.selected : ""}`}
-                                        onClick={() => onToggle(cal.url)}
+                                        className={`${s.calendarRow} ${imported ? s.imported : ""} ${isSelected ? s.selected : ""}`}
+                                        onClick={() => {
+                                            if (imported) return;
+                                            onToggle(cal.url);
+                                        }}
                                     >
                                         <div className={s.checkbox}>
                                             {isSelected && <Check size={16} />}
@@ -98,6 +113,13 @@ export default function ServerCalendarSelect({
                                                 )}
                                                 {cal.displayName}
                                             </div>
+                                            {imported && (
+                                                <div
+                                                    className={s.importedBadge}
+                                                >
+                                                    Already imported
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 );

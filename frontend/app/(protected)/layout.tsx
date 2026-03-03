@@ -26,6 +26,28 @@ export default function ProtectedLayout({
     useEffect(() => {
         let cancelled = false;
 
+        const withTimeout = async <T,>(
+            promise: Promise<T>,
+            timeoutMs = 12000,
+        ): Promise<T> => {
+            return await new Promise<T>((resolve, reject) => {
+                const timeout = setTimeout(
+                    () => reject(new Error("Request timed out")),
+                    timeoutMs,
+                );
+
+                promise
+                    .then((value) => {
+                        clearTimeout(timeout);
+                        resolve(value);
+                    })
+                    .catch((error) => {
+                        clearTimeout(timeout);
+                        reject(error);
+                    });
+            });
+        };
+
         const loadUser = async (retries = 5) => {
             const token = localStorage.getItem("token");
             if (!token) {
@@ -34,7 +56,7 @@ export default function ProtectedLayout({
             }
 
             try {
-                const res = await apiClient.get("/api/users/me");
+                const res = await withTimeout(apiClient.get("/api/users/me"));
 
                 if (!cancelled) {
                     setUser(res);
