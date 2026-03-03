@@ -451,5 +451,50 @@ describe("Friends Routes", () => {
 
             expect(res.statusCode).toBe(401);
         });
+
+        it("should reject invalid permission values", async () => {
+            const user1 = createMockUser();
+
+            mockPrisma.user.findUnique.mockResolvedValue(user1);
+
+            const res = await app.inject({
+                method: "POST",
+                url: "/api/friends/share-calendar",
+                headers: createAuthHeader(user1.id),
+                payload: {
+                    friendId: "friend-id",
+                    calendarId: "calendar-id",
+                    share: true,
+                    permission: "owner",
+                },
+            });
+
+            expect(res.statusCode).toBe(400);
+            expect(JSON.parse(res.body)).toEqual({
+                error: "permission must be one of: full, titles, busy",
+            });
+        });
+
+        it("should reject malformed share payload", async () => {
+            const user1 = createMockUser();
+
+            mockPrisma.user.findUnique.mockResolvedValue(user1);
+
+            const res = await app.inject({
+                method: "POST",
+                url: "/api/friends/share-calendar",
+                headers: createAuthHeader(user1.id),
+                payload: {
+                    friendId: "friend-id",
+                    calendarId: "calendar-id",
+                    share: "yes",
+                },
+            });
+
+            expect(res.statusCode).toBe(400);
+            expect(JSON.parse(res.body)).toEqual({
+                error: "friendId, calendarId, and share(boolean) are required",
+            });
+        });
     });
 });

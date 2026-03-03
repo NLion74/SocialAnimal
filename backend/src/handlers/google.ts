@@ -3,6 +3,7 @@ import type { CalendarWithUser, SyncResult } from "../types";
 import { env, isGoogleConfigured } from "../utils/env";
 import { prisma } from "../utils/db";
 import * as calendarService from "../services/calendarService";
+import { signOAuthState } from "../utils/auth";
 
 export interface GoogleConfig {
     accessToken: string;
@@ -305,7 +306,7 @@ export class GoogleHandler implements ProviderHandler {
         );
         url.searchParams.set("access_type", "offline");
         url.searchParams.set("prompt", "consent");
-        url.searchParams.set("state", userId);
+        url.searchParams.set("state", signOAuthState(userId));
 
         return url.toString();
     }

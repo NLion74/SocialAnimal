@@ -18,7 +18,6 @@ export default defineConfig({
                 "src/**/*.d.ts",
                 "src/types/**",
                 "src/utils/db.ts",
-                "src/syncs/base.ts",
                 "src/index.ts",
                 "src/app.ts",
             ],

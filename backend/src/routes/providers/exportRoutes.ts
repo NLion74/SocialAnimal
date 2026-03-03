@@ -19,7 +19,7 @@ export default function exportRoutes(fastify: any) {
                 type: mode === "link" ? "link" : undefined,
                 subscription: mode !== "link",
                 token: queryToken || bearerToken,
-                userId: request.user?.id,
+                userId: request.user.id,
             });
             if (result?.error)
                 return reply.status(404).send({

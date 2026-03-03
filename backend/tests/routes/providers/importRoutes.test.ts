@@ -24,6 +24,7 @@ import {
 } from "../../../src/services/importService";
 import { handleProviderDiscover } from "../../../src/services/discoverService";
 import { handleProviderTest } from "../../../src/services/testService";
+import { signOAuthState } from "../../../src/utils/auth";
 
 describe("Provider Routes", () => {
     let app: FastifyInstance;
@@ -80,6 +81,8 @@ describe("Provider Routes", () => {
     });
 
     it("POST /api/providers/:type/discover delegates to discover service", async () => {
+        const user = createMockUser();
+        mockPrisma.user.findUnique.mockResolvedValue(user);
         vi.mocked(handleProviderDiscover).mockResolvedValue({
             calendars: [{ url: "https://example.com/cal" }],
         });
@@ -88,6 +91,7 @@ describe("Provider Routes", () => {
         const res = await app.inject({
             method: "POST",
             url: "/api/providers/caldav/discover",
+            headers: createAuthHeader(user.id),
             payload,
         });
 
@@ -99,11 +103,14 @@ describe("Provider Routes", () => {
     });
 
     it("GET /api/providers/:type/discover delegates query params", async () => {
+        const user = createMockUser();
+        mockPrisma.user.findUnique.mockResolvedValue(user);
         vi.mocked(handleProviderDiscover).mockResolvedValue({ calendars: [] });
 
         const res = await app.inject({
             method: "GET",
             url: "/api/providers/google/discover?accessToken=abc",
+            headers: createAuthHeader(user.id),
         });
 
         expect(res.statusCode).toBe(200);
@@ -151,9 +158,10 @@ describe("Provider Routes", () => {
             refreshToken: "google-refresh",
         });
 
+        const signedState = signOAuthState("user-1");
         const res = await app.inject({
             method: "GET",
-            url: "/api/providers/google/callback?code=abc&state=user-1",
+            url: `/api/providers/google/callback?code=abc&state=${encodeURIComponent(signedState)}`,
         });
 
         expect(res.statusCode).toBe(302);
@@ -165,6 +173,8 @@ describe("Provider Routes", () => {
     });
 
     it("POST /api/providers/:type/test returns 404 on unsupported provider", async () => {
+        const user = createMockUser();
+        mockPrisma.user.findUnique.mockResolvedValue(user);
         vi.mocked(handleProviderTest).mockResolvedValue({
             error: "Provider not found or test not supported",
         });
@@ -172,6 +182,7 @@ describe("Provider Routes", () => {
         const res = await app.inject({
             method: "POST",
             url: "/api/providers/unknown/test",
+            headers: createAuthHeader(user.id),
             payload: { url: "https://example.com" },
         });
 
@@ -182,6 +193,8 @@ describe("Provider Routes", () => {
     });
 
     it("POST /api/providers/:type/test returns provider failure payload with 200", async () => {
+        const user = createMockUser();
+        mockPrisma.user.findUnique.mockResolvedValue(user);
         vi.mocked(handleProviderTest).mockResolvedValue({
             success: false,
             error: "No events found",
@@ -190,6 +203,7 @@ describe("Provider Routes", () => {
         const res = await app.inject({
             method: "POST",
             url: "/api/providers/ics/test",
+            headers: createAuthHeader(user.id),
             payload: { url: "https://example.com/calendar.ics" },
         });
 
@@ -198,5 +212,34 @@ describe("Provider Routes", () => {
             success: false,
             error: "No events found",
         });
+    });
+
+    it("POST /api/providers/:type/discover requires authentication", async () => {
+        const res = await app.inject({
+            method: "POST",
+            url: "/api/providers/caldav/discover",
+            payload: { url: "https://example.com" },
+        });
+
+        expect(res.statusCode).toBe(401);
+    });
+
+    it("GET /api/providers/:type/discover requires authentication", async () => {
+        const res = await app.inject({
+            method: "GET",
+            url: "/api/providers/google/discover?accessToken=abc",
+        });
+
+        expect(res.statusCode).toBe(401);
+    });
+
+    it("POST /api/providers/:type/test requires authentication", async () => {
+        const res = await app.inject({
+            method: "POST",
+            url: "/api/providers/ics/test",
+            payload: { url: "https://example.com/calendar.ics" },
+        });
+
+        expect(res.statusCode).toBe(401);
     });
 });

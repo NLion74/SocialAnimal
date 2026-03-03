@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import jwt from "jsonwebtoken";
-import { authenticateToken } from "../../utils/auth";
+import { authenticateToken, verifyOAuthState } from "../../utils/auth";
 import { handleProviderAuthUrl } from "../../services/importService";
 import { handleProviderDiscover } from "../../services/discoverService";
 import { serverError } from "../../utils/response";
@@ -34,6 +34,13 @@ const providerGoogleAuthRoutes: FastifyPluginAsync = async (fastify) => {
                     );
                 }
 
+                const userId = verifyOAuthState(state);
+                if (!userId) {
+                    return reply.redirect(
+                        `${process.env.PUBLIC_URL || "http://localhost:3000"}/dashboard?import=error&reason=invalid-state`,
+                    );
+                }
+
                 const result = await handleProviderDiscover("google", {
                     code,
                 });
@@ -52,7 +59,7 @@ const providerGoogleAuthRoutes: FastifyPluginAsync = async (fastify) => {
 
                 const googleToken = jwt.sign(
                     {
-                        userId: state,
+                        userId,
                         accessToken: result.accessToken,
                         refreshToken: result.refreshToken || "",
                     },

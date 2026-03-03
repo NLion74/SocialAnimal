@@ -1,4 +1,5 @@
 import { prisma } from "../utils/db";
+import type { SharePermission } from "@prisma/client";
 
 export async function listFriendshipsWithShares(userId: string) {
     const friendships = await prisma.friendship.findMany({
@@ -119,7 +120,7 @@ export async function setCalendarShare(opts: {
     friendId: string;
     calendarId: string;
     share: boolean;
-    permission: string;
+    permission: SharePermission;
 }) {
     const { ownerId, friendId, calendarId, share, permission } = opts;
 
