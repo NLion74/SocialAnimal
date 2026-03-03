@@ -21,7 +21,6 @@ export async function buildApp(): Promise<FastifyInstance> {
 
     await app.register(usersRoutes, { prefix: "/api/users" });
     await app.register(calendarsRoutes, { prefix: "/api/calendars" });
-
     await app.register(eventsRoutes, { prefix: "/api/events" });
     await app.register(friendsRoutes, { prefix: "/api/friends" });
 

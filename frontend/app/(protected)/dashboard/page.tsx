@@ -25,6 +25,7 @@ type ImportType = "ics" | "caldav" | "icloud" | "google";
 interface GoogleCalendar {
     id: string;
     summary: string;
+    color?: string;
 }
 
 interface DiscoveredCalendar {
@@ -574,15 +575,21 @@ export default function DashboardPage() {
     };
 
     const checkGoogleCallback = () => {
-        const params = new URLSearchParams(window.location.search);
+        const params = new URLSearchParams(globalThis.location.search);
         const status = params.get("googleAuthSuccess");
         const googleTokenParam = params.get("googleToken");
         const importedCount = params.get("imported");
 
+        if (!status) {
+            return;
+        }
+
+        const cleanUrl = `${globalThis.location.pathname}${globalThis.location.hash}`;
+        globalThis.history.replaceState(globalThis.history.state, "", cleanUrl);
+
         if (status === "success" && googleTokenParam) {
             setGoogleToken(googleTokenParam);
             void openGoogleSelect(googleTokenParam);
-            window.history.replaceState({}, "", "");
             return;
         }
 
@@ -590,7 +597,6 @@ export default function DashboardPage() {
             if (importedCount) {
                 alert(`Google import complete: ${importedCount} calendar(s).`);
             }
-            window.history.replaceState({}, "", "");
             return;
         }
 
@@ -600,7 +606,6 @@ export default function DashboardPage() {
                     params.get("reason") || "Unknown error"
                 }`,
             );
-            window.history.replaceState({}, "", "");
         }
     };
 
@@ -700,6 +705,7 @@ export default function DashboardPage() {
                     return apiClient.post("/api/providers/google/import", {
                         calendarId,
                         summary: calendar?.summary,
+                        color: calendar?.color,
                         accessToken: parsed.accessToken,
                         refreshToken: parsed.refreshToken,
                     });
@@ -1440,8 +1446,8 @@ export default function DashboardPage() {
                         </div>
 
                         <p className={s.hint}>
-                            Generate an app-specific password at
-                            appleid.apple.com under Security.
+                            Generate one at appleid.apple.com under Sign-In and
+                            Security
                         </p>
 
                         {error && <div className={s.error}>{error}</div>}

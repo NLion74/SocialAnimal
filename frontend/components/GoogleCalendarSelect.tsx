@@ -5,6 +5,7 @@ import s from "./GoogleCalendarSelect.module.css";
 interface GoogleCalendar {
     id: string;
     summary: string;
+    color?: string;
 }
 
 interface GoogleCalendarSelectProps {
@@ -93,6 +94,15 @@ export default function GoogleCalendarSelect({
                                         </div>
                                         <div className={s.calendarInfo}>
                                             <div className={s.calendarName}>
+                                                {cal.color && (
+                                                    <span
+                                                        className={s.colorDot}
+                                                        style={{
+                                                            backgroundColor:
+                                                                cal.color,
+                                                        }}
+                                                    />
+                                                )}
                                                 {cal.summary}
                                             </div>
                                             {isImported && (

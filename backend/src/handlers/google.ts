@@ -266,7 +266,7 @@ async function exchangeGoogleCode(
 
 async function fetchGoogleCalendars(
     accessToken: string,
-): Promise<Array<{ id: string; summary: string }>> {
+): Promise<Array<{ id: string; summary: string; color?: string }>> {
     const res = await fetch(`${env.google.apiUrl}/users/me/calendarList`, {
         headers: { Authorization: `Bearer ${accessToken}` },
     });
@@ -279,6 +279,10 @@ async function fetchGoogleCalendars(
     return data.items.map((cal: any) => ({
         id: cal.id,
         summary: cal.summary || "Unnamed Calendar",
+        color:
+            typeof cal.backgroundColor === "string"
+                ? cal.backgroundColor
+                : undefined,
     }));
 }
 
@@ -368,6 +372,7 @@ export class GoogleHandler implements ProviderHandler {
                             userId,
                             calendarId: cal.id,
                             summary: cal.summary,
+                            color: cal.color,
                             accessToken: tokens.accessToken,
                             refreshToken: tokens.refreshToken,
                         }),
@@ -407,9 +412,35 @@ export class GoogleHandler implements ProviderHandler {
                             accessToken: data.accessToken,
                             refreshToken: data.refreshToken,
                             calendarId: data.calendarId,
+                            color: data.color,
                         },
                     })
                 ).id;
+
+            if (existing?.id) {
+                const existingCalendar = await prisma.calendar.findUnique({
+                    where: { id: existing.id },
+                    select: { config: true },
+                });
+
+                await prisma.calendar.update({
+                    where: { id: existing.id },
+                    data: {
+                        config: {
+                            ...(existingCalendar?.config as any),
+                            accessToken: data.accessToken,
+                            refreshToken: data.refreshToken,
+                            calendarId: data.calendarId,
+                            color: data.color,
+                        },
+                        ...(data.summary
+                            ? {
+                                  name: data.summary,
+                              }
+                            : {}),
+                    },
+                });
+            }
 
             return this.sync(calendarId);
         } catch (error: any) {

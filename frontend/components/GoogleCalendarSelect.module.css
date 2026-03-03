@@ -99,6 +99,17 @@
     font-weight: 500;
     color: var(--text-primary);
     font-size: 0.9375rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.colorDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
 }
 
 .importedBadge {

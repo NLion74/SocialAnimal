@@ -226,7 +226,7 @@ class IcsCalendarSync {
 const icsSync = new IcsCalendarSync();
 
 export class IcsHandler implements ProviderHandler {
-    async sync(calendarId: string, userId?: string): Promise<SyncResult> {
+    async sync(calendarId: string): Promise<SyncResult> {
         const calendar = await prisma.calendar.findUnique({
             where: { id: calendarId },
             include: { user: { select: { email: true } } },
@@ -247,7 +247,7 @@ export class IcsHandler implements ProviderHandler {
 
     async import(data: any): Promise<SyncResult> {
         if (data?.calendarId) {
-            return this.sync(data.calendarId, data.userId);
+            return this.sync(data.calendarId);
         }
 
         if (!data?.userId || !data?.name || !(data?.url || data?.config?.url)) {
@@ -266,7 +266,7 @@ export class IcsHandler implements ProviderHandler {
             config: data.config,
         });
 
-        return this.sync(calendar.id, data.userId);
+        return this.sync(calendar.id);
     }
 
     async export(data: {
