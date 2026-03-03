@@ -12,22 +12,21 @@ Friends can view shared calendars directly inside the app, or export them as an 
 
 ---
 
-## Current State
-
-This is an early release. Current features include:
+## Current Features
 
 - **Friend system** - send, accept, and decline friend requests
-- **Auth & admin** - login system with admin settings, invite-only or open registration, salted password hashing
+- **Auth & admin** - login system with admin settings, invite-only or open registration
 - **Google Calendar integration** - easy import for Google calendars
+- **CalDAV/iCloud integration** - import support for CalDAV-compatible services including iCloud
 - **ICS/iCal import** - import any calendar feed by URL (Apple, Outlook, Fastmail, etc.)
-- **Calendar export** - export shared calendars as ICS links for use in any calendar client
+- **Calendar export** - export calendars as ICS links for use in any calendar client
 - **Auto-sync** - calendars sync automatically on a configurable interval per calendar
 - **Calendar views** - month, week, and day views with side-by-side display of your events and friends' calendars
 - **Toggle visibility** - show/hide individual calendars in the sidebar
 - **Permission system** - control per-calendar, per-friend what level of detail is shared:
-    - 🔴 **Busy only** - time blocks visible, no details
-    - 🟡 **Titles only** - event names visible, no description or location
-    - 🟢 **Full details** - everything visible
+    - **Busy only** - time blocks visible, no details
+    - **Titles only** - event names visible, no description or location
+    - **Full details** - everything visible
 - **Profile & settings** - change password, set default sharing permissions, customize first day of week
 
 |                                    |                                                |
@@ -41,13 +40,15 @@ This is an early release. Current features include:
 
 ## Roadmap
 
-- [ ] Easy integration for Proton, Apple iCloud, Outlook, and other calendar providers
+- [ ] Easy integration for Proton and Outlook
 - [ ] Admin dashboard with user management
 - [ ] Per Event Permission system, possibly with regex excludes
-- [ ] Calendar color customization
 - [ ] More export types with direct push to calendars
 - [ ] Better Invite System
-- [ ] Many small improvements...
+- [ ] Account Deletion in Frontend (Nope, that's not possible right now)
+- [ ] Calendar color customization
+- [ ] Internal things like incremental sync, rate limiting...
+- [ ] Many more small improvements...
 
 ---
 
@@ -70,7 +71,7 @@ Edit .env with your configuration:
 # See Google Calendar Setup below
 GOOGLE_CLIENT_ID=clientid
 GOOGLE_CLIENT_SECRET=clientsecret
-GOOGLE_REDIRECT_URI=http://localhost:3000/api/import/google/callback
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/providers/google/callback
 
 DATABASE_URL="postgresql://postgres:postgres@db:5432/socialanimal"
 JWT_SECRET="supersecretkey"

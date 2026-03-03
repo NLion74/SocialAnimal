@@ -4,6 +4,8 @@ import {
     verifyPassword,
     generateToken,
     verifyToken,
+    signOAuthState,
+    verifyOAuthState,
 } from "../../src/utils/auth";
 
 describe("hashPassword", () => {
@@ -101,5 +103,55 @@ describe("verifyToken", () => {
 
     it("throws on empty string", () => {
         expect(() => verifyToken("")).toThrow();
+    });
+});
+
+describe("signOAuthState / verifyOAuthState", () => {
+    it("round-trips a userId through sign and verify", () => {
+        const state = signOAuthState("user-abc");
+        const result = verifyOAuthState(state);
+        expect(result).toBe("user-abc");
+    });
+
+    it("returns null for a plain userId without signature", () => {
+        const result = verifyOAuthState("user-abc");
+        expect(result).toBeNull();
+    });
+
+    it("returns null for a tampered signature", () => {
+        const state = signOAuthState("user-abc");
+        const tampered = state.slice(0, -5) + "zzzzz";
+        const result = verifyOAuthState(tampered);
+        expect(result).toBeNull();
+    });
+
+    it("returns null for completely forged state", () => {
+        const result = verifyOAuthState(
+            "attacker-id.fakesignature0000000000000000000000000000000000000000000000000000",
+        );
+        expect(result).toBeNull();
+    });
+
+    it("returns null for empty string", () => {
+        const result = verifyOAuthState("");
+        expect(result).toBeNull();
+    });
+
+    it("produces different signatures for different userIds", () => {
+        const state1 = signOAuthState("user-1");
+        const state2 = signOAuthState("user-2");
+        expect(state1).not.toBe(state2);
+    });
+
+    it("produces consistent signatures for the same userId", () => {
+        const state1 = signOAuthState("user-1");
+        const state2 = signOAuthState("user-1");
+        expect(state1).toBe(state2);
+    });
+
+    it("handles userIds containing dots", () => {
+        const state = signOAuthState("user.with.dots");
+        const result = verifyOAuthState(state);
+        expect(result).toBe("user.with.dots");
     });
 });

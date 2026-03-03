@@ -1,63 +1,66 @@
 import { Check, Loader2 } from "lucide-react";
 import Modal from "./Modal";
-import s from "./GoogleCalendarSelect.module.css";
+import s from "./ServerCalendarSelect.module.css";
 
-interface GoogleCalendar {
-    id: string;
-    summary: string;
+interface DiscoveredCalendar {
+    url: string;
+    displayName: string;
     color?: string;
 }
 
-interface GoogleCalendarSelectProps {
+interface Props {
     isOpen: boolean;
     onClose: () => void;
     loading: boolean;
     error: string;
-    calendars: GoogleCalendar[];
-    importedIds: string[];
-    selectedIds: string[];
-    onToggle: (id: string) => void;
+    calendars: DiscoveredCalendar[];
+    importedUrls: string[];
+    selectedUrls: string[];
+    onToggle: (url: string) => void;
     onSelectAll: () => void;
     onDeselectAll: () => void;
     onImport: () => void;
     importing: boolean;
+    title?: string;
 }
 
-export default function GoogleCalendarSelect({
+export default function ServerCalendarSelect({
     isOpen,
     onClose,
     loading,
     error,
     calendars,
-    importedIds,
-    selectedIds,
+    importedUrls,
+    selectedUrls,
     onToggle,
     onSelectAll,
     onDeselectAll,
     onImport,
     importing,
-}: GoogleCalendarSelectProps) {
-    const availableCount = calendars.filter(
-        (cal) => !importedIds.includes(cal.id),
-    ).length;
+    title = "Select Calendars",
+}: Props) {
+    const isImported = (url: string) =>
+        importedUrls.some(
+            (existing) =>
+                existing.replace(/\/$/, "").toLowerCase() ===
+                url.replace(/\/$/, "").toLowerCase(),
+        );
+
+    const availableCount = calendars.filter((c) => !isImported(c.url)).length;
 
     return (
-        <Modal
-            isOpen={isOpen}
-            onClose={onClose}
-            title="Select Google Calendars"
-        >
+        <Modal isOpen={isOpen} onClose={onClose} title={title}>
             {loading ? (
                 <div className={s.loading}>
                     <Loader2 size={32} className={s.spin} />
-                    <span>Loading calendars...</span>
+                    <span>Discovering calendars...</span>
                 </div>
             ) : (
                 <>
                     {error && <div className={s.error}>{error}</div>}
-                    <div className={s.googleSelectActions}>
-                        <div className={s.googleSelectInfo}>
-                            {selectedIds.length} of {availableCount} selected
+                    <div className={s.selectActions}>
+                        <div className={s.selectInfo}>
+                            {selectedUrls.length} of {availableCount} selected
                         </div>
                         <div className={s.btnGroup}>
                             <button
@@ -70,7 +73,7 @@ export default function GoogleCalendarSelect({
                             <button
                                 className={s.btnLink}
                                 onClick={onDeselectAll}
-                                disabled={selectedIds.length === 0}
+                                disabled={selectedUrls.length === 0}
                             >
                                 Deselect All
                             </button>
@@ -79,15 +82,20 @@ export default function GoogleCalendarSelect({
                     {calendars.length === 0 ? (
                         <div className={s.empty}>No calendars found</div>
                     ) : (
-                        <div className={s.googleCalendarList}>
+                        <div className={s.calendarList}>
                             {calendars.map((cal) => {
-                                const isImported = importedIds.includes(cal.id);
-                                const isSelected = selectedIds.includes(cal.id);
+                                const imported = isImported(cal.url);
+                                const isSelected = selectedUrls.includes(
+                                    cal.url,
+                                );
                                 return (
                                     <div
-                                        key={cal.id}
-                                        className={`${s.googleCalendarRow} ${isImported ? s.imported : ""} ${isSelected ? s.selected : ""}`}
-                                        onClick={() => onToggle(cal.id)}
+                                        key={cal.url}
+                                        className={`${s.calendarRow} ${imported ? s.imported : ""} ${isSelected ? s.selected : ""}`}
+                                        onClick={() => {
+                                            if (imported) return;
+                                            onToggle(cal.url);
+                                        }}
                                     >
                                         <div className={s.checkbox}>
                                             {isSelected && <Check size={16} />}
@@ -98,14 +106,14 @@ export default function GoogleCalendarSelect({
                                                     <span
                                                         className={s.colorDot}
                                                         style={{
-                                                            backgroundColor:
+                                                            background:
                                                                 cal.color,
                                                         }}
                                                     />
                                                 )}
-                                                {cal.summary}
+                                                {cal.displayName}
                                             </div>
-                                            {isImported && (
+                                            {imported && (
                                                 <div
                                                     className={s.importedBadge}
                                                 >
@@ -130,7 +138,7 @@ export default function GoogleCalendarSelect({
                             className={s.btnPrimary}
                             style={{ flex: 1 }}
                             onClick={onImport}
-                            disabled={importing || selectedIds.length === 0}
+                            disabled={importing || selectedUrls.length === 0}
                         >
                             {importing ? (
                                 <>
@@ -138,7 +146,7 @@ export default function GoogleCalendarSelect({
                                     Importing...
                                 </>
                             ) : (
-                                `Import ${selectedIds.length} Calendar${selectedIds.length !== 1 ? "s" : ""}`
+                                `Import ${selectedUrls.length} Calendar${selectedUrls.length !== 1 ? "s" : ""}`
                             )}
                         </button>
                     </div>

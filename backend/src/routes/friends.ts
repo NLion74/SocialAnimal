@@ -1,5 +1,6 @@
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { authenticateToken } from "../utils/auth";
+import { isSharePermission } from "../utils/permission";
 import * as friendService from "../services/friendService";
 import {
     badRequest,
@@ -106,6 +107,20 @@ const friendsRoutes: FastifyPluginAsync = async (fastify) => {
                     share,
                     permission = "full",
                 } = request.body as any;
+
+                if (!friendId || !calendarId || typeof share !== "boolean") {
+                    return badRequest(
+                        reply,
+                        "friendId, calendarId, and share(boolean) are required",
+                    );
+                }
+
+                if (share && !isSharePermission(permission)) {
+                    return badRequest(
+                        reply,
+                        "permission must be one of: full, titles, busy",
+                    );
+                }
 
                 const res = await friendService.setCalendarShare({
                     ownerId: uid,

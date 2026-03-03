@@ -77,3 +77,27 @@ export async function authenticateToken(
         return reply.status(401).send({ error: "Invalid or expired token" });
     }
 }
+
+export function signOAuthState(userId: string): string {
+    const hmac = crypto.createHmac("sha256", JWT_SECRET);
+    hmac.update(userId);
+    const signature = hmac.digest("hex");
+    return `${userId}.${signature}`;
+}
+
+export function verifyOAuthState(state: string): string | null {
+    const dotIndex = state.lastIndexOf(".");
+    if (dotIndex === -1) return null;
+    const userId = state.substring(0, dotIndex);
+    const signature = state.substring(dotIndex + 1);
+    const hmac = crypto.createHmac("sha256", JWT_SECRET);
+    hmac.update(userId);
+    const expected = hmac.digest("hex");
+    if (signature.length !== expected.length) return null;
+    if (
+        !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+    ) {
+        return null;
+    }
+    return userId;
+}

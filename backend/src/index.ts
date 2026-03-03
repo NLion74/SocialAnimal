@@ -1,5 +1,5 @@
 import { buildApp } from "./app";
-import { runDueCalendars } from "./utils/sync";
+import { runSyncJob } from "./jobs/sync";
 
 async function start() {
     const app = await buildApp();
@@ -8,7 +8,7 @@ async function start() {
         host: "0.0.0.0",
     });
     console.log(`Server listening on ${address}`);
-    setInterval(() => runDueCalendars().catch(console.error), 60_000);
+    setInterval(() => runSyncJob().catch(console.error), 60_000);
 }
 
 start().catch((err) => {
