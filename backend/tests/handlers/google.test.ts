@@ -236,6 +236,58 @@ describe("GoogleHandler", () => {
         });
     });
 
+    it("returns test preview for valid config", async () => {
+        const handler = new GoogleHandler();
+
+        vi.mocked(fetch).mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: async () => ({
+                items: [
+                    {
+                        id: "evt-1",
+                        summary: "Daily Standup",
+                        start: { dateTime: "2026-03-03T10:00:00.000Z" },
+                        end: { dateTime: "2026-03-03T10:30:00.000Z" },
+                    },
+                    {
+                        id: "evt-2",
+                        summary: "",
+                        start: { dateTime: "2026-03-03T12:00:00.000Z" },
+                        end: { dateTime: "2026-03-03T12:30:00.000Z" },
+                    },
+                ],
+            }),
+        } as any);
+
+        const result = await handler.test({
+            accessToken: "token-1",
+            refreshToken: "refresh-1",
+            calendarId: "gcal-1",
+        });
+
+        expect(result).toEqual({
+            success: true,
+            eventsPreview: ["Daily Standup"],
+        });
+    });
+
+    it("returns default test connection error for non-Error throws", async () => {
+        const handler = new GoogleHandler();
+        vi.mocked(fetch).mockRejectedValueOnce("boom" as any);
+
+        const result = await handler.test({
+            accessToken: "token-1",
+            refreshToken: "refresh-1",
+            calendarId: "gcal-1",
+        });
+
+        expect(result).toEqual({
+            success: false,
+            error: "Failed to connect",
+        });
+    });
+
     it("imports existing google calendar by updating config and re-syncing", async () => {
         const handler = new GoogleHandler();
 
@@ -319,6 +371,49 @@ describe("GoogleHandler", () => {
                 color: undefined,
             },
         });
+    });
+
+    it("callback import requires userId/state and code", async () => {
+        const handler = new GoogleHandler();
+
+        const resultMissingCode = await handler.import({
+            mode: "callback",
+            state: "user-1",
+        });
+        const resultMissingState = await handler.import({
+            mode: "callback",
+            code: "oauth-code",
+        });
+
+        expect(resultMissingCode).toEqual({
+            error: "missing userId/state or code",
+        });
+        expect(resultMissingState).toEqual({
+            error: "missing userId/state or code",
+        });
+    });
+
+    it("returns discover-failed message when discover throws unknown error", async () => {
+        const handler = new GoogleHandler();
+        vi.mocked(fetch).mockRejectedValueOnce("boom" as any);
+
+        const result = await handler.discover({ accessToken: "token-1" });
+
+        expect(result).toEqual({ error: "discover-failed" });
+    });
+
+    it("returns import-failed when import throws unknown error", async () => {
+        const handler = new GoogleHandler();
+        mockPrisma.calendar.findFirst.mockRejectedValueOnce("boom" as any);
+
+        const result = await handler.import({
+            userId: "user-1",
+            calendarId: "cal-1",
+            accessToken: "token",
+            refreshToken: "refresh",
+        });
+
+        expect(result).toEqual({ error: "import-failed" });
     });
 
     it("returns import validation error when required fields are missing", async () => {

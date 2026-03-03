@@ -67,6 +67,20 @@ describe("IcloudHandler", () => {
         });
     });
 
+    it("returns empty calendars when discover throws", async () => {
+        const handler = new IcloudHandler();
+        mocks.mockFetchCalendars.mockRejectedValueOnce(
+            new Error("auth-failed"),
+        );
+
+        const result = await handler.discover({
+            username: "user@icloud.com",
+            password: "app-password",
+        });
+
+        expect(result).toEqual({ calendars: [] });
+    });
+
     it("returns test validation error for missing username/password", async () => {
         const handler = new IcloudHandler();
 
@@ -106,6 +120,50 @@ describe("IcloudHandler", () => {
             success: true,
             eventsPreview: ["Family Dinner"],
         });
+    });
+
+    it("sync falls back to first discovered calendar when calendarPath has no exact/partial match", async () => {
+        const handler = new IcloudHandler();
+
+        mockPrisma.calendar.findUnique.mockResolvedValue({
+            id: "cal-1",
+            config: {
+                username: "user@icloud.com",
+                password: "app-password",
+                calendarPath:
+                    "https://caldav.icloud.com/user/cal/does-not-match/",
+            },
+        });
+
+        mocks.mockFetchCalendars.mockResolvedValueOnce([
+            { url: "https://caldav.icloud.com/user/cal/first/" },
+            { url: "https://caldav.icloud.com/user/cal/second/" },
+        ]);
+        mocks.mockFetchCalendarObjects.mockResolvedValueOnce([]);
+
+        const result = await handler.sync("cal-1");
+
+        expect(result).toEqual({ success: true, eventsSynced: 0 });
+        expect(mocks.mockFetchCalendarObjects).toHaveBeenCalledWith(
+            expect.objectContaining({
+                calendar: expect.objectContaining({
+                    url: "https://caldav.icloud.com/user/cal/first/",
+                }),
+            }),
+        );
+    });
+
+    it("returns test error when iCloud request fails", async () => {
+        const handler = new IcloudHandler();
+        mocks.mockFetchCalendars.mockRejectedValueOnce(new Error("Forbidden"));
+
+        const result = await handler.test({
+            username: "user@icloud.com",
+            password: "app-password",
+            calendarPath: "https://caldav.icloud.com/user/cal/work/",
+        });
+
+        expect(result).toEqual({ success: false, error: "Forbidden" });
     });
 
     it("sync returns calendar-not-found when calendar does not exist", async () => {
@@ -218,6 +276,75 @@ describe("IcloudHandler", () => {
                 calendarId: "cal-1",
                 externalId: { notIn: ["evt-1"] },
             },
+        });
+    });
+
+    it("sync returns fetch error and updates lastSync when event fetch fails", async () => {
+        const handler = new IcloudHandler();
+
+        mockPrisma.calendar.findUnique.mockResolvedValue({
+            id: "cal-1",
+            config: {
+                username: "user@icloud.com",
+                password: "app-password",
+                calendarPath: "https://caldav.icloud.com/user/cal/work/",
+            },
+        });
+
+        mocks.mockFetchCalendars.mockRejectedValueOnce(
+            new Error("network-failed"),
+        );
+
+        const result = await handler.sync("cal-1");
+
+        expect(result).toEqual({
+            success: false,
+            error: "network-failed",
+            eventsSynced: 0,
+        });
+        expect(mockPrisma.calendar.update).toHaveBeenCalledWith({
+            where: { id: "cal-1" },
+            data: { lastSync: expect.any(Date) },
+        });
+    });
+
+    it("sync returns database error when transaction fails", async () => {
+        const handler = new IcloudHandler();
+
+        mockPrisma.calendar.findUnique.mockResolvedValue({
+            id: "cal-1",
+            config: {
+                username: "user@icloud.com",
+                password: "app-password",
+                calendarPath: "https://caldav.icloud.com/user/cal/work/",
+            },
+        });
+
+        mocks.mockFetchCalendars.mockResolvedValueOnce([
+            { url: "https://caldav.icloud.com/user/cal/work/" },
+        ]);
+        mocks.mockFetchCalendarObjects.mockResolvedValueOnce([
+            { data: "BEGIN:VCALENDAR" },
+        ]);
+        mocks.parseICS.mockReturnValueOnce({
+            one: {
+                type: "VEVENT",
+                uid: "evt-1",
+                summary: "Planning",
+                start: new Date("2026-03-03T10:00:00.000Z"),
+                end: new Date("2026-03-03T11:00:00.000Z"),
+                datetype: "date-time",
+            },
+        });
+
+        mockPrisma.$transaction.mockRejectedValueOnce(new Error("tx-fail"));
+
+        const result = await handler.sync("cal-1");
+
+        expect(result).toEqual({
+            success: false,
+            error: "Database error during sync",
+            eventsSynced: 0,
         });
     });
 

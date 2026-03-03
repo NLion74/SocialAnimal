@@ -153,7 +153,6 @@ describe("Security - Route Authentication", () => {
                 payload: { email: "x@x.com", password: "pass" },
             });
 
-            // 401 here means "invalid credentials", not "no auth token"
             expect(res.statusCode).toBe(401);
             const body = JSON.parse(res.body);
             expect(body.error).toBe("Invalid credentials");
@@ -183,9 +182,9 @@ describe("Security - Cross-User Isolation", () => {
 
     it("user cannot access another user's calendars", async () => {
         const user1 = createMockUser();
+        createMockCalendar(user1.id);
         const user2 = createMockUser();
 
-        // Auth as user2, but calendars belong to user1
         mockPrisma.user.findUnique.mockResolvedValue(user2);
         mockPrisma.calendar.findMany.mockResolvedValue([]);
 
@@ -196,7 +195,6 @@ describe("Security - Cross-User Isolation", () => {
         });
 
         expect(res.statusCode).toBe(200);
-        // The service filters by userId, so user2 sees only their own (empty)
         expect(JSON.parse(res.body)).toEqual([]);
     });
 
@@ -206,7 +204,6 @@ describe("Security - Cross-User Isolation", () => {
         const calendar = createMockCalendar(user1.id);
 
         mockPrisma.user.findUnique.mockResolvedValue(user2);
-        // findCalendarForUser uses { id, userId } so it returns null for wrong user
         mockPrisma.calendar.findFirst.mockResolvedValue(null);
 
         const res = await app.inject({
@@ -261,7 +258,6 @@ describe("Security - Cross-User Isolation", () => {
             status: "pending",
         });
 
-        // Auth as user3, who is not user2 (the addressee)
         mockPrisma.user.findUnique.mockResolvedValue(user3);
         mockPrisma.friendship.findFirst.mockResolvedValue(null);
 
@@ -299,11 +295,9 @@ describe("Security - Cross-User Isolation", () => {
         const calendar = createMockCalendar(owner.id);
 
         mockPrisma.user.findUnique.mockResolvedValue(attacker);
-        // Friendship check between attacker and friend
         mockPrisma.friendship.findFirst.mockResolvedValue(
             createMockFriendship(attacker.id, friend.id),
         );
-        // Calendar ownership check: attacker doesn't own this calendar
         mockPrisma.calendar.findFirst.mockResolvedValue(null);
 
         const res = await app.inject({
@@ -335,7 +329,6 @@ describe("Security - Cross-User Isolation", () => {
         });
 
         expect(res.statusCode).toBe(200);
-        // Verify the prisma query was scoped to the user
         expect(mockPrisma.event.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: expect.objectContaining({
@@ -528,7 +521,6 @@ describe("Security - Share Permission Enforcement", () => {
         const user = createMockUser();
         mockPrisma.user.findUnique.mockResolvedValue(user);
 
-        // Missing friendId
         let res = await app.inject({
             method: "POST",
             url: "/api/friends/share-calendar",
@@ -537,7 +529,6 @@ describe("Security - Share Permission Enforcement", () => {
         });
         expect(res.statusCode).toBe(400);
 
-        // Missing calendarId
         res = await app.inject({
             method: "POST",
             url: "/api/friends/share-calendar",
@@ -546,7 +537,6 @@ describe("Security - Share Permission Enforcement", () => {
         });
         expect(res.statusCode).toBe(400);
 
-        // Missing share boolean
         res = await app.inject({
             method: "POST",
             url: "/api/friends/share-calendar",
@@ -555,7 +545,6 @@ describe("Security - Share Permission Enforcement", () => {
         });
         expect(res.statusCode).toBe(400);
 
-        // share not boolean
         res = await app.inject({
             method: "POST",
             url: "/api/friends/share-calendar",
@@ -671,8 +660,6 @@ describe("Security - Import Route Auth", () => {
         const user = createMockUser();
         mockPrisma.user.findUnique.mockResolvedValue(user);
 
-        // The import will fail since providers are real, but we can verify
-        // the auth middleware ran successfully (status != 401)
         const res = await app.inject({
             method: "POST",
             url: "/api/providers/ics/import",
@@ -680,7 +667,6 @@ describe("Security - Import Route Auth", () => {
             payload: { url: "https://example.com/calendar.ics" },
         });
 
-        // Should not be 401 - auth passed
         expect(res.statusCode).not.toBe(401);
     });
 });

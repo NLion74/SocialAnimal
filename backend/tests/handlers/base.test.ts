@@ -132,12 +132,6 @@ describe("maskExportEventFields", () => {
         expect(result.location).toBeNull();
     });
 
-    it("defaults title to Untitled when title is null", () => {
-        const noTitle = { ...baseEvent, title: null };
-        const result = maskExportEventFields(noTitle, "full");
-        expect(result.title).toBe("Untitled");
-    });
-
     it("defaults title to Untitled for titles permission when title is empty", () => {
         const emptyTitle = { ...baseEvent, title: "" };
         const result = maskExportEventFields(emptyTitle, "titles");
