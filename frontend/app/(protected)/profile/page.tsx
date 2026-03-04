@@ -1,28 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Shield, Ticket, Save } from "lucide-react";
 import s from "./page.module.css";
 import { apiClient } from "../../../lib/api";
-import type { Permission } from "../../../lib/types";
-
-const PERM_LABELS: Record<Permission, string> = {
-    busy: "Busy only - hide titles and details",
-    titles: "Titles only - show event names, no descriptions",
-    full: "Full details - share everything",
-};
 
 export default function ProfilePage() {
+    const router = useRouter();
     const [user, setUser] = useState<any>(null);
     const [name, setName] = useState("");
     const [curPw, setCurPw] = useState("");
     const [newPw, setNewPw] = useState("");
-    const [defPerm, setDefPerm] = useState<Permission>("full");
+    const [confirmNewPw, setConfirmNewPw] = useState("");
+    const [deletePw, setDeletePw] = useState("");
     const [firstDay, setFirstDay] = useState<"sunday" | "monday">("monday");
     const [regOpen, setRegOpen] = useState(true);
     const [inviteOnly, setInviteOnly] = useState(false);
     const [inviteCode, setInviteCode] = useState("");
     const [saving, setSaving] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [msg, setMsg] = useState("");
     const [err, setErr] = useState("");
 
@@ -39,7 +36,6 @@ export default function ProfilePage() {
 
                 setUser(u);
                 setName(u.name ?? "");
-                setDefPerm(u.settings?.defaultSharePermission ?? "full");
                 setFirstDay(
                     (u.settings?.firstDayOfWeek as "sunday" | "monday") ??
                         "monday",
@@ -75,13 +71,23 @@ export default function ProfilePage() {
     }, []);
 
     const saveProfile = async () => {
+        if (newPw && !confirmNewPw) {
+            setErr("Please confirm your new password.");
+            setMsg("");
+            return;
+        }
+        if (newPw && newPw !== confirmNewPw) {
+            setErr("New passwords do not match.");
+            setMsg("");
+            return;
+        }
+
         setSaving(true);
         setMsg("");
         setErr("");
         try {
             const body: any = {
                 name,
-                defaultSharePermission: defPerm,
                 firstDayOfWeek: firstDay,
             };
             if (newPw) {
@@ -92,10 +98,39 @@ export default function ProfilePage() {
             setMsg("Profile saved!");
             setCurPw("");
             setNewPw("");
+            setConfirmNewPw("");
         } catch (e: any) {
             setErr(e.message);
         } finally {
             setSaving(false);
+        }
+    };
+
+    const deleteAccount = async () => {
+        if (!deletePw) {
+            setErr("Please enter your password to delete your account.");
+            setMsg("");
+            return;
+        }
+
+        const confirmed = globalThis.confirm(
+            "Are you sure you want to permanently delete your account? This cannot be undone.",
+        );
+        if (!confirmed) return;
+
+        setDeleting(true);
+        setMsg("");
+        setErr("");
+        try {
+            await apiClient.del("/api/users/me", {
+                body: { password: deletePw },
+            });
+            apiClient.setToken(null);
+            router.push("/");
+        } catch (e: any) {
+            setErr(e.message);
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -233,34 +268,18 @@ export default function ProfilePage() {
                             placeholder="••••••••"
                         />
                     </div>
-                </div>
-            </div>
-
-            <div className={s.section}>
-                <div className={s.sectionHeader}>
-                    <span className={s.sectionTitle}>
-                        Default Sharing Permission
-                    </span>
-                </div>
-                <div className={s.formStack}>
-                    {(Object.keys(PERM_LABELS) as Permission[]).map((p) => (
-                        <label key={p} className={s.radioLabel}>
-                            <input
-                                type="radio"
-                                name="defPerm"
-                                value={p}
-                                checked={defPerm === p}
-                                onChange={() => setDefPerm(p)}
-                            />
-                            <span className={s.radioText}>
-                                {PERM_LABELS[p]}
-                            </span>
+                    <div>
+                        <label className={s.fieldLabel}>
+                            Confirm New Password
                         </label>
-                    ))}
-                    <p className={s.hint}>
-                        Default permission when sharing a calendar with a
-                        friend. Override per-share in the Friends tab.
-                    </p>
+                        <input
+                            className={s.input}
+                            type="password"
+                            value={confirmNewPw}
+                            onChange={(e) => setConfirmNewPw(e.target.value)}
+                            placeholder="••••••••"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -274,6 +293,34 @@ export default function ProfilePage() {
             >
                 <Save size={14} /> {saving ? "Saving…" : "Save Profile"}
             </button>
+
+            <div className={s.section}>
+                <div className={s.sectionHeader}>
+                    <span className={s.sectionTitle}>Delete Account</span>
+                </div>
+                <div className={s.formStack}>
+                    <p className={s.hint}>
+                        Permanently delete your account and all associated data.
+                    </p>
+                    <div>
+                        <label className={s.fieldLabel}>Confirm Password</label>
+                        <input
+                            className={s.input}
+                            type="password"
+                            value={deletePw}
+                            onChange={(e) => setDeletePw(e.target.value)}
+                            placeholder="Enter your password"
+                        />
+                    </div>
+                    <button
+                        className={`${s.btn} ${s.btnDanger}`}
+                        onClick={deleteAccount}
+                        disabled={deleting}
+                    >
+                        {deleting ? "Deleting…" : "Delete Account"}
+                    </button>
+                </div>
+            </div>
 
             {user.isAdmin && (
                 <div className={s.section}>

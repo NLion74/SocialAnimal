@@ -454,3 +454,51 @@ describe("updateMe", () => {
         expect(mockPrisma.userSettings.upsert).not.toHaveBeenCalled();
     });
 });
+
+describe("deleteMe", () => {
+    it("deletes user calendars and account when password is correct", async () => {
+        const { hash, salt } = await hashPassword("correct-password");
+        const user = createMockUser({ passwordHash: hash, salt });
+        mockPrisma.user.findUnique.mockResolvedValue(user);
+
+        const result = await usersService.deleteMe(user.id, "correct-password");
+
+        expect(result).toEqual({ ok: true });
+        expect(mockPrisma.calendar.deleteMany).toHaveBeenCalledWith({
+            where: { userId: user.id },
+        });
+        expect(mockPrisma.user.delete).toHaveBeenCalledWith({
+            where: { id: user.id },
+        });
+        expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it("throws when password is missing", async () => {
+        const user = createMockUser();
+
+        await expect(usersService.deleteMe(user.id, "")).rejects.toThrow(
+            "Password required",
+        );
+        expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("returns null when user does not exist", async () => {
+        mockPrisma.user.findUnique.mockResolvedValue(null);
+
+        const result = await usersService.deleteMe("missing-user", "secret");
+
+        expect(result).toBeNull();
+        expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("throws when password is incorrect", async () => {
+        const { hash, salt } = await hashPassword("correct-password");
+        const user = createMockUser({ passwordHash: hash, salt });
+        mockPrisma.user.findUnique.mockResolvedValue(user);
+
+        await expect(
+            usersService.deleteMe(user.id, "wrong-password"),
+        ).rejects.toThrow("Password incorrect");
+        expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+});

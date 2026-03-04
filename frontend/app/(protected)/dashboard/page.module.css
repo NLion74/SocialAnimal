@@ -252,6 +252,17 @@
     margin-bottom: 1.5rem;
 }
 
+.typeSection {
+    margin-bottom: 0.5rem;
+}
+
+.typeHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
 .typeBtn {
     padding: 0.875rem 1rem;
     background: var(--bg-elevated);
@@ -271,6 +282,35 @@
 
 .typeTabActive {
     border-color: var(--purple-500);
+    background: var(--bg-hover);
+}
+
+.helpLabel {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.contextHelpBtn {
+    width: 1.85rem;
+    height: 1.85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition:
+        border-color var(--transition),
+        color var(--transition),
+        background var(--transition);
+}
+
+.contextHelpBtn:hover {
+    border-color: var(--purple-500);
+    color: var(--text-primary);
     background: var(--bg-hover);
 }
 
@@ -361,6 +401,16 @@
     font-size: 0.75rem;
     color: var(--text-muted);
     margin: 0;
+}
+
+.helpList {
+    margin: 0;
+    padding-left: 1.1rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
 }
 
 .error {

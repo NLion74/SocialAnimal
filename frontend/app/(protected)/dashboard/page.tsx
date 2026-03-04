@@ -12,6 +12,7 @@ import {
     Loader2,
     Share2,
     Copy,
+    CircleHelp,
 } from "lucide-react";
 import { apiClient } from "../../../lib/api";
 import type { CalendarData, Friend, Permission } from "../../../lib/types";
@@ -21,6 +22,111 @@ import GoogleCalendarSelect from "../../../components/GoogleCalendarSelect";
 import ServerCalendarSelect from "../../../components/ServerCalendarSelect";
 
 type ImportType = "ics" | "caldav" | "icloud" | "google";
+
+const PROVIDER_HELP: Record<
+    ImportType,
+    {
+        title: string;
+        intro: string;
+        steps: Array<{
+            id: string;
+            text: string;
+            link?: {
+                label: string;
+                href: string;
+            };
+        }>;
+    }
+> = {
+    ics: {
+        title: "ICS / iCal Link",
+        intro: "Use this for public or private .ics feeds from another app.",
+        steps: [
+            {
+                id: "ics-1",
+                text: "Enter a calendar name and paste the ICS URL.",
+            },
+            {
+                id: "ics-2",
+                text: "If your feed requires authentication, add username/password.",
+            },
+            {
+                id: "ics-3",
+                text: "Click Save to test access and import the calendar.",
+            },
+            {
+                id: "ics-4",
+                text: "If the URL changes later, delete and re-import with the new URL.",
+            },
+        ],
+    },
+    caldav: {
+        title: "CalDAV",
+        intro: "Use this for self-hosted or provider CalDAV servers.",
+        steps: [
+            { id: "caldav-1", text: "Enter the CalDAV server URL." },
+            {
+                id: "caldav-2",
+                text: "Add username/password if required by your server.",
+            },
+            {
+                id: "caldav-3",
+                text: "Click Add Calendar to discover available calendars.",
+            },
+            {
+                id: "caldav-4",
+                text: "If discovery is not supported, add direct calendar URL. Often looks similiar to: https://your-server.com/caldav/calendar-name",
+            },
+            { id: "caldav-5", text: "Select calendars and confirm import." },
+        ],
+    },
+    icloud: {
+        title: "iCloud",
+        intro: "Use this to import Apple iCloud calendars.",
+        steps: [
+            { id: "icloud-1", text: "Use your Apple ID email as username." },
+            {
+                id: "icloud-2",
+                text: "Generate an app-specific password under Sign-In and Security at",
+                link: {
+                    label: "appleid.apple.com",
+                    href: "https://appleid.apple.com",
+                },
+            },
+            {
+                id: "icloud-3",
+                text: "Paste the app-specific password (not your account password).",
+            },
+            {
+                id: "icloud-4",
+                text: "Click Add Calendar, then choose calendars to import.",
+            },
+        ],
+    },
+    google: {
+        title: "Google Calendar",
+        intro: "Use OAuth to connect your Google account securely.",
+        steps: [
+            { id: "google-1", text: "Click Connect with Google." },
+            {
+                id: "google-2",
+                text: "Approve access in the Google consent screen.",
+            },
+            {
+                id: "google-3",
+                text: "Google will redirect you to select calendars.",
+            },
+            {
+                id: "google-4",
+                text: "Import selected calendars into your dashboard.",
+            },
+            {
+                id: "google-5",
+                text: "If an error occurs, try another browser or contact the administrator.",
+            },
+        ],
+    },
+};
 
 interface GoogleCalendar {
     id: string;
@@ -74,6 +180,7 @@ export default function DashboardPage() {
     const [testingId, setTestingId] = useState<string | null>(null);
 
     const [showModal, setShowModal] = useState(false);
+    const [helpType, setHelpType] = useState<ImportType | null>(null);
     const [editingCalendar, setEditingCalendar] = useState<CalendarData | null>(
         null,
     );
@@ -284,6 +391,7 @@ export default function DashboardPage() {
 
     const closeModal = () => {
         setShowModal(false);
+        setHelpType(null);
         setEditingCalendar(null);
         resetForm();
     };
@@ -1079,42 +1187,60 @@ export default function DashboardPage() {
                 title={editingCalendar ? "Edit Calendar" : "Import Calendar"}
             >
                 {!editingCalendar && (
-                    <div className={s.typeGrid}>
-                        {(
-                            [
-                                "ics",
-                                "caldav",
-                                "icloud",
-                                "google",
-                            ] as ImportType[]
-                        ).map((type) => (
+                    <div className={s.typeSection}>
+                        <div className={s.typeHeader}>
+                            <span className={s.helpLabel}>
+                                Need help with{" "}
+                                {PROVIDER_HELP[activeImportType].title}?
+                            </span>
                             <button
-                                key={type}
-                                className={`${s.typeBtn} ${importType === type ? s.typeTabActive : ""}`}
-                                onClick={() => setImportType(type)}
+                                type="button"
+                                className={s.contextHelpBtn}
+                                onClick={() => setHelpType(activeImportType)}
+                                title={`Help for ${PROVIDER_HELP[activeImportType].title}`}
+                                aria-label={`Help for ${PROVIDER_HELP[activeImportType].title}`}
                             >
-                                <div className={s.typeName}>
-                                    {
-                                        {
-                                            ics: "ICS / iCal Link",
-                                            caldav: "CalDAV",
-                                            icloud: "iCloud",
-                                            google: "Google Calendar",
-                                        }[type]
-                                    }
-                                </div>
-                                <div className={s.typeDesc}>
-                                    {
-                                        {
-                                            ics: "Import from ICS/iCal URL",
-                                            caldav: "Connect a CalDAV server",
-                                            icloud: "Connect Apple iCloud",
-                                            google: "Connect your Google account",
-                                        }[type]
-                                    }
-                                </div>
+                                <CircleHelp size={14} />
                             </button>
-                        ))}
+                        </div>
+
+                        <div className={s.typeGrid}>
+                            {(
+                                [
+                                    "ics",
+                                    "caldav",
+                                    "icloud",
+                                    "google",
+                                ] as ImportType[]
+                            ).map((type) => (
+                                <button
+                                    key={type}
+                                    className={`${s.typeBtn} ${importType === type ? s.typeTabActive : ""}`}
+                                    onClick={() => setImportType(type)}
+                                >
+                                    <div className={s.typeName}>
+                                        {
+                                            {
+                                                ics: "ICS / iCal Link",
+                                                caldav: "CalDAV",
+                                                icloud: "iCloud",
+                                                google: "Google Calendar",
+                                            }[type]
+                                        }
+                                    </div>
+                                    <div className={s.typeDesc}>
+                                        {
+                                            {
+                                                ics: "Import from ICS/iCal URL",
+                                                caldav: "Connect a CalDAV server",
+                                                icloud: "Connect Apple iCloud",
+                                                google: "Connect your Google account",
+                                            }[type]
+                                        }
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 )}
 
@@ -1446,8 +1572,15 @@ export default function DashboardPage() {
                         </div>
 
                         <p className={s.hint}>
-                            Generate one at appleid.apple.com under Sign-In and
-                            Security
+                            Generate an App-specific password at{" "}
+                            <a
+                                href="https://appleid.apple.com"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                appleid.apple.com
+                            </a>{" "}
+                            under Sign-In and Security
                         </p>
 
                         {error && <div className={s.error}>{error}</div>}
@@ -1556,6 +1689,49 @@ export default function DashboardPage() {
                                 onClick={closeModal}
                             >
                                 Cancel
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
+            <Modal
+                isOpen={helpType !== null}
+                onClose={() => setHelpType(null)}
+                title={
+                    helpType
+                        ? `${PROVIDER_HELP[helpType].title} Instructions`
+                        : "Provider Instructions"
+                }
+            >
+                {helpType && (
+                    <div className={s.formStack}>
+                        <p className={s.hint}>
+                            {PROVIDER_HELP[helpType].intro}
+                        </p>
+                        <ol className={s.helpList}>
+                            {PROVIDER_HELP[helpType].steps.map((step) => (
+                                <li key={step.id}>
+                                    {step.text}{" "}
+                                    {step.link && (
+                                        <a
+                                            href={step.link.href}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            {step.link.label}
+                                        </a>
+                                    )}
+                                </li>
+                            ))}
+                        </ol>
+                        <div className={s.formRow}>
+                            <button
+                                className={`${s.btn} ${s.btnPrimary}`}
+                                style={{ flex: 1 }}
+                                onClick={() => setHelpType(null)}
+                            >
+                                Got it
                             </button>
                         </div>
                     </div>

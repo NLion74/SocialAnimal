@@ -309,6 +309,14 @@
     opacity: 0.75;
 }
 
+.monthEvent {
+    cursor: default;
+}
+
+.monthEvent:hover {
+    opacity: 1;
+}
+
 .pillMine {
     background: rgba(124, 58, 237, 0.22);
     color: var(--purple-300);
