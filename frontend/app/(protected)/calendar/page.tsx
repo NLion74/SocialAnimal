@@ -530,8 +530,7 @@ export default function CalendarPage() {
                                             {visible.map((e) => (
                                                 <span
                                                     key={e.id}
-                                                    className={`${s.pill} ${e.isFriend ? s.pillFriend : s.pillMine}`}
-                                                    onClick={() => setDetail(e)}
+                                                    className={`${s.pill} ${s.monthEvent} ${e.isFriend ? s.pillFriend : s.pillMine}`}
                                                     title={e.title}
                                                 >
                                                     {e.allDay

@@ -97,7 +97,13 @@ export class ApiClient {
                 }
             } catch {}
 
-            if (res.status === 401 || res.status === 403) {
+            const isInvalidCredentialsError =
+                errData?.code === "INVALID_CREDENTIALS";
+
+            if (
+                (res.status === 401 || res.status === 403) &&
+                !isInvalidCredentialsError
+            ) {
                 this.setToken(null);
                 if (hasWindow) {
                     window.dispatchEvent(

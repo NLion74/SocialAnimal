@@ -132,6 +132,23 @@ export async function updateMe(userId: string, payload: any) {
     return getMe(userId);
 }
 
+export async function deleteMe(userId: string, password: string) {
+    if (!password) throw new Error("Password required");
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return null;
+
+    const valid = await verifyPassword(password, user.passwordHash, user.salt);
+    if (!valid) throw new Error("Password incorrect");
+
+    await prisma.$transaction([
+        prisma.calendar.deleteMany({ where: { userId } }),
+        prisma.user.delete({ where: { id: userId } }),
+    ]);
+
+    return { ok: true };
+}
+
 export async function getOrCreateAppSettings() {
     return prisma.appSettings.upsert({
         where: { id: "global" },

@@ -67,11 +67,43 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
             const res = await usersService.updateMe(uid, payload);
             if (!res) return notFound(reply);
             return res;
-        } catch (err) {
+        } catch (err: any) {
+            if (err?.message === "Current password required") {
+                return badRequest(reply, "Current password required");
+            }
+            if (err?.message === "Current password incorrect") {
+                return reply.status(401).send({
+                    error: "Invalid credentials",
+                    code: "INVALID_CREDENTIALS",
+                });
+            }
             fastify.log.error(err);
             return serverError(reply);
         }
     });
+
+    fastify.delete(
+        "/me",
+        authOptions,
+        async (request: FastifyRequest, reply) => {
+            try {
+                const uid = request.user.id;
+                const { password } = (request.body as any) || {};
+                const res = await usersService.deleteMe(uid, password);
+                if (!res) return notFound(reply);
+                return reply.status(204).send();
+            } catch (err: any) {
+                if (err?.message === "Password required") {
+                    return badRequest(reply, "Password required");
+                }
+                if (err?.message === "Password incorrect") {
+                    return badRequest(reply, "Password incorrect");
+                }
+                fastify.log.error(err);
+                return serverError(reply);
+            }
+        },
+    );
 
     fastify.get("/app-settings", authOptions, async (request, reply) => {
         const uid = request.user.id;

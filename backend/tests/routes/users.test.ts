@@ -1,11 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { buildApp } from "../../src/app";
 import { mockPrisma, resetMocks } from "../helpers/prisma";
 import { createMockUser } from "../helpers/factories";
 import { createAuthHeader } from "../helpers/auth";
 import type { FastifyInstance } from "fastify";
 import bcrypt from "bcryptjs";
-import { vi } from "vitest";
 
 describe("Users Routes", () => {
     let app: FastifyInstance;
@@ -247,6 +246,116 @@ describe("Users Routes", () => {
             expect(res.statusCode).toBe(200);
             const body = JSON.parse(res.body);
             expect(body.name).toBe("New Name");
+        });
+
+        it("should return 400 when current password is missing", async () => {
+            const mockUser = createMockUser();
+            mockPrisma.user.findUnique.mockResolvedValue(mockUser);
+
+            const res = await app.inject({
+                method: "PUT",
+                url: "/api/users/me",
+                headers: createAuthHeader(mockUser.id),
+                payload: { newPassword: "new-password" },
+            });
+
+            expect(res.statusCode).toBe(400);
+            expect(JSON.parse(res.body).error).toBe(
+                "Current password required",
+            );
+        });
+
+        it("should return 401 for invalid current password", async () => {
+            const mockUser = createMockUser();
+            const salt = "testsalt";
+            const hash = await bcrypt.hash("correct-password" + salt, 4);
+            mockPrisma.user.findUnique.mockResolvedValue({
+                ...mockUser,
+                passwordHash: hash,
+                salt,
+            });
+
+            const res = await app.inject({
+                method: "PUT",
+                url: "/api/users/me",
+                headers: createAuthHeader(mockUser.id),
+                payload: {
+                    currentPassword: "wrong-password",
+                    newPassword: "new-password",
+                },
+            });
+
+            expect(res.statusCode).toBe(401);
+            const body = JSON.parse(res.body);
+            expect(body.error).toBe("Invalid credentials");
+            expect(body.code).toBe("INVALID_CREDENTIALS");
+        });
+    });
+
+    describe("DELETE /api/users/me", () => {
+        it("should require authentication", async () => {
+            const res = await app.inject({
+                method: "DELETE",
+                url: "/api/users/me",
+            });
+
+            expect(res.statusCode).toBe(401);
+        });
+
+        it("should reject request without password", async () => {
+            const mockUser = createMockUser();
+
+            const res = await app.inject({
+                method: "DELETE",
+                url: "/api/users/me",
+                headers: createAuthHeader(mockUser.id),
+                payload: {},
+            });
+
+            expect(res.statusCode).toBe(400);
+            expect(JSON.parse(res.body).error).toBe("Password required");
+        });
+
+        it("should reject incorrect password", async () => {
+            const mockUser = createMockUser();
+            const salt = "testsalt";
+            const hash = await bcrypt.hash("correct-password" + salt, 4);
+            mockPrisma.user.findUnique.mockResolvedValue({
+                ...mockUser,
+                passwordHash: hash,
+                salt,
+            });
+
+            const res = await app.inject({
+                method: "DELETE",
+                url: "/api/users/me",
+                headers: createAuthHeader(mockUser.id),
+                payload: { password: "wrong-password" },
+            });
+
+            expect(res.statusCode).toBe(400);
+            expect(JSON.parse(res.body).error).toBe("Password incorrect");
+        });
+
+        it("should delete account with correct password", async () => {
+            const mockUser = createMockUser();
+            const salt = "testsalt";
+            const hash = await bcrypt.hash("correct-password" + salt, 4);
+            mockPrisma.user.findUnique.mockResolvedValue({
+                ...mockUser,
+                passwordHash: hash,
+                salt,
+            });
+
+            const res = await app.inject({
+                method: "DELETE",
+                url: "/api/users/me",
+                headers: createAuthHeader(mockUser.id),
+                payload: { password: "correct-password" },
+            });
+
+            expect(res.statusCode).toBe(204);
+            expect(mockPrisma.$transaction).toHaveBeenCalled();
         });
     });
 

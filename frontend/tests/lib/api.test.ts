@@ -264,6 +264,24 @@ describe("API Client", () => {
             expect(client.getToken()).toBeNull();
         });
 
+        it("should keep token on INVALID_CREDENTIALS error", async () => {
+            client.setToken("active-token");
+
+            (global.fetch as any).mockResolvedValueOnce({
+                ok: false,
+                status: 401,
+                statusText: "Unauthorized",
+                text: async () =>
+                    JSON.stringify({
+                        error: "Invalid credentials",
+                        code: "INVALID_CREDENTIALS",
+                    }),
+            });
+
+            await expect(client.request("/users/me")).rejects.toThrow();
+            expect(client.getToken()).toBe("active-token");
+        });
+
         it("should handle network errors", async () => {
             (global.fetch as any).mockRejectedValueOnce(
                 new Error("Network failure"),

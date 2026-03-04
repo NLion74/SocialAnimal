@@ -228,9 +228,21 @@
     border-color: var(--border-focus);
 }
 
+.btnDanger {
+    background: var(--danger-dim);
+    color: #fca5a5;
+    border-color: rgba(239, 68, 68, 0.35);
+}
+
+.btnDanger:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.22);
+    color: var(--text-primary);
+    border-color: rgba(239, 68, 68, 0.45);
+}
+
 .inviteCode {
     font-family: monospace;
-    fontsize: 0.9rem;
+    font-size: 0.9rem;
     color: var(--purple-300);
     background: var(--bg-elevated);
     padding: 0.5rem 0.75rem;
