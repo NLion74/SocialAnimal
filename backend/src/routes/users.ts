@@ -26,6 +26,14 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
                 name,
                 inviteCode,
             });
+            if (res === "closed")
+                return reply
+                    .status(403)
+                    .send({ error: "Registrations are closed" });
+            if (res === "invite-required")
+                return reply
+                    .status(403)
+                    .send({ error: "Invite code required" });
             if (res === "exists")
                 return badRequest(reply, "User already exists");
             if (res === "invite-invalid")
@@ -49,6 +57,19 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
             if (!res)
                 return reply.status(401).send({ error: "Invalid credentials" });
             return reply.send(res);
+        } catch (err) {
+            fastify.log.error(err);
+            return serverError(reply);
+        }
+    });
+
+    fastify.get("/public-settings", async (_request, reply) => {
+        try {
+            const settings = await usersService.getOrCreateAppSettings();
+            return {
+                registrationsOpen: settings.registrationsOpen,
+                inviteOnly: settings.inviteOnly,
+            };
         } catch (err) {
             fastify.log.error(err);
             return serverError(reply);

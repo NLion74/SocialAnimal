@@ -54,8 +54,9 @@ model UserSettings {
   id                     String @id @default(uuid())
   userId                 String @unique
   user                   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  defaultSharePermission SharePermission @default(full)
   firstDayOfWeek         String @default("monday")
+  timezone               String @default("Europe/Berlin")
+  defaultTab             String @default("dashboard")
 }
 
 model InviteCode {

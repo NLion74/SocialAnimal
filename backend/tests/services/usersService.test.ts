@@ -386,38 +386,6 @@ describe("updateMe", () => {
         ).rejects.toThrow("Current password incorrect");
     });
 
-    it("updates defaultSharePermission setting", async () => {
-        const user = createMockUser();
-        mockPrisma.user.findUnique
-            .mockResolvedValueOnce(user)
-            .mockResolvedValueOnce({
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                isAdmin: user.isAdmin,
-                createdAt: user.createdAt,
-                settings: {
-                    defaultSharePermission: "busy",
-                    firstDayOfWeek: "monday",
-                },
-            });
-        mockPrisma.userSettings.upsert.mockResolvedValue({});
-
-        await usersService.updateMe(user.id, {
-            defaultSharePermission: "busy",
-        });
-
-        expect(mockPrisma.userSettings.upsert).toHaveBeenCalledWith(
-            expect.objectContaining({
-                where: { userId: user.id },
-                update: { defaultSharePermission: "busy" },
-                create: expect.objectContaining({
-                    defaultSharePermission: "busy",
-                }),
-            }),
-        );
-    });
-
     it("updates firstDayOfWeek setting", async () => {
         const user = createMockUser();
         mockPrisma.user.findUnique
@@ -438,6 +406,64 @@ describe("updateMe", () => {
             expect.objectContaining({
                 update: { firstDayOfWeek: "sunday" },
                 create: expect.objectContaining({ firstDayOfWeek: "sunday" }),
+            }),
+        );
+    });
+
+    it("updates timezone setting", async () => {
+        const user = createMockUser();
+        mockPrisma.user.findUnique
+            .mockResolvedValueOnce(user)
+            .mockResolvedValueOnce({
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                isAdmin: user.isAdmin,
+                createdAt: user.createdAt,
+                settings: {
+                    firstDayOfWeek: "monday",
+                    timezone: "Europe/Berlin",
+                    defaultTab: "dashboard",
+                },
+            });
+        mockPrisma.userSettings.upsert.mockResolvedValue({});
+
+        await usersService.updateMe(user.id, { timezone: "Europe/Berlin" });
+
+        expect(mockPrisma.userSettings.upsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                update: { timezone: "Europe/Berlin" },
+                create: expect.objectContaining({
+                    timezone: "Europe/Berlin",
+                }),
+            }),
+        );
+    });
+
+    it("updates defaultTab setting", async () => {
+        const user = createMockUser();
+        mockPrisma.user.findUnique
+            .mockResolvedValueOnce(user)
+            .mockResolvedValueOnce({
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                isAdmin: user.isAdmin,
+                createdAt: user.createdAt,
+                settings: {
+                    firstDayOfWeek: "monday",
+                    timezone: "UTC",
+                    defaultTab: "calendar",
+                },
+            });
+        mockPrisma.userSettings.upsert.mockResolvedValue({});
+
+        await usersService.updateMe(user.id, { defaultTab: "calendar" });
+
+        expect(mockPrisma.userSettings.upsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                update: { defaultTab: "calendar" },
+                create: expect.objectContaining({ defaultTab: "calendar" }),
             }),
         );
     });

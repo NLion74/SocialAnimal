@@ -87,8 +87,9 @@ export async function updateMe(userId: string, payload: any) {
         name,
         currentPassword,
         newPassword,
-        defaultSharePermission,
         firstDayOfWeek,
+        timezone,
+        defaultTab,
     } = payload;
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -112,19 +113,23 @@ export async function updateMe(userId: string, payload: any) {
     if (name !== undefined)
         await prisma.user.update({ where: { id: userId }, data: { name } });
 
-    if (defaultSharePermission !== undefined || firstDayOfWeek !== undefined) {
+    if (
+        firstDayOfWeek !== undefined ||
+        timezone !== undefined ||
+        defaultTab !== undefined
+    ) {
         await prisma.userSettings.upsert({
             where: { userId },
             update: {
-                ...(defaultSharePermission !== undefined
-                    ? { defaultSharePermission }
-                    : {}),
                 ...(firstDayOfWeek !== undefined ? { firstDayOfWeek } : {}),
+                ...(timezone !== undefined ? { timezone } : {}),
+                ...(defaultTab !== undefined ? { defaultTab } : {}),
             },
             create: {
                 userId,
-                defaultSharePermission: defaultSharePermission ?? "full",
                 firstDayOfWeek: firstDayOfWeek ?? "monday",
+                timezone: timezone ?? "UTC",
+                defaultTab: defaultTab ?? "dashboard",
             },
         });
     }

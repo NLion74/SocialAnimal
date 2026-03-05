@@ -42,10 +42,12 @@ const LS_KEYS = {
 };
 
 export default function CalendarPage() {
+    const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const [myEvents, setMyEvents] = useState<CalEvent[]>([]);
     const [friendEvents, setFriendEvents] = useState<CalEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [firstDay, setFirstDay] = useState<FirstDay>("monday");
+    const [timezone, setTimezone] = useState(browserTimezone || "UTC");
     const [date, setDate] = useState<Date>(() => {
         try {
             const raw = localStorage.getItem(LS_KEYS.date);
@@ -143,6 +145,9 @@ export default function CalendarPage() {
             } catch (e) {
                 console.error("Failed to save first day to localStorage:", e);
             }
+        }
+        if (me?.settings?.timezone) {
+            setTimezone(me.settings.timezone);
         }
         setLoading(false);
     };
@@ -296,7 +301,7 @@ export default function CalendarPage() {
                 }}
             >
                 <span className={s.weekPillTime}>
-                    {fmtTime(l.event.orig.startTime)}
+                    {fmtTime(l.event.orig.startTime, timezone)}
                 </span>
                 <span className={s.weekPillTitle}>{l.event.orig.title}</span>
             </span>
@@ -304,7 +309,36 @@ export default function CalendarPage() {
     };
 
     const renderTimeGrid = (columns: Date[]) => {
+        const getTimeParts = (value: Date) => {
+            const parts = new Intl.DateTimeFormat("en-US", {
+                timeZone: timezone,
+                hour12: false,
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+            }).formatToParts(value);
+
+            const result: Record<string, string> = {};
+            for (const part of parts) {
+                if (part.type !== "literal") {
+                    result[part.type] = part.value;
+                }
+            }
+
+            return {
+                year: Number(result.year ?? "0"),
+                month: Number(result.month ?? "0"),
+                day: Number(result.day ?? "0"),
+                hour: Number(result.hour ?? "0"),
+                minute: Number(result.minute ?? "0"),
+            };
+        };
+
         const now = new Date();
+        const nowTz = getTimeParts(now);
+
         return (
             <div className={s.weekBodyScroll}>
                 <div className={s.weekBodyGrid}>
@@ -359,10 +393,14 @@ export default function CalendarPage() {
 
                             const layouts = computeLayouts(dayTimed);
 
+                            const dayTz = getTimeParts(day);
+
                             const showNow =
-                                isSameDay(day, now) && view !== "month";
-                            const topNow =
-                                now.getHours() * 60 + now.getMinutes();
+                                view !== "month" &&
+                                dayTz.year === nowTz.year &&
+                                dayTz.month === nowTz.month &&
+                                dayTz.day === nowTz.day;
+                            const topNow = nowTz.hour * 60 + nowTz.minute;
 
                             return (
                                 <div
@@ -535,7 +573,7 @@ export default function CalendarPage() {
                                                 >
                                                     {e.allDay
                                                         ? ""
-                                                        : `${fmtTime(e.startTime)} `}
+                                                        : `${fmtTime(e.startTime, timezone)} `}
                                                     {e.title}
                                                 </span>
                                             ))}
@@ -696,7 +734,7 @@ export default function CalendarPage() {
                                 <div className={s.metaLabel}>Time</div>
                                 {detail.allDay
                                     ? "All day"
-                                    : `${fmtDateTime(detail.startTime)} - ${fmtTime(detail.endTime)}`}
+                                    : `${fmtDateTime(detail.startTime, timezone)} - ${fmtTime(detail.endTime, timezone)}`}
                             </div>
                         </div>
                         {detail.location && (

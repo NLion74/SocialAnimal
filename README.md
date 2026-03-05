@@ -27,7 +27,7 @@ Friends can view shared calendars directly inside the app, or export them as an 
     - **Busy only** - time blocks visible, no details
     - **Titles only** - event names visible, no description or location
     - **Full details** - everything visible
-- **Profile & settings** - change password, set default sharing permissions, customize first day of week
+- **Profile & settings** - change password, customize first day of week
 
 |                                    |                                                |
 | ---------------------------------- | ---------------------------------------------- |

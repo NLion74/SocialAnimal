@@ -6,8 +6,30 @@ import { Shield, Ticket, Save } from "lucide-react";
 import s from "./page.module.css";
 import { apiClient } from "../../../lib/api";
 
+const DEFAULT_TAB_OPTIONS = [
+    { value: "dashboard", label: "Dashboard" },
+    { value: "calendar", label: "Calendar" },
+    { value: "friends", label: "Friends" },
+    { value: "profile", label: "Profile" },
+] as const;
+
+const FALLBACK_TIMEZONES = [
+    "UTC",
+    "Europe/Berlin",
+    "Europe/London",
+    "America/New_York",
+    "America/Los_Angeles",
+    "Asia/Tokyo",
+];
+
 export default function ProfilePage() {
     const router = useRouter();
+    const browserTimezone =
+        Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    const timezoneOptions =
+        ((Intl as any).supportedValuesOf?.("timeZone") as
+            | string[]
+            | undefined) ?? FALLBACK_TIMEZONES;
     const [user, setUser] = useState<any>(null);
     const [name, setName] = useState("");
     const [curPw, setCurPw] = useState("");
@@ -15,6 +37,11 @@ export default function ProfilePage() {
     const [confirmNewPw, setConfirmNewPw] = useState("");
     const [deletePw, setDeletePw] = useState("");
     const [firstDay, setFirstDay] = useState<"sunday" | "monday">("monday");
+    const [timezone, setTimezone] = useState(browserTimezone);
+    const [defaultTab, setDefaultTab] = useState<
+        "dashboard" | "calendar" | "friends" | "profile"
+    >("dashboard");
+    const [showAdminSettings, setShowAdminSettings] = useState(false);
     const [regOpen, setRegOpen] = useState(true);
     const [inviteOnly, setInviteOnly] = useState(false);
     const [inviteCode, setInviteCode] = useState("");
@@ -22,6 +49,9 @@ export default function ProfilePage() {
     const [deleting, setDeleting] = useState(false);
     const [msg, setMsg] = useState("");
     const [err, setErr] = useState("");
+    const timezoneSelectOptions = timezoneOptions.includes(timezone)
+        ? timezoneOptions
+        : [timezone, ...timezoneOptions];
 
     useEffect(() => {
         let mounted = true;
@@ -40,11 +70,23 @@ export default function ProfilePage() {
                     (u.settings?.firstDayOfWeek as "sunday" | "monday") ??
                         "monday",
                 );
+                setTimezone(u.settings?.timezone ?? browserTimezone);
+                setDefaultTab(u.settings?.defaultTab ?? "dashboard");
+                let adminAccess = !!u.isAdmin;
+                if (!adminAccess) {
+                    const token = localStorage.getItem("token");
+                    if (token) {
+                        const probe = await fetch("/api/users/app-settings", {
+                            headers: { Authorization: `Bearer ${token}` },
+                        });
+                        adminAccess = probe.ok;
+                    }
+                }
 
-                if (u.isAdmin) {
+                setShowAdminSettings(adminAccess);
+                if (adminAccess) {
                     const s = await apiClient.get("/api/users/app-settings");
                     if (!mounted) return;
-
                     setRegOpen(s.registrationsOpen ?? true);
                     setInviteOnly(s.inviteOnly ?? false);
                 }
@@ -89,6 +131,8 @@ export default function ProfilePage() {
             const body: any = {
                 name,
                 firstDayOfWeek: firstDay,
+                timezone,
+                defaultTab,
             };
             if (newPw) {
                 body.currentPassword = curPw;
@@ -175,7 +219,7 @@ export default function ProfilePage() {
             <div className={s.pageHeader}>
                 <h1 className={s.pageTitle}>
                     Profile & Settings
-                    {user.isAdmin && (
+                    {showAdminSettings && (
                         <span
                             className={s.badgePurple}
                             style={{
@@ -239,6 +283,42 @@ export default function ProfilePage() {
                             onChange={(e) => setName(e.target.value)}
                             placeholder="Your name"
                         />
+                    </div>
+                    <div>
+                        <label className={s.fieldLabel}>Timezone</label>
+                        <select
+                            className={s.input}
+                            value={timezone}
+                            onChange={(e) => setTimezone(e.target.value)}
+                        >
+                            {timezoneSelectOptions.map((tz) => (
+                                <option key={tz} value={tz}>
+                                    {tz}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className={s.fieldLabel}>Default Tab</label>
+                        <select
+                            className={s.input}
+                            value={defaultTab}
+                            onChange={(e) =>
+                                setDefaultTab(
+                                    e.target.value as
+                                        | "dashboard"
+                                        | "calendar"
+                                        | "friends"
+                                        | "profile",
+                                )
+                            }
+                        >
+                            {DEFAULT_TAB_OPTIONS.map((tab) => (
+                                <option key={tab.value} value={tab.value}>
+                                    {tab.label}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                 </div>
             </div>
@@ -322,7 +402,7 @@ export default function ProfilePage() {
                 </div>
             </div>
 
-            {user.isAdmin && (
+            {showAdminSettings && (
                 <div className={s.section}>
                     <div className={s.sectionHeader}>
                         <span className={s.sectionTitle}>
