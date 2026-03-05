@@ -56,7 +56,10 @@ describe("requestFriend", () => {
             user2: { id: target.id, email: target.email, name: target.name },
         });
 
-        const result = await friendService.requestFriend("user-1", "friendname");
+        const result = await friendService.requestFriend(
+            "user-1",
+            "friendname",
+        );
 
         expect(result).not.toBe("not-found");
         expect(result).not.toBe("exists");
@@ -145,7 +148,10 @@ describe("searchUsersByUsername", () => {
 
         mockPrisma.user.findMany.mockResolvedValue(users);
 
-        const result = await friendService.searchUsersByUsername("user-1", "john");
+        const result = await friendService.searchUsersByUsername(
+            "user-1",
+            "john",
+        );
 
         expect(result).toEqual(users);
         expect(mockPrisma.user.findMany).toHaveBeenCalledWith({
@@ -163,7 +169,10 @@ describe("searchUsersByUsername", () => {
     });
 
     it("returns empty array for empty query", async () => {
-        const result = await friendService.searchUsersByUsername("user-1", "   ");
+        const result = await friendService.searchUsersByUsername(
+            "user-1",
+            "   ",
+        );
         expect(result).toEqual([]);
         expect(mockPrisma.user.findMany).not.toHaveBeenCalled();
     });

@@ -66,7 +66,10 @@ export async function requestFriend(userId: string, identifier: string) {
     return requestFriendByUserId(userId, target.id);
 }
 
-export async function requestFriendByUserId(userId: string, targetUserId: string) {
+export async function requestFriendByUserId(
+    userId: string,
+    targetUserId: string,
+) {
     const target = await prisma.user.findUnique({
         where: { id: targetUserId },
         select: { id: true },

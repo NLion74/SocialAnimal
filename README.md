@@ -1,51 +1,114 @@
 # SocialAnimal 🐾
 
+![License](https://img.shields.io/github/license/NLion74/SocialAnimal)
+![Stars](https://img.shields.io/github/stars/NLion74/SocialAnimal)
+![Issues](https://img.shields.io/github/issues/NLion74/SocialAnimal)
+
+![Docker Backend Pulls](https://img.shields.io/docker/pulls/nlion/socialanimal-backend)
+![Docker Frontend Pulls](https://img.shields.io/docker/pulls/nlion/socialanimal-frontend)
+
 > Name inspired by _The Social Animal_ by Elliot Aronson - no real psychological correlation, just a fitting name.
 
 SocialAnimal is a **self-hosted social calendar platform** that lets you share your calendar with friends. This is **not** a self-hosted calendar server - tools like [Radicale](https://radicale.org/) do that job well. SocialAnimal sits on top: you and your friends log in, import your existing calendars, and share them with each other - with full control over what they can see.
 
 Friends can view shared calendars directly inside the app, or export them as an ICS link into their own calendar client.
 
+## Try it
+
+A public instance is available at:
+
+https://socialanimal.net
+
 ---
 
-![Main page](assets/main-page.png)
+## Screenshots
+
+### Dashboard Tab
+
+![Dashboard](assets/dashboard.png)
+
+### Calendar Tab
+
+| Day                          | Week                          | Month                          |
+| ---------------------------- | ----------------------------- | ------------------------------ |
+| ![](assets/calendar-day.png) | ![](assets/calendar-week.png) | ![](assets/calendar-month.png) |
+
+### Friends Tab
+
+| Friend Request             | Share Menu                       |
+| -------------------------- | -------------------------------- |
+| ![](assets/friend-add.png) | ![](assets/friend-sharemenu.png) |
+
+### Profile Tab
+
+![](assets/profile.png)
+
+### Landing Page
+
+![](assets/main-page.png)
 
 ---
+
+## Why SocialAnimal?
+
+Many proprietary apps act as a social calendar, but usually require everyone to use their platform as a calendar provider.
+
+But what if you want to keep using your existing calendar provider and simply share it with others?
+
+SocialAnimal takes a different approach: it connects to your existing calendars and lets you share them with friends, family, or partners.
+
+- View shared events directly in the app or export them back to your own calendar (planned feature - see [Roadmap](#roadmap))
+- Fine-grained permissions let you control **exactly what you share, with whom, under which conditions** (planned feature - see [Roadmap](#roadmap))
 
 ## Current Features
 
-- **Friend system** - send, accept, and decline friend requests
-- **Auth & admin** - login system with admin settings, invite-only or open registration
-- **Google Calendar integration** - easy import for Google calendars
-- **CalDAV/iCloud integration** - import support for CalDAV-compatible services including iCloud
-- **ICS/iCal import** - import any calendar feed by URL (Apple, Outlook, Fastmail, etc.)
-- **Calendar export** - export calendars as ICS links for use in any calendar client
-- **Auto-sync** - calendars sync automatically on a configurable interval per calendar
-- **Calendar views** - month, week, and day views with side-by-side display of your events and friends' calendars
-- **Toggle visibility** - show/hide individual calendars in the sidebar
-- **Permission system** - control per-calendar, per-friend what level of detail is shared:
-    - **Busy only** - time blocks visible, no details
-    - **Titles only** - event names visible, no description or location
-    - **Full details** - everything visible
-- **Profile & settings** - change password, customize first day of week
+## Current Features
 
-|                                    |                                                |
-| ---------------------------------- | ---------------------------------------------- |
-| ![Dashboard](assets/dashboard.png) | ![Share with menu](assets/share-with-menu.png) |
-| _Calendar dashboard_               | _Per-friend sharing controls_                  |
-| ![Profile](assets/profile.png)     | ![Calendar](assets/calendar.png)               |
-| _Profile settings_                 | _Calendar view_                                |
+**Accounts & Social**
 
----
+- User authentication and profile settings
+- Friend system (requests, accept/decline)
+- Search users by username
+
+**Calendar Integration**
+
+- Google Calendar import
+- CalDAV / iCloud support
+- ICS / iCal feed import
+- ICS export for external calendar clients
+
+**Calendar Experience**
+
+- Day, week, and month views
+- Side-by-side view of your events and friends' calendars
+- Toggle individual calendars in the sidebar
+
+**Sharing & Permissions**
+
+- Share calendars with friends
+- Per-calendar visibility controls:
+    - Busy only
+    - Titles only
+    - Full event details
+
+**Automation**
+
+- Automatic calendar sync on configurable intervals
 
 ## Roadmap
+
+This project is not in a stable version as of yet. Stable release is planned for version v1.0.0.
+
+Major architectural changes, severe bugs, or data loss are to be expected.
+
+What is still planned:
 
 - [ ] Easy integration for Proton and Outlook
 - [ ] Admin dashboard with user management
 - [ ] Per Event Permission system, possibly with regex excludes
 - [ ] More export types with direct push to calendars
 - [ ] Better Invite System
-- [ ] Account Deletion in Frontend (Nope, that's not possible right now)
+- [x] Account deletion in frontend profile
 - [ ] Calendar color customization
 - [ ] Internal things like incremental sync, rate limiting...
 - [ ] Many more small improvements...
@@ -99,7 +162,7 @@ To enable Google Calendar integration:
 4. APIs and services → OAuth Consent Screen
 5. Under Data access, add scope .../auth/calendar.readonly, then save
 6. Go to Clients and create a Client ID of type Web Application
-7. Add authorized redirect URI to be your PUBLIC_URL
+7. Add authorized redirect URI: `https://your-public-url/api/providers/google/callback`
 8. Copy the Client ID and Client Secret to your .env file
 
 Without Google credentials, users can still import calendars via ICS/iCal URL.
@@ -107,6 +170,102 @@ Without Google credentials, users can still import calendars via ICS/iCal URL.
 ## Development
 
 This project is in early development and contributions are very much appreciated! Feel free to open issues, suggest features, or submit pull requests.
+
+### Documentation
+
+#### Tech Stack
+
+- **Frontend:** Next JS, React, TypeScript
+- **Backend:** Node JS, Fastify, TypeScript
+- **Database:** PostgreSQL
+- **ORM:** Prisma
+- **Testing:** Vitest
+- **Containerization:** Docker, Docker Compose
+
+#### Backend API
+
+The backend API structure shown below **may be out of date** - check the latest snapshot [here](https://raw.githubusercontent.com/NLion74/SocialAnimal/refs/heads/main/backend/tests/__snapshots__/app.test.ts.snap).
+
+Base routes:
+
+- `GET /health`
+
+Users (`/api/users`):
+
+- `POST /register`
+- `POST /login`
+- `GET /public-settings`
+- `GET /me`
+- `PUT /me`
+- `DELETE /me`
+- `GET /app-settings` (admin)
+- `PUT /app-settings` (admin)
+- `POST /invite` (admin)
+
+Calendars (`/api/calendars`):
+
+- `GET /`
+- `PUT /:id`
+- `DELETE /:id`
+- `POST /:id/sync`
+- `GET /:id/test`
+
+Events (`/api/events`):
+
+- `GET /`
+- `GET /friends`
+
+Friends (`/api/friends`):
+
+- `GET /`
+- `GET /search-users`
+- `POST /request`
+- `POST /:id/accept`
+- `DELETE /:id`
+- `POST /share-calendar`
+
+Providers:
+
+- `POST /api/providers/:type/import`
+- `GET /api/providers/:type/export/:calendarId`
+- `POST /api/providers/:type/test`
+- `GET /api/providers/:type/discover`
+- `POST /api/providers/:type/discover`
+- `GET /api/providers/google/auth-url`
+- `GET /api/providers/google/callback`
+
+#### Architecture
+
+The backend follows a route - service - data/utils structure.
+
+Core backend areas:
+
+- Calendar providers
+- User auth and settings management
+- Calendars and events
+- Friends
+
+Providers use a capability based handler. They implement traits like:
+
+- importable
+- syncable
+- discoverable
+- testable
+- exportable
+
+This allows providers to implement only features they allow.
+
+Layer separation:
+
+1. **Routes** - HTTP layer
+2. **Services** - business logic
+3. **Data & utilities** - DB persistence, auth, permission and helper logic
+
+Frontend architecture:
+
+- Provides a main layout and authentication routes
+- Once authenticated, users interact with the protected layout and app pages
+- Handles rendering of calendars, events, and friend-sharing controls from backend
 
 ### Development Setup
 
@@ -131,8 +290,8 @@ cd SocialAnimal
 # Adjust .env as needed
 cp example.env .env.build
 
-docker-compose -f build-docker-compose.yml build --no-cache
-docker-compose -f build-docker-compose.yml --env-file .env.build up
+docker compose -f build-docker-compose.yml build --no-cache
+docker compose -f build-docker-compose.yml --env-file .env.build up
 ```
 
 ### Running Tests

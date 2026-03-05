@@ -8,6 +8,7 @@ exports[`Routes snapshot > prints the same route tree 1`] = `
     │       ├── users/
     │       │   ├── register (POST)
     │       │   ├── login (POST)
+    │       │   ├── public-settings (GET, HEAD)
     │       │   ├── me (GET, HEAD, PUT, DELETE)
     │       │   ├── app-settings (GET, HEAD, PUT)
     │       │   └── invite (POST)
@@ -22,8 +23,10 @@ exports[`Routes snapshot > prints the same route tree 1`] = `
     │       │       └── friends (GET, HEAD)
     │       ├── friends (GET, HEAD)
     │       │   └── / (GET, HEAD)
+    │       │       ├── s
+    │       │       │   ├── earch-users (GET, HEAD)
+    │       │       │   └── hare-calendar (POST)
     │       │       ├── request (POST)
-    │       │       ├── share-calendar (POST)
     │       │       └── :id (DELETE)
     │       │           └── /accept (POST)
     │       └── providers/

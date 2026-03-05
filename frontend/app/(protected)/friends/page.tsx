@@ -298,14 +298,13 @@ export default function FriendsPage() {
                 </div>
             )}
 
-            <Modal
-                isOpen={showAdd}
-                onClose={closeAddModal}
-                title="Add Friend"
-            >
+            <Modal isOpen={showAdd} onClose={closeAddModal} title="Add Friend">
                 <div className={s.formStack}>
                     <div>
-                        <label className={s.fieldLabel} htmlFor="friend-search-input">
+                        <label
+                            className={s.fieldLabel}
+                            htmlFor="friend-search-input"
+                        >
                             Search Username
                         </label>
                         <input
@@ -319,7 +318,9 @@ export default function FriendsPage() {
                             }}
                             placeholder="Enter username"
                             onKeyDown={(e) =>
-                                e.key === "Enter" && selectedUserId && sendRequest()
+                                e.key === "Enter" &&
+                                selectedUserId &&
+                                sendRequest()
                             }
                             autoFocus
                         />
@@ -330,7 +331,9 @@ export default function FriendsPage() {
                     {!searching && searchQuery.trim() && (
                         <div className={s.searchResults}>
                             {searchResults.length === 0 ? (
-                                <div className={s.emptySearch}>No users found</div>
+                                <div className={s.emptySearch}>
+                                    No users found
+                                </div>
                             ) : (
                                 searchResults.map((u) => (
                                     <button
@@ -345,7 +348,9 @@ export default function FriendsPage() {
                                         <div className={s.searchResultName}>
                                             {u.name || "(No username)"}
                                         </div>
-                                        <div className={s.searchResultEmail}>{u.email}</div>
+                                        <div className={s.searchResultEmail}>
+                                            {u.email}
+                                        </div>
                                     </button>
                                 ))
                             )}
