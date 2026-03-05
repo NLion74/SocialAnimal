@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { apiClient } from "../lib/api";
 import s from "./page.module.css";
 
 export default function HomePage() {
@@ -10,12 +11,55 @@ export default function HomePage() {
     const [checking, setChecking] = useState(true);
 
     useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (token) {
-            router.push("/dashboard");
-        } else {
-            setChecking(false);
-        }
+        let cancelled = false;
+
+        const withTimeout = async <T,>(
+            promise: Promise<T>,
+            timeoutMs = 8000,
+        ) => {
+            return await Promise.race<T>([
+                promise,
+                new Promise<T>((_, reject) => {
+                    setTimeout(
+                        () => reject(new Error("Request timed out")),
+                        timeoutMs,
+                    );
+                }),
+            ]);
+        };
+
+        const run = async () => {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                if (!cancelled) setChecking(false);
+                return;
+            }
+
+            try {
+                const me = await withTimeout(
+                    apiClient.get<any>("/api/users/me"),
+                );
+                const defaultTab = me?.settings?.defaultTab ?? "dashboard";
+                const target =
+                    defaultTab === "calendar" ||
+                    defaultTab === "friends" ||
+                    defaultTab === "profile"
+                        ? `/${defaultTab}`
+                        : "/dashboard";
+                router.replace(target);
+            } catch {
+                apiClient.setToken(null);
+                if (!cancelled) setChecking(false);
+            } finally {
+                if (!cancelled) setChecking(false);
+            }
+        };
+
+        run();
+
+        return () => {
+            cancelled = true;
+        };
     }, [router]);
 
     if (checking) {

@@ -117,6 +117,51 @@ describe("Users Routes", () => {
 
             expect(res.statusCode).toBe(403);
         });
+
+        it("should return 403 when invite code is required but missing", async () => {
+            mockPrisma.user.count = vi.fn().mockResolvedValue(1);
+            mockPrisma.appSettings.upsert.mockResolvedValue({
+                id: "global",
+                registrationsOpen: true,
+                inviteOnly: true,
+                updatedAt: new Date(),
+            });
+            mockPrisma.user.findUnique.mockResolvedValue(null);
+
+            const res = await app.inject({
+                method: "POST",
+                url: "/api/users/register",
+                payload: {
+                    email: "test@example.com",
+                    password: "pass123",
+                },
+            });
+
+            expect(res.statusCode).toBe(403);
+            expect(JSON.parse(res.body).error).toBe("Invite code required");
+        });
+
+        it("should return 403 when registrations are closed", async () => {
+            mockPrisma.user.count = vi.fn().mockResolvedValue(1);
+            mockPrisma.appSettings.upsert.mockResolvedValue({
+                id: "global",
+                registrationsOpen: false,
+                inviteOnly: false,
+                updatedAt: new Date(),
+            });
+
+            const res = await app.inject({
+                method: "POST",
+                url: "/api/users/register",
+                payload: {
+                    email: "test@example.com",
+                    password: "pass123",
+                },
+            });
+
+            expect(res.statusCode).toBe(403);
+            expect(JSON.parse(res.body).error).toBe("Registrations are closed");
+        });
     });
 
     describe("POST /api/users/login", () => {
@@ -188,6 +233,41 @@ describe("Users Routes", () => {
         });
     });
 
+    describe("GET /api/users/public-settings", () => {
+        it("should return inviteOnly and registrationsOpen", async () => {
+            mockPrisma.appSettings.upsert.mockResolvedValue({
+                id: "global",
+                registrationsOpen: true,
+                inviteOnly: false,
+                updatedAt: new Date(),
+            });
+
+            const res = await app.inject({
+                method: "GET",
+                url: "/api/users/public-settings",
+            });
+
+            expect(res.statusCode).toBe(200);
+            expect(JSON.parse(res.body)).toEqual({
+                registrationsOpen: true,
+                inviteOnly: false,
+            });
+        });
+
+        it("should return 500 when settings lookup fails", async () => {
+            mockPrisma.appSettings.upsert.mockRejectedValue(
+                new Error("DB crash"),
+            );
+
+            const res = await app.inject({
+                method: "GET",
+                url: "/api/users/public-settings",
+            });
+
+            expect(res.statusCode).toBe(500);
+        });
+    });
+
     describe("GET /api/users/me", () => {
         it("should return authenticated user info", async () => {
             const mockUser = createMockUser({ email: "me@example.com" });
@@ -232,20 +312,44 @@ describe("Users Routes", () => {
             mockPrisma.user.findUnique
                 .mockResolvedValueOnce(mockUser)
                 .mockResolvedValueOnce(mockUser)
-                .mockResolvedValueOnce(updatedUser);
+                .mockResolvedValueOnce({
+                    ...updatedUser,
+                    settings: {
+                        firstDayOfWeek: "monday",
+                        timezone: "Europe/Berlin",
+                        defaultTab: "calendar",
+                    },
+                });
 
             mockPrisma.user.update.mockResolvedValue(updatedUser);
+            mockPrisma.userSettings.upsert.mockResolvedValue({});
 
             const res = await app.inject({
                 method: "PUT",
                 url: "/api/users/me",
                 headers: createAuthHeader(mockUser.id),
-                payload: { name: "New Name" },
+                payload: {
+                    name: "New Name",
+                    timezone: "Europe/Berlin",
+                    defaultTab: "calendar",
+                },
             });
 
             expect(res.statusCode).toBe(200);
             const body = JSON.parse(res.body);
             expect(body.name).toBe("New Name");
+            expect(mockPrisma.userSettings.upsert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    update: {
+                        timezone: "Europe/Berlin",
+                        defaultTab: "calendar",
+                    },
+                    create: expect.objectContaining({
+                        timezone: "Europe/Berlin",
+                        defaultTab: "calendar",
+                    }),
+                }),
+            );
         });
 
         it("should return 400 when current password is missing", async () => {

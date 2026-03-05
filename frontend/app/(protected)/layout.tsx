@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Calendar, Users, Home, User, LogOut } from "lucide-react";
 import { apiClient } from "../../lib/api";
 import s from "./layout.module.css";
@@ -94,12 +95,17 @@ export default function ProtectedLayout({
     return (
         <div className={s.page}>
             <header className={s.header}>
-                <div className={s.brand}>
+                <Link href="/" className={s.brand}>
                     <div className={s.brandIcon}>
-                        <Calendar size={15} color="var(--purple-400)" />
+                        <Image
+                            src="/favicon.svg"
+                            alt="SocialAnimal"
+                            width={15}
+                            height={15}
+                        />
                     </div>
                     <span className={s.brandName}>SocialAnimal</span>
-                </div>
+                </Link>
                 <button className={s.logoutBtn} onClick={handleLogout}>
                     <LogOut size={13} /> Sign out
                 </button>

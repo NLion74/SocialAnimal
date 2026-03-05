@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { apiClient } from "../../../lib/api";
 import type { CalendarData, Friend, Permission } from "../../../lib/types";
+import { fmtDateTime } from "../../../lib/date";
 import s from "./page.module.css";
 import Modal from "../../../components/Modal";
 import GoogleCalendarSelect from "../../../components/GoogleCalendarSelect";
@@ -172,10 +173,12 @@ interface IncomingShare {
 }
 
 export default function DashboardPage() {
+    const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const [calendars, setCalendars] = useState<CalendarData[]>([]);
     const [friends, setFriends] = useState<Friend[]>([]);
     const [incomingShares, setIncomingShares] = useState<IncomingShare[]>([]);
     const [loading, setLoading] = useState(true);
+    const [timezone, setTimezone] = useState(browserTimezone || "UTC");
     const [syncingId, setSyncingId] = useState<string | null>(null);
     const [testingId, setTestingId] = useState<string | null>(null);
 
@@ -280,12 +283,15 @@ export default function DashboardPage() {
     const loadAll = async () => {
         setLoading(true);
         try {
-            const [crRaw, frRaw] = await Promise.all([
+            const [crRaw, frRaw, me] = await Promise.all([
                 withTimeout(
                     apiClient.request<CalendarData[]>("/api/calendars"),
                 ).catch(() => []),
                 withTimeout(apiClient.request<Friend[]>("/api/friends")).catch(
                     () => [],
+                ),
+                withTimeout(apiClient.request<any>("/api/users/me")).catch(
+                    () => null,
                 ),
             ]);
 
@@ -305,6 +311,10 @@ export default function DashboardPage() {
 
             setFriends(frRaw);
             setIncomingShares(deriveIncomingShares(frRaw, uid as string));
+
+            if (me?.settings?.timezone) {
+                setTimezone(me.settings.timezone);
+            }
         } finally {
             setLoading(false);
         }
@@ -1048,9 +1058,10 @@ export default function DashboardPage() {
                                         {c.lastSync && (
                                             <span className={s.metaText}>
                                                 synced{" "}
-                                                {new Date(
+                                                {fmtDateTime(
                                                     c.lastSync,
-                                                ).toLocaleString()}
+                                                    timezone,
+                                                )}
                                             </span>
                                         )}
                                     </div>

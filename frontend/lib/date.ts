@@ -29,17 +29,19 @@ export function isSameDay(a: Date, b: Date): boolean {
     return a.toDateString() === b.toDateString();
 }
 
-export function fmtTime(iso: string): string {
+export function fmtTime(iso: string, timeZone?: string): string {
     return new Date(iso).toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
+        ...(timeZone ? { timeZone } : {}),
     });
 }
 
-export function fmtDateTime(iso: string): string {
+export function fmtDateTime(iso: string, timeZone?: string): string {
     return new Date(iso).toLocaleString([], {
         dateStyle: "medium",
         timeStyle: "short",
+        ...(timeZone ? { timeZone } : {}),
     });
 }
 

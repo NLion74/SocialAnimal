@@ -245,6 +245,55 @@
     gap: 0.625rem;
 }
 
+.searchResults {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-height: 16rem;
+    overflow-y: auto;
+}
+
+.searchResult {
+    width: 100%;
+    text-align: left;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0.625rem 0.75rem;
+    cursor: pointer;
+    transition: border-color var(--transition);
+}
+
+.searchResult:hover {
+    border-color: var(--border-focus);
+}
+
+.searchResultSelected {
+    border-color: var(--purple-500);
+    box-shadow: 0 0 0 2px var(--purple-glow);
+}
+
+.searchResultName {
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.searchResultEmail {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-top: 0.15rem;
+}
+
+.emptySearch {
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+    background: var(--bg-elevated);
+}
+
 .shareList {
     display: flex;
     flex-direction: column;

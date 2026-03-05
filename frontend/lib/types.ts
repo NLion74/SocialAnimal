@@ -25,6 +25,12 @@ export interface FriendUser {
     name?: string;
 }
 
+export interface UserSearchResult {
+    id: string;
+    email: string;
+    name?: string;
+}
+
 export interface SharedCalendar {
     id: string;
     name: string;

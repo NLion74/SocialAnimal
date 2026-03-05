@@ -50,9 +50,28 @@ export async function listFriendshipsWithShares(userId: string) {
     );
 }
 
-export async function requestFriend(userId: string, email: string) {
+export async function requestFriend(userId: string, identifier: string) {
+    const trimmed = identifier.trim();
+    const target = await prisma.user.findFirst({
+        where: {
+            OR: [
+                { email: { equals: trimmed, mode: "insensitive" } },
+                { name: { equals: trimmed, mode: "insensitive" } },
+            ],
+        },
+        select: { id: true },
+    });
+    if (!target) return "not-found";
+
+    return requestFriendByUserId(userId, target.id);
+}
+
+export async function requestFriendByUserId(
+    userId: string,
+    targetUserId: string,
+) {
     const target = await prisma.user.findUnique({
-        where: { email },
+        where: { id: targetUserId },
         select: { id: true },
     });
     if (!target) return "not-found";
@@ -76,6 +95,30 @@ export async function requestFriend(userId: string, email: string) {
     });
 
     return friendship;
+}
+
+export async function searchUsersByUsername(userId: string, query: string) {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+
+    const users = await prisma.user.findMany({
+        where: {
+            id: { not: userId },
+            name: {
+                contains: trimmed,
+                mode: "insensitive",
+            },
+        },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+        },
+        orderBy: [{ name: "asc" }, { email: "asc" }],
+        take: 12,
+    });
+
+    return users;
 }
 
 export async function acceptFriendRequest(

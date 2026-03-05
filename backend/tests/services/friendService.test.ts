@@ -16,6 +16,7 @@ describe("requestFriend", () => {
             status: "pending",
         });
 
+        mockPrisma.user.findFirst.mockResolvedValue({ id: target.id });
         mockPrisma.user.findUnique.mockResolvedValue({ id: target.id });
         mockPrisma.friendship.findFirst.mockResolvedValue(null);
         mockPrisma.friendship.create.mockResolvedValue({
@@ -41,8 +42,31 @@ describe("requestFriend", () => {
         );
     });
 
+    it("creates friendship request when target username exists", async () => {
+        const target = createMockUser({ name: "friendname" });
+        const friendship = createMockFriendship("user-1", target.id, {
+            status: "pending",
+        });
+
+        mockPrisma.user.findFirst.mockResolvedValue({ id: target.id });
+        mockPrisma.user.findUnique.mockResolvedValue({ id: target.id });
+        mockPrisma.friendship.findFirst.mockResolvedValue(null);
+        mockPrisma.friendship.create.mockResolvedValue({
+            ...friendship,
+            user2: { id: target.id, email: target.email, name: target.name },
+        });
+
+        const result = await friendService.requestFriend(
+            "user-1",
+            "friendname",
+        );
+
+        expect(result).not.toBe("not-found");
+        expect(result).not.toBe("exists");
+    });
+
     it("returns not-found when target email does not exist", async () => {
-        mockPrisma.user.findUnique.mockResolvedValue(null);
+        mockPrisma.user.findFirst.mockResolvedValue(null);
         const result = await friendService.requestFriend(
             "user-1",
             "nobody@example.com",
@@ -51,6 +75,7 @@ describe("requestFriend", () => {
     });
 
     it("returns self when user tries to friend themselves", async () => {
+        mockPrisma.user.findFirst.mockResolvedValue({ id: "user-1" });
         mockPrisma.user.findUnique.mockResolvedValue({ id: "user-1" });
         const result = await friendService.requestFriend(
             "user-1",
@@ -61,6 +86,7 @@ describe("requestFriend", () => {
 
     it("returns exists when friendship already exists", async () => {
         const target = createMockUser();
+        mockPrisma.user.findFirst.mockResolvedValue({ id: target.id });
         mockPrisma.user.findUnique.mockResolvedValue({ id: target.id });
         mockPrisma.friendship.findFirst.mockResolvedValue(
             createMockFriendship("user-1", target.id),
@@ -71,6 +97,84 @@ describe("requestFriend", () => {
             target.email,
         );
         expect(result).toBe("exists");
+    });
+});
+
+describe("requestFriendByUserId", () => {
+    it("creates friendship request when target user id exists", async () => {
+        const target = createMockUser();
+        const friendship = createMockFriendship("user-1", target.id, {
+            status: "pending",
+        });
+
+        mockPrisma.user.findUnique.mockResolvedValue({ id: target.id });
+        mockPrisma.friendship.findFirst.mockResolvedValue(null);
+        mockPrisma.friendship.create.mockResolvedValue({
+            ...friendship,
+            user2: { id: target.id, email: target.email, name: target.name },
+        });
+
+        const result = await friendService.requestFriendByUserId(
+            "user-1",
+            target.id,
+        );
+
+        expect(result).not.toBe("not-found");
+        expect(result).not.toBe("exists");
+        expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
+            where: { id: target.id },
+            select: { id: true },
+        });
+    });
+
+    it("returns not-found when target user id does not exist", async () => {
+        mockPrisma.user.findUnique.mockResolvedValue(null);
+
+        const result = await friendService.requestFriendByUserId(
+            "user-1",
+            "missing-user",
+        );
+
+        expect(result).toBe("not-found");
+    });
+});
+
+describe("searchUsersByUsername", () => {
+    it("returns matching users excluding self", async () => {
+        const users = [
+            { id: "user-2", name: "john", email: "john@example.com" },
+            { id: "user-3", name: "johnny", email: "johnny@example.com" },
+        ];
+
+        mockPrisma.user.findMany.mockResolvedValue(users);
+
+        const result = await friendService.searchUsersByUsername(
+            "user-1",
+            "john",
+        );
+
+        expect(result).toEqual(users);
+        expect(mockPrisma.user.findMany).toHaveBeenCalledWith({
+            where: {
+                id: { not: "user-1" },
+                name: {
+                    contains: "john",
+                    mode: "insensitive",
+                },
+            },
+            select: { id: true, name: true, email: true },
+            orderBy: [{ name: "asc" }, { email: "asc" }],
+            take: 12,
+        });
+    });
+
+    it("returns empty array for empty query", async () => {
+        const result = await friendService.searchUsersByUsername(
+            "user-1",
+            "   ",
+        );
+        expect(result).toEqual([]);
+        expect(mockPrisma.user.findMany).not.toHaveBeenCalled();
     });
 });
 
