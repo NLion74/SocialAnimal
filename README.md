@@ -62,8 +62,6 @@ SocialAnimal takes a different approach: it connects to your existing calendars 
 
 ## Current Features
 
-## Current Features
-
 **Accounts & Social**
 
 - User authentication and profile settings
