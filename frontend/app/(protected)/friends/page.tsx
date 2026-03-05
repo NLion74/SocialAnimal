@@ -4,7 +4,12 @@ import { useState, useEffect, useCallback } from "react";
 import { UserPlus, X, Check, Users, Share2 } from "lucide-react";
 import s from "./page.module.css";
 import { apiClient } from "../../../lib/api";
-import type { Friend, CalendarData, Permission } from "../../../lib/types";
+import type {
+    Friend,
+    CalendarData,
+    Permission,
+    UserSearchResult,
+} from "../../../lib/types";
 import Modal from "../../../components/Modal";
 
 const PERM_LABELS: Record<Permission, string> = {
@@ -18,7 +23,10 @@ export default function FriendsPage() {
     const [calendars, setCalendars] = useState<CalendarData[]>([]);
     const [loading, setLoading] = useState(true);
     const [showAdd, setShowAdd] = useState(false);
-    const [email, setEmail] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [searching, setSearching] = useState(false);
+    const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
+    const [selectedUserId, setSelectedUserId] = useState("");
     const [addErr, setAddErr] = useState("");
     const [adding, setAdding] = useState(false);
     const [shareTarget, setShareTarget] = useState<Friend | null>(null);
@@ -47,14 +55,55 @@ export default function FriendsPage() {
     const isIncoming = (f: Friend) =>
         f.status === "pending" && f.user2.id === uid;
 
+    useEffect(() => {
+        if (!showAdd) return;
+        const trimmed = searchQuery.trim();
+        if (!trimmed) {
+            setSearchResults([]);
+            setSearching(false);
+            return;
+        }
+
+        const timeout = setTimeout(async () => {
+            setSearching(true);
+            try {
+                const res = await apiClient.get<UserSearchResult[]>(
+                    `/api/friends/search-users?query=${encodeURIComponent(trimmed)}`,
+                );
+                setSearchResults(res);
+                const selectedStillExists = res.some(
+                    (user) => user.id === selectedUserId,
+                );
+                if (!selectedStillExists) setSelectedUserId("");
+                setAddErr("");
+            } catch (e: any) {
+                setSearchResults([]);
+                setAddErr(e.message);
+            } finally {
+                setSearching(false);
+            }
+        }, 250);
+
+        return () => clearTimeout(timeout);
+    }, [showAdd, searchQuery, selectedUserId]);
+
+    const closeAddModal = () => {
+        setShowAdd(false);
+        setSearchQuery("");
+        setSearchResults([]);
+        setSelectedUserId("");
+        setAddErr("");
+    };
+
     const sendRequest = async () => {
-        if (!email) return;
+        if (!selectedUserId) return;
         setAdding(true);
         setAddErr("");
         try {
-            await apiClient.post("/api/friends/request", { email });
-            setShowAdd(false);
-            setEmail("");
+            await apiClient.post("/api/friends/request", {
+                targetUserId: selectedUserId,
+            });
+            closeAddModal();
             load();
         } catch (e: any) {
             setAddErr(e.message);
@@ -125,7 +174,10 @@ export default function FriendsPage() {
                 <h1 className={s.pageTitle}>Friends</h1>
                 <button
                     className={`${s.btn} ${s.btnPrimary}`}
-                    onClick={() => setShowAdd(true)}
+                    onClick={() => {
+                        setAddErr("");
+                        setShowAdd(true);
+                    }}
                 >
                     <UserPlus size={14} /> Add Friend
                 </button>
@@ -224,11 +276,19 @@ export default function FriendsPage() {
                                                 </button>
                                             </>
                                         ) : (
-                                            <span
-                                                className={`${s.badge} ${s.badgeMuted}`}
-                                            >
-                                                Sent
-                                            </span>
+                                            <>
+                                                <span
+                                                    className={`${s.badge} ${s.badgeMuted}`}
+                                                >
+                                                    Sent
+                                                </span>
+                                                <button
+                                                    className={`${s.btn} ${s.btnDanger} ${s.btnSm}`}
+                                                    onClick={() => remove(f.id)}
+                                                >
+                                                    Remove
+                                                </button>
+                                            </>
                                         )}
                                     </div>
                                 </div>
@@ -240,45 +300,71 @@ export default function FriendsPage() {
 
             <Modal
                 isOpen={showAdd}
-                onClose={() => {
-                    setShowAdd(false);
-                    setEmail("");
-                    setAddErr("");
-                }}
+                onClose={closeAddModal}
                 title="Add Friend"
             >
                 <div className={s.formStack}>
                     <div>
-                        <label className={s.fieldLabel}>Friend's Email</label>
+                        <label className={s.fieldLabel} htmlFor="friend-search-input">
+                            Search Username
+                        </label>
                         <input
+                            id="friend-search-input"
                             className={s.input}
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="friend@example.com"
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => {
+                                setSearchQuery(e.target.value);
+                                setSelectedUserId("");
+                            }}
+                            placeholder="Enter username"
                             onKeyDown={(e) =>
-                                e.key === "Enter" && sendRequest()
+                                e.key === "Enter" && selectedUserId && sendRequest()
                             }
                             autoFocus
                         />
                     </div>
+
+                    {searching && <div className={s.hint}>Searching…</div>}
+
+                    {!searching && searchQuery.trim() && (
+                        <div className={s.searchResults}>
+                            {searchResults.length === 0 ? (
+                                <div className={s.emptySearch}>No users found</div>
+                            ) : (
+                                searchResults.map((u) => (
+                                    <button
+                                        key={u.id}
+                                        type="button"
+                                        className={`${s.searchResult} ${selectedUserId === u.id ? s.searchResultSelected : ""}`}
+                                        onClick={() => {
+                                            setSelectedUserId(u.id);
+                                            setAddErr("");
+                                        }}
+                                    >
+                                        <div className={s.searchResultName}>
+                                            {u.name || "(No username)"}
+                                        </div>
+                                        <div className={s.searchResultEmail}>{u.email}</div>
+                                    </button>
+                                ))
+                            )}
+                        </div>
+                    )}
+
                     {addErr && <div className={s.error}>{addErr}</div>}
                     <div className={s.formRow}>
                         <button
                             className={`${s.btn} ${s.btnPrimary}`}
                             style={{ flex: 1 }}
                             onClick={sendRequest}
-                            disabled={adding || !email}
+                            disabled={adding || !selectedUserId}
                         >
                             {adding ? "Sending…" : "Send Request"}
                         </button>
                         <button
                             className={`${s.btn} ${s.btnSecondary}`}
-                            onClick={() => {
-                                setShowAdd(false);
-                                setEmail("");
-                                setAddErr("");
-                            }}
+                            onClick={closeAddModal}
                         >
                             Cancel
                         </button>

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { buildApp } from "../../src/app";
 import { mockPrisma, resetMocks } from "../helpers/prisma";
 import {
@@ -74,8 +74,52 @@ describe("Friends Routes", () => {
         });
     });
 
+    describe("GET /api/friends/search-users", () => {
+        it("should return users matching username query", async () => {
+            const user = createMockUser();
+            const found = [
+                { id: "user-2", name: "john", email: "john@example.com" },
+            ];
+
+            mockPrisma.user.findUnique.mockResolvedValue(user);
+            mockPrisma.user.findMany.mockResolvedValue(found);
+
+            const res = await app.inject({
+                method: "GET",
+                url: "/api/friends/search-users?query=john",
+                headers: createAuthHeader(user.id),
+            });
+
+            expect(res.statusCode).toBe(200);
+            expect(JSON.parse(res.body)).toEqual(found);
+        });
+
+        it("should reject missing query", async () => {
+            const user = createMockUser();
+            mockPrisma.user.findUnique.mockResolvedValue(user);
+
+            const res = await app.inject({
+                method: "GET",
+                url: "/api/friends/search-users",
+                headers: createAuthHeader(user.id),
+            });
+
+            expect(res.statusCode).toBe(400);
+            expect(JSON.parse(res.body).error).toBe("Search query required");
+        });
+
+        it("should require authentication", async () => {
+            const res = await app.inject({
+                method: "GET",
+                url: "/api/friends/search-users?query=john",
+            });
+
+            expect(res.statusCode).toBe(401);
+        });
+    });
+
     describe("POST /api/friends/request", () => {
-        it("should send friend request", async () => {
+        it("should send friend request by target user id", async () => {
             const user1 = createMockUser();
             const user2 = createMockUser({ email: "newfriend@example.com" });
 
@@ -101,7 +145,7 @@ describe("Friends Routes", () => {
                 method: "POST",
                 url: "/api/friends/request",
                 headers: createAuthHeader(user1.id),
-                payload: { email: "newfriend@example.com" },
+                payload: { targetUserId: user2.id },
             });
 
             expect(res.statusCode).toBe(201);
@@ -127,7 +171,7 @@ describe("Friends Routes", () => {
             });
         });
 
-        it("should reject missing email", async () => {
+        it("should reject missing identifier", async () => {
             const user = createMockUser();
             mockPrisma.user.findUnique.mockResolvedValue(user);
 
@@ -139,19 +183,21 @@ describe("Friends Routes", () => {
             });
 
             expect(res.statusCode).toBe(400);
+            expect(JSON.parse(res.body).error).toBe(
+                "targetUserId or email/username is required",
+            );
         });
 
         it("should reject non-existent user", async () => {
             const user = createMockUser();
-            mockPrisma.user.findUnique
-                .mockResolvedValueOnce(user)
-                .mockResolvedValueOnce(null);
+            mockPrisma.user.findUnique.mockResolvedValueOnce(user);
+            mockPrisma.user.findFirst.mockResolvedValue(null);
 
             const res = await app.inject({
                 method: "POST",
                 url: "/api/friends/request",
                 headers: createAuthHeader(user.id),
-                payload: { email: "nonexistent@example.com" },
+                payload: { identifier: "nonexistent@example.com" },
             });
 
             expect(res.statusCode).toBe(404);
@@ -161,13 +207,14 @@ describe("Friends Routes", () => {
             const user = createMockUser({ email: "self@example.com" });
             mockPrisma.user.findUnique
                 .mockResolvedValueOnce(user)
-                .mockResolvedValueOnce(user);
+                .mockResolvedValueOnce({ id: user.id });
+            mockPrisma.user.findFirst.mockResolvedValue({ id: user.id });
 
             const res = await app.inject({
                 method: "POST",
                 url: "/api/friends/request",
                 headers: createAuthHeader(user.id),
-                payload: { email: "self@example.com" },
+                payload: { identifier: "self@example.com" },
             });
 
             expect(res.statusCode).toBe(400);
@@ -182,26 +229,59 @@ describe("Friends Routes", () => {
                 "pending",
             );
 
-            mockPrisma.user.findUnique
-                .mockResolvedValueOnce(user1)
-                .mockResolvedValueOnce(user2);
+            mockPrisma.user.findUnique.mockResolvedValueOnce(user1);
+            mockPrisma.user.findUnique.mockResolvedValueOnce({ id: user2.id });
+            mockPrisma.user.findFirst.mockResolvedValue({ id: user2.id });
             mockPrisma.friendship.findFirst.mockResolvedValue(existing);
 
             const res = await app.inject({
                 method: "POST",
                 url: "/api/friends/request",
                 headers: createAuthHeader(user1.id),
-                payload: { email: "friend@example.com" },
+                payload: { identifier: "friend@example.com" },
             });
 
             expect(res.statusCode).toBe(400);
+        });
+
+        it("should send request by username", async () => {
+            const user1 = createMockUser();
+            const user2 = createMockUser({ name: "friendname" });
+
+            mockPrisma.user.findUnique
+                .mockResolvedValueOnce(user1)
+                .mockResolvedValueOnce({ id: user2.id });
+            mockPrisma.user.findFirst.mockResolvedValue({ id: user2.id });
+            mockPrisma.friendship.findFirst.mockResolvedValue(null);
+            mockPrisma.friendship.create.mockResolvedValue({
+                id: "friendship-123",
+                user1Id: user1.id,
+                user2Id: user2.id,
+                status: "pending",
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                user2: {
+                    id: user2.id,
+                    email: user2.email,
+                    name: user2.name,
+                },
+            });
+
+            const res = await app.inject({
+                method: "POST",
+                url: "/api/friends/request",
+                headers: createAuthHeader(user1.id),
+                payload: { identifier: "friendname" },
+            });
+
+            expect(res.statusCode).toBe(201);
         });
 
         it("should require authentication", async () => {
             const res = await app.inject({
                 method: "POST",
                 url: "/api/friends/request",
-                payload: { email: "test@example.com" },
+                payload: { identifier: "test@example.com" },
             });
 
             expect(res.statusCode).toBe(401);
@@ -220,7 +300,7 @@ describe("Friends Routes", () => {
             const accepted = { ...friendship, status: "accepted" };
 
             mockPrisma.user.findUnique.mockResolvedValue(user2);
-            mockPrisma.friendship.findUnique.mockResolvedValue(friendship);
+            mockPrisma.friendship.findFirst.mockResolvedValue(friendship);
             mockPrisma.friendship.update.mockResolvedValue(accepted);
 
             const res = await app.inject({

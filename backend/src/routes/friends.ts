@@ -16,6 +16,27 @@ const authOptions: any = {
 
 const friendsRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.get(
+        "/search-users",
+        authOptions,
+        async (request: FastifyRequest, reply: FastifyReply) => {
+            try {
+                const uid = request.user.id;
+                const { query } = request.query as any;
+                if (!query) return badRequest(reply, "Search query required");
+
+                const users = await friendService.searchUsersByUsername(
+                    uid,
+                    String(query),
+                );
+                return users;
+            } catch (err) {
+                fastify.log.error(err);
+                return serverError(reply, "Failed to search users");
+            }
+        },
+    );
+
+    fastify.get(
         "/",
         authOptions,
         async (request: FastifyRequest, reply: FastifyReply) => {
@@ -37,10 +58,22 @@ const friendsRoutes: FastifyPluginAsync = async (fastify) => {
         async (request: FastifyRequest, reply: FastifyReply) => {
             try {
                 const uid = request.user.id;
-                const { email } = request.body as any;
-                if (!email) return badRequest(reply, "Email required");
+                const { targetUserId, identifier, email, username } =
+                    request.body as any;
+                const targetIdentifier = identifier || email || username;
+                if (!targetUserId && !targetIdentifier) {
+                    return badRequest(
+                        reply,
+                        "targetUserId or email/username is required",
+                    );
+                }
 
-                const res = await friendService.requestFriend(uid, email);
+                const res = targetUserId
+                    ? await friendService.requestFriendByUserId(
+                          uid,
+                          String(targetUserId),
+                      )
+                    : await friendService.requestFriend(uid, targetIdentifier);
 
                 if (res === "not-found")
                     return notFound(reply, "User not found");
