@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Shield, Ticket, Save } from "lucide-react";
 import s from "./page.module.css";
 import { apiClient } from "../../../lib/api";
+import PasswordInput from "../../../components/PasswordInput";
 
 const DEFAULT_TAB_OPTIONS = [
     { value: "dashboard", label: "Dashboard" },
@@ -330,9 +331,8 @@ export default function ProfilePage() {
                 <div className={s.formStack}>
                     <div>
                         <label className={s.fieldLabel}>Current Password</label>
-                        <input
+                        <PasswordInput
                             className={s.input}
-                            type="password"
                             value={curPw}
                             onChange={(e) => setCurPw(e.target.value)}
                             placeholder="••••••••"
@@ -340,9 +340,8 @@ export default function ProfilePage() {
                     </div>
                     <div>
                         <label className={s.fieldLabel}>New Password</label>
-                        <input
+                        <PasswordInput
                             className={s.input}
-                            type="password"
                             value={newPw}
                             onChange={(e) => setNewPw(e.target.value)}
                             placeholder="••••••••"
@@ -352,9 +351,8 @@ export default function ProfilePage() {
                         <label className={s.fieldLabel}>
                             Confirm New Password
                         </label>
-                        <input
+                        <PasswordInput
                             className={s.input}
-                            type="password"
                             value={confirmNewPw}
                             onChange={(e) => setConfirmNewPw(e.target.value)}
                             placeholder="••••••••"
@@ -384,9 +382,8 @@ export default function ProfilePage() {
                     </p>
                     <div>
                         <label className={s.fieldLabel}>Confirm Password</label>
-                        <input
+                        <PasswordInput
                             className={s.input}
-                            type="password"
                             value={deletePw}
                             onChange={(e) => setDeletePw(e.target.value)}
                             placeholder="Enter your password"
