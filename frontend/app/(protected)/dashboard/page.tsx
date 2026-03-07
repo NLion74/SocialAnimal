@@ -21,6 +21,7 @@ import s from "./page.module.css";
 import Modal from "../../../components/Modal";
 import GoogleCalendarSelect from "../../../components/GoogleCalendarSelect";
 import ServerCalendarSelect from "../../../components/ServerCalendarSelect";
+import PasswordInput from "../../../components/PasswordInput";
 
 type ImportType = "ics" | "caldav" | "icloud" | "google";
 
@@ -88,7 +89,7 @@ const PROVIDER_HELP: Record<
             { id: "icloud-1", text: "Use your Apple ID email as username." },
             {
                 id: "icloud-2",
-                text: "Generate an app-specific password under Sign-In and Security at",
+                text: "Generate an app-specific (not your iCloud password) password under Sign-In and Security at",
                 link: {
                     label: "appleid.apple.com",
                     href: "https://appleid.apple.com",
@@ -1291,9 +1292,8 @@ export default function DashboardPage() {
                             <label className={s.fieldLabel}>
                                 Password (optional)
                             </label>
-                            <input
+                            <PasswordInput
                                 className={s.input}
-                                type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                             />
@@ -1362,9 +1362,8 @@ export default function DashboardPage() {
 
                         <div>
                             <label className={s.fieldLabel}>Password</label>
-                            <input
+                            <PasswordInput
                                 className={s.input}
-                                type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                             />
@@ -1438,9 +1437,8 @@ export default function DashboardPage() {
                             <label className={s.fieldLabel}>
                                 Password (optional)
                             </label>
-                            <input
+                            <PasswordInput
                                 className={s.input}
-                                type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                             />
@@ -1512,11 +1510,13 @@ export default function DashboardPage() {
 
                         <div>
                             <label className={s.fieldLabel}>
-                                App-specific password
+                                App-specific password{" "}
+                                <span style={{ fontWeight: 400, opacity: 0.6 }}>
+                                    (not your iCloud/Apple ID password)
+                                </span>
                             </label>
-                            <input
+                            <PasswordInput
                                 className={s.input}
-                                type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                             />
@@ -1572,11 +1572,13 @@ export default function DashboardPage() {
 
                         <div>
                             <label className={s.fieldLabel}>
-                                App-specific password
+                                App-specific password{" "}
+                                <span style={{ fontWeight: 400, opacity: 0.6 }}>
+                                    (not your iCloud/Apple ID password)
+                                </span>
                             </label>
-                            <input
+                            <PasswordInput
                                 className={s.input}
-                                type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                             />

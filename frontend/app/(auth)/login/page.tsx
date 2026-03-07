@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Share2 } from "lucide-react";
 import { apiClient } from "../../../lib/api";
+import PasswordInput from "../../../components/PasswordInput";
 import s from "../auth.module.css";
 
 export default function LoginPage() {
@@ -56,9 +57,8 @@ export default function LoginPage() {
                     </div>
                     <div className={s.field}>
                         <label className={s.label}>Password</label>
-                        <input
+                        <PasswordInput
                             className={s.input}
-                            type="password"
                             value={password}
                             required
                             onChange={(e) => setPassword(e.target.value)}
