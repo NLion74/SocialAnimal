@@ -1,8 +1,10 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import jwt from "jsonwebtoken";
 import { authenticateToken, verifyOAuthState } from "../../utils/auth";
-import { handleProviderAuthUrl } from "../../services/importService";
-import { handleProviderDiscover } from "../../services/discoverService";
+import {
+    handleProviderAuthUrl,
+    handleProviderDiscover,
+} from "../../services/providerService";
 import { serverError } from "../../utils/response";
 
 const providerGoogleAuthRoutes: FastifyPluginAsync = async (fastify) => {

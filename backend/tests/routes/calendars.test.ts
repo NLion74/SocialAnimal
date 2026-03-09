@@ -25,8 +25,8 @@ describe("Calendars Routes", () => {
 
             mockPrisma.user.findUnique.mockResolvedValue(user);
             mockPrisma.calendar.findMany.mockResolvedValue([
-                { ...calendar1, shares: [], events: [] },
-                { ...calendar2, shares: [], events: [] },
+                { ...calendar1, shares: [] },
+                { ...calendar2, shares: [] },
             ]);
 
             const res = await app.inject({

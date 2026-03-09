@@ -5,25 +5,19 @@ import { mockPrisma, resetMocks } from "../../helpers/prisma";
 import { createMockUser } from "../../helpers/factories";
 import { createAuthHeader } from "../../helpers/auth";
 
-vi.mock("../../../src/services/importService", () => ({
+vi.mock("../../../src/services/providerService", () => ({
     handleProviderImport: vi.fn(),
     handleProviderAuthUrl: vi.fn(),
-}));
-
-vi.mock("../../../src/services/testService", () => ({
     handleProviderTest: vi.fn(),
-}));
-
-vi.mock("../../../src/services/discoverService", () => ({
     handleProviderDiscover: vi.fn(),
 }));
 
 import {
     handleProviderImport,
     handleProviderAuthUrl,
-} from "../../../src/services/importService";
-import { handleProviderDiscover } from "../../../src/services/discoverService";
-import { handleProviderTest } from "../../../src/services/testService";
+    handleProviderDiscover,
+    handleProviderTest,
+} from "../../../src/services/providerService";
 import { signOAuthState } from "../../../src/utils/auth";
 
 describe("Provider Routes", () => {

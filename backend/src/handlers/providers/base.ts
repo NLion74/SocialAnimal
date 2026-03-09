@@ -1,6 +1,6 @@
 import type { SharePermission } from "@prisma/client";
-import { verifyToken } from "../utils/auth";
-import { prisma } from "../utils/db";
+import { verifyToken } from "../../utils/auth";
+import { prisma } from "../../utils/db";
 
 export interface Syncable {
     sync(calendarId: string, userId?: string): Promise<any>;

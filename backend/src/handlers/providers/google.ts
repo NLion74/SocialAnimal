@@ -1,9 +1,9 @@
 import { ProviderHandler } from "./base";
-import type { CalendarWithUser, SyncResult } from "../types";
-import { env, isGoogleConfigured } from "../utils/env";
-import { prisma } from "../utils/db";
-import * as calendarService from "../services/calendarService";
-import { signOAuthState } from "../utils/auth";
+import type { CalendarWithUser, SyncResult } from "../../types";
+import { env, isGoogleConfigured } from "../../utils/env";
+import { prisma } from "../../utils/db";
+import * as calendarService from "../../services/calendarService";
+import { signOAuthState } from "../../utils/auth";
 
 export interface GoogleConfig {
     accessToken: string;

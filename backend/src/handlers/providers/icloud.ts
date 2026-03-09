@@ -1,16 +1,24 @@
 import { ProviderHandler } from "./base";
-import { prisma } from "../utils/db";
-import * as calendarService from "../services/calendarService";
+import { prisma } from "../../utils/db";
+import * as calendarService from "../../services/calendarService";
 import { createDAVClient } from "tsdav";
 import type { DAVCalendar, DAVCalendarObject } from "tsdav";
 import ical from "node-ical";
 
-export interface CaldavConfig {
+const ICLOUD_CALDAV_URL = "https://caldav.icloud.com";
+
+type IcloudConfig = {
+    username?: string;
+    password?: string;
+    calendarPath?: string;
+};
+
+type CaldavLikeConfig = {
     url: string;
     username?: string;
     password?: string;
     calendarPath?: string;
-}
+};
 
 type ParsedEvent = {
     externalId: string;
@@ -21,6 +29,10 @@ type ParsedEvent = {
     endTime: Date;
     allDay: boolean;
 };
+
+function normalizeUrl(url: string): string {
+    return url.replace(/\/$/, "").toLowerCase();
+}
 
 function buildTimeRange() {
     const start = new Date();
@@ -34,27 +46,24 @@ function buildTimeRange() {
     return { start: start.toISOString(), end: end.toISOString() };
 }
 
-function extractServerRoot(url: string): string {
-    const parsed = new URL(url);
-    return `${parsed.protocol}//${parsed.host}`;
-}
-
-function normalizeUrl(url: string): string {
-    return url.replace(/\/$/, "").toLowerCase();
-}
-
-export class CaldavHandler implements ProviderHandler {
-    private validateConfig(config: any): config is CaldavConfig {
-        return !!(
-            config &&
-            typeof config.url === "string" &&
-            config.url.length > 0
-        );
+export class IcloudHandler implements ProviderHandler {
+    private toCaldavConfig(config: IcloudConfig): CaldavLikeConfig {
+        return {
+            url: ICLOUD_CALDAV_URL,
+            username: config.username || "",
+            password: config.password || "",
+            calendarPath: config.calendarPath,
+        };
     }
 
-    private async createClient(config: CaldavConfig): Promise<any> {
+    private validateConfig(config: any): config is IcloudConfig {
+        return !!(config && config.username && config.password);
+    }
+
+    private async createClient(config: CaldavLikeConfig): Promise<any> {
+        const parsed = new URL(config.url);
         return createDAVClient({
-            serverUrl: extractServerRoot(config.url),
+            serverUrl: `${parsed.protocol}//${parsed.host}`,
             credentials: {
                 username: config.username || "",
                 password: config.password || "",
@@ -92,20 +101,12 @@ export class CaldavHandler implements ProviderHandler {
 
     private async resolveTargetCalendar(
         client: any,
-        config: CaldavConfig,
+        config: CaldavLikeConfig,
     ): Promise<DAVCalendar | null> {
         const targetUrl = config.calendarPath || config.url;
-        let discovered: DAVCalendar[] = [];
+        const discovered: DAVCalendar[] = await client.fetchCalendars();
 
-        try {
-            discovered = await client.fetchCalendars();
-        } catch {
-            return { url: targetUrl } as DAVCalendar;
-        }
-
-        if (!discovered.length) {
-            return { url: targetUrl } as DAVCalendar;
-        }
+        if (!discovered.length) return { url: targetUrl } as DAVCalendar;
 
         const exact = discovered.find(
             (c: DAVCalendar) => normalizeUrl(c.url) === normalizeUrl(targetUrl),
@@ -119,12 +120,13 @@ export class CaldavHandler implements ProviderHandler {
         );
         if (partial) return partial;
 
-        return { url: targetUrl } as DAVCalendar;
+        return discovered[0] || null;
     }
 
-    private async fetchEvents(config: CaldavConfig): Promise<ParsedEvent[]> {
-        const client = await this.createClient(config);
-        const target = await this.resolveTargetCalendar(client, config);
+    private async fetchEvents(config: IcloudConfig): Promise<ParsedEvent[]> {
+        const caldavConfig = this.toCaldavConfig(config);
+        const client = await this.createClient(caldavConfig);
+        const target = await this.resolveTargetCalendar(client, caldavConfig);
         if (!target) return [];
 
         const objects = await client.fetchCalendarObjects({
@@ -142,11 +144,12 @@ export class CaldavHandler implements ProviderHandler {
     }
 
     async discover(params?: any): Promise<any> {
+        if (!this.validateConfig(params)) {
+            return { calendars: [] };
+        }
+
         try {
-            if (!this.validateConfig(params)) {
-                return { calendars: [] };
-            }
-            const client = await this.createClient(params);
+            const client = await this.createClient(this.toCaldavConfig(params));
             const calendars: DAVCalendar[] = await client.fetchCalendars();
             return {
                 calendars: calendars.map((c: any) => ({
@@ -162,7 +165,10 @@ export class CaldavHandler implements ProviderHandler {
 
     async test(credentials: any): Promise<any> {
         if (!this.validateConfig(credentials)) {
-            return { success: false, error: "Missing required field: url" };
+            return {
+                success: false,
+                error: "Missing required fields: username/password",
+            };
         }
 
         try {
@@ -192,11 +198,11 @@ export class CaldavHandler implements ProviderHandler {
             };
         }
 
-        const config = calendar.config as any;
+        const config = calendar.config as IcloudConfig;
         if (!this.validateConfig(config)) {
             return {
                 success: false,
-                error: "Invalid CalDAV config",
+                error: "Invalid iCloud config",
                 eventsSynced: 0,
             };
         }
@@ -274,7 +280,7 @@ export class CaldavHandler implements ProviderHandler {
 
         const credentials = data?.credentials || data;
         if (!this.validateConfig(credentials)) {
-            return { error: "missing-url" };
+            return { error: "missing-credentials" };
         }
 
         const userId = data?.userId;
@@ -286,15 +292,8 @@ export class CaldavHandler implements ProviderHandler {
             Array.isArray(data?.calendars) && data.calendars.length
                 ? data.calendars
                 : data?.name
-                  ? [{ name: data.name, url: data.url || credentials.url }]
-                  : credentials?.url
-                    ? [
-                          {
-                              name: credentials.url,
-                              url: credentials.url,
-                          },
-                      ]
-                    : [];
+                  ? [{ name: data.name, url: data.calendarPath || "" }]
+                  : [];
 
         if (!calendars.length) {
             return { error: "missing-calendars" };
@@ -302,42 +301,18 @@ export class CaldavHandler implements ProviderHandler {
 
         const imported = [];
         for (const cal of calendars) {
-            const importConfig: CaldavConfig = {
-                url: credentials.url,
-                username: credentials.username || "",
-                password: credentials.password || "",
-                calendarPath: cal.calendarPath || cal.url || credentials.url,
-            };
-
-            try {
-                await this.fetchEvents(importConfig);
-            } catch (error: any) {
-                return {
-                    error:
-                        error?.message ||
-                        "Failed to fetch CalDAV calendar during import",
-                };
-            }
-
             const calendar = await calendarService.createCalendar({
                 userId,
-                name: cal.name || cal.url || "CalDAV Calendar",
-                type: "caldav",
+                name: cal.name || cal.url || "iCloud Calendar",
+                type: "icloud",
                 config: {
-                    ...importConfig,
+                    username: credentials.username || "",
+                    password: credentials.password || "",
+                    calendarPath: cal.calendarPath || cal.url || undefined,
                 },
             });
 
             const sync = await this.sync(calendar.id);
-            if (!sync?.success) {
-                await prisma.calendar.delete({ where: { id: calendar.id } });
-                return {
-                    error:
-                        sync?.error ||
-                        "Failed to sync CalDAV calendar during import",
-                };
-            }
-
             imported.push({ calendar, sync });
         }
 

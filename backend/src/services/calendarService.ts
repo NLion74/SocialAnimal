@@ -27,7 +27,6 @@ export async function getUserCalendars(userId: string) {
                     permission: true,
                 },
             },
-            events: true,
         },
     });
 }

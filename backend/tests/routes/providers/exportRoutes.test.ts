@@ -6,11 +6,11 @@ import { createMockUser } from "../../helpers/factories";
 import { mockPrisma, resetMocks } from "../../helpers/prisma";
 import { generateToken } from "../../../src/utils/auth";
 
-vi.mock("../../../src/services/exportService", () => ({
+vi.mock("../../../src/services/providerService", () => ({
     handleProviderExport: vi.fn(),
 }));
 
-import { handleProviderExport } from "../../../src/services/exportService";
+import { handleProviderExport } from "../../../src/services/providerService";
 
 describe("Provider export route", () => {
     let app: FastifyInstance;

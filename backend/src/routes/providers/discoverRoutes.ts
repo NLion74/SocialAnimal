@@ -1,4 +1,4 @@
-import { handleProviderDiscover } from "../../services/discoverService";
+import { handleProviderDiscover } from "../../services/providerService";
 import { authenticateToken } from "../../utils/auth";
 export default function discoverRoutes(fastify: any) {
     fastify.get(

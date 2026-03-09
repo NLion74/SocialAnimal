@@ -23,7 +23,7 @@ vi.mock("../../src/services/calendarService", () => ({
     createCalendar: mocks.mockCreateCalendar,
 }));
 
-import { GoogleHandler } from "../../src/handlers/google";
+import { GoogleHandler } from "../../src/handlers/providers/google";
 
 describe("GoogleHandler", () => {
     beforeEach(() => {

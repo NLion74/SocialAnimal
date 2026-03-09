@@ -1,4 +1,4 @@
-import { handleProviderExport } from "../../services/exportService";
+import { handleProviderExport } from "../../services/providerService";
 import { authenticateToken } from "../../utils/auth";
 export default function exportRoutes(fastify: any) {
     fastify.get(

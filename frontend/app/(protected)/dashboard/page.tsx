@@ -176,6 +176,10 @@ interface IncomingShare {
 export default function DashboardPage() {
     const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const [calendars, setCalendars] = useState<CalendarData[]>([]);
+    const [eventCountsByCalendar, setEventCountsByCalendar] = useState<
+        Record<string, number>
+    >({});
+    const [totalEvents, setTotalEvents] = useState(0);
     const [friends, setFriends] = useState<Friend[]>([]);
     const [incomingShares, setIncomingShares] = useState<IncomingShare[]>([]);
     const [loading, setLoading] = useState(true);
@@ -284,9 +288,14 @@ export default function DashboardPage() {
     const loadAll = async () => {
         setLoading(true);
         try {
-            const [crRaw, frRaw, me] = await Promise.all([
+            const [crRaw, eventsRaw, frRaw, me] = await Promise.all([
                 withTimeout(
                     apiClient.request<CalendarData[]>("/api/calendars"),
+                ).catch(() => []),
+                withTimeout(
+                    apiClient.request<Array<{ calendar?: { id?: string } }>>(
+                        "/api/events",
+                    ),
                 ).catch(() => []),
                 withTimeout(apiClient.request<Friend[]>("/api/friends")).catch(
                     () => [],
@@ -295,6 +304,37 @@ export default function DashboardPage() {
                     () => null,
                 ),
             ]);
+
+            const calculatedCounts = eventsRaw.reduce<Record<string, number>>(
+                (acc, ev) => {
+                    const calendarId = ev?.calendar?.id;
+                    if (!calendarId) return acc;
+                    acc[calendarId] = (acc[calendarId] ?? 0) + 1;
+                    return acc;
+                },
+                {},
+            );
+
+            const fallbackCounts = crRaw.reduce<Record<string, number>>(
+                (acc, calendar) => {
+                    acc[calendar.id] = calendar.events?.length ?? 0;
+                    return acc;
+                },
+                {},
+            );
+
+            const countsByCalendar =
+                Object.keys(calculatedCounts).length > 0
+                    ? calculatedCounts
+                    : fallbackCounts;
+
+            setEventCountsByCalendar(countsByCalendar);
+            setTotalEvents(
+                Object.values(countsByCalendar).reduce(
+                    (sum, count) => sum + count,
+                    0,
+                ),
+            );
 
             setCalendars((prev) =>
                 crRaw.map((c) => {
@@ -975,7 +1015,9 @@ export default function DashboardPage() {
         : importType;
 
     const accepted = friends.filter((f) => f.status === "accepted");
-    const total = calendars.reduce((n, c) => n + (c.events?.length || 0), 0);
+
+    const getCalendarEventCount = (calendar: CalendarData) =>
+        eventCountsByCalendar[calendar.id] ?? calendar.events?.length ?? 0;
 
     if (loading) {
         return (
@@ -1003,7 +1045,7 @@ export default function DashboardPage() {
             <div className={s.statsGrid}>
                 {[
                     { label: "Calendars", value: calendars.length },
-                    { label: "Total Events", value: total },
+                    { label: "Total Events", value: totalEvents },
                     { label: "Friends", value: accepted.length },
                 ].map(({ label, value }) => (
                     <div key={label} className={s.statCard}>
@@ -1054,7 +1096,7 @@ export default function DashboardPage() {
                                             {c.type}
                                         </span>
                                         <span className={s.metaText}>
-                                            {c.events?.length || 0} events
+                                            {getCalendarEventCount(c)} events
                                         </span>
                                         {c.lastSync && (
                                             <span className={s.metaText}>
@@ -1074,7 +1116,7 @@ export default function DashboardPage() {
                                         onClick={() =>
                                             openExport(
                                                 c.name,
-                                                `${c.events?.length || 0} events`,
+                                                `${getCalendarEventCount(c)} events`,
                                                 c.id,
                                             )
                                         }
