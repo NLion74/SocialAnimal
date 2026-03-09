@@ -6,7 +6,10 @@ import {
 } from "fastify";
 import { authenticateToken } from "../utils/auth";
 import * as calendarService from "../services/calendarService";
-import { syncCalendar, testCalendarConnection } from "../services/syncService";
+import {
+    syncCalendar,
+    testCalendarConnection,
+} from "../services/providerService";
 import { notFound, serverError } from "../utils/response";
 
 const auth: RouteShorthandOptions & { schema?: any } = {

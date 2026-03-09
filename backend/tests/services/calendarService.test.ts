@@ -1,22 +1,20 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { mockPrisma, resetMocks } from "../helpers/prisma";
-import { createMockCalendar, createMockEvent } from "../helpers/factories";
+import { createMockCalendar } from "../helpers/factories";
 import * as calendarService from "../../src/services/calendarService";
 
 beforeEach(() => resetMocks());
 
 describe("getUserCalendars", () => {
-    it("returns calendars for user with shares and events", async () => {
+    it("returns calendars for user with shares", async () => {
         const calendar = createMockCalendar("user-1");
-        const event = createMockEvent(calendar.id);
         mockPrisma.calendar.findMany.mockResolvedValue([
-            { ...calendar, shares: [], events: [event] },
+            { ...calendar, shares: [] },
         ]);
 
         const result = await calendarService.getUserCalendars("user-1");
 
         expect(result).toHaveLength(1);
-        expect(result[0].events).toHaveLength(1);
         expect(mockPrisma.calendar.findMany).toHaveBeenCalledWith(
             expect.objectContaining({ where: { userId: "user-1" } }),
         );

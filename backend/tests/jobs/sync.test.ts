@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
     runDueCalendarsMock: vi.fn(),
 }));
 
-vi.mock("../../src/services/syncService", () => ({
+vi.mock("../../src/services/providerService", () => ({
     runDueCalendars: mocks.runDueCalendarsMock,
 }));
 

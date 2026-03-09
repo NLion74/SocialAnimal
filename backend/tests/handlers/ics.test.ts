@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { IcsHandler } from "../../src/handlers/ics";
+import { IcsHandler } from "../../src/handlers/providers/ics";
 import { mockPrisma, resetMocks } from "../helpers/prisma";
 import { generateToken } from "../../src/utils/auth";
 

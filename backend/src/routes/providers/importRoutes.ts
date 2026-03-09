@@ -1,4 +1,4 @@
-import { handleProviderImport } from "../../services/importService";
+import { handleProviderImport } from "../../services/providerService";
 import { authenticateToken } from "../../utils/auth";
 export default function importRoutes(fastify: any) {
     fastify.post(

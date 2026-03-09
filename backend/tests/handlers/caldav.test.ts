@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CaldavHandler } from "../../src/handlers/caldav";
+import { CaldavHandler } from "../../src/handlers/providers/caldav";
 import { mockPrisma, resetMocks } from "../helpers/prisma";
 
 const mockFetchCalendars = vi.fn();

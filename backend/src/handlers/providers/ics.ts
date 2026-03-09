@@ -3,10 +3,10 @@ import {
     ProviderHandler,
     resolveShareExportAccess,
 } from "./base";
-import type { CalendarWithUser, SyncResult } from "../types";
-import { prisma } from "../utils/db";
-import { env } from "../utils/env";
-import * as calendarService from "../services/calendarService";
+import type { CalendarWithUser, SyncResult } from "../../types";
+import { prisma } from "../../utils/db";
+import { env } from "../../utils/env";
+import * as calendarService from "../../services/calendarService";
 import ical from "node-ical";
 
 export interface IcsConfig {

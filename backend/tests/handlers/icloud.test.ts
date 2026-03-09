@@ -25,7 +25,7 @@ vi.mock("node-ical", () => ({
     },
 }));
 
-import { IcloudHandler } from "../../src/handlers/icloud";
+import { IcloudHandler } from "../../src/handlers/providers/icloud";
 
 describe("IcloudHandler", () => {
     beforeEach(() => {

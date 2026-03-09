@@ -1,4 +1,4 @@
-import { runDueCalendars } from "../services/syncService";
+import { runDueCalendars } from "../services/providerService";
 
 export async function runSyncJob() {
     await runDueCalendars();

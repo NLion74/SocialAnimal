@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
     resolveShareExportAccess,
     maskExportEventFields,
-} from "../../src/handlers/base";
+} from "../../src/handlers/providers/base";
 import { generateToken } from "../../src/utils/auth";
 import { mockPrisma } from "../setup";
 
