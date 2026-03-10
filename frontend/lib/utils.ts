@@ -11,11 +11,31 @@ export function getCurrentUserId(): string | null {
 
 import type { CalEvent, EventLayout, LayoutEvent } from "./types";
 
-function layoutFromMinuteEvents(events: LayoutEvent[]): EventLayout[] {
-    const sorted = [...events].sort(
-        (a, b) =>
-            a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes,
-    );
+export function computeLayouts(evs: CalEvent[]): EventLayout[] {
+    const events: LayoutEvent[] = evs
+        .map((e) => {
+            const dayStart = new Date(e.startTime);
+            dayStart.setHours(0, 0, 0, 0);
+            const start = Math.max(
+                0,
+                Math.floor(
+                    (new Date(e.startTime).getTime() - dayStart.getTime()) /
+                        60000,
+                ),
+            );
+            const end = Math.max(
+                1,
+                Math.floor(
+                    (new Date(e.endTime).getTime() - dayStart.getTime()) /
+                        60000,
+                ),
+            );
+            return { id: e.id, startMinutes: start, endMinutes: end, orig: e };
+        })
+        .sort(
+            (a, b) =>
+                a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes,
+        );
 
     const layouts: EventLayout[] = [];
     let cluster: LayoutEvent[] = [];
@@ -48,7 +68,7 @@ function layoutFromMinuteEvents(events: LayoutEvent[]): EventLayout[] {
         clusterEnd = -1;
     };
 
-    for (const ev of sorted) {
+    for (const ev of events) {
         if (!cluster.length) {
             cluster.push(ev);
             clusterEnd = ev.endMinutes;
@@ -64,39 +84,4 @@ function layoutFromMinuteEvents(events: LayoutEvent[]): EventLayout[] {
     flushCluster();
 
     return layouts;
-}
-
-export function computeLayoutsFromMinuteEvents(
-    evs: LayoutEvent[],
-): EventLayout[] {
-    return layoutFromMinuteEvents(evs);
-}
-
-export function computeLayouts(evs: CalEvent[]): EventLayout[] {
-    const events: LayoutEvent[] = evs
-        .map((e) => {
-            const dayStart = new Date(e.startTime);
-            dayStart.setHours(0, 0, 0, 0);
-            const start = Math.max(
-                0,
-                Math.floor(
-                    (new Date(e.startTime).getTime() - dayStart.getTime()) /
-                        60000,
-                ),
-            );
-            const end = Math.max(
-                1,
-                Math.floor(
-                    (new Date(e.endTime).getTime() - dayStart.getTime()) /
-                        60000,
-                ),
-            );
-            return { id: e.id, startMinutes: start, endMinutes: end, orig: e };
-        })
-        .sort(
-            (a, b) =>
-                a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes,
-        );
-
-    return layoutFromMinuteEvents(events);
 }
