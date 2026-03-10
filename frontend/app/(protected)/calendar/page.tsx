@@ -22,14 +22,13 @@ import {
     getMonthDayHeaders,
     getMonthCells,
 } from "../../../lib/date";
-import { computeLayoutsFromMinuteEvents } from "../../../lib/utils";
+import { computeLayouts } from "../../../lib/utils";
 import { apiClient } from "../../../lib/api";
 import type {
     CalEvent,
     CalSource,
     EventLayout,
     FirstDay,
-    LayoutEvent,
 } from "../../../lib/types";
 import Modal from "../../../components/Modal";
 
@@ -37,6 +36,7 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 const LS_KEYS = {
     view: "calendar:view",
+    date: "calendar:date",
     firstDay: "calendar:firstDay",
     hidden: "calendar:hidden",
 };
@@ -48,7 +48,15 @@ export default function CalendarPage() {
     const [loading, setLoading] = useState(true);
     const [firstDay, setFirstDay] = useState<FirstDay>("monday");
     const [timezone, setTimezone] = useState(browserTimezone || "UTC");
-    const [date, setDate] = useState<Date>(() => new Date());
+    const [date, setDate] = useState<Date>(() => {
+        try {
+            const raw = localStorage.getItem(LS_KEYS.date);
+            if (raw) return new Date(raw);
+        } catch (e) {
+            console.error("Failed to parse date from localStorage:", e);
+        }
+        return new Date();
+    });
     const [view, setView] = useState<"month" | "week" | "day">(
         () =>
             (localStorage.getItem(LS_KEYS.view) as "month" | "week" | "day") ||
@@ -86,6 +94,7 @@ export default function CalendarPage() {
     useEffect(() => {
         try {
             localStorage.setItem(LS_KEYS.view, view);
+            localStorage.setItem(LS_KEYS.date, date.toISOString());
             localStorage.setItem(LS_KEYS.firstDay, firstDay);
             localStorage.setItem(
                 LS_KEYS.hidden,
@@ -148,41 +157,6 @@ export default function CalendarPage() {
         ...friendEvents.filter((e) => !hidden.has(e.calendar.id)),
     ];
 
-    const getTimeParts = (value: Date) => {
-        const parts = new Intl.DateTimeFormat("en-US", {
-            timeZone: timezone,
-            hour12: false,
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-        }).formatToParts(value);
-
-        const result: Record<string, string> = {};
-        for (const part of parts) {
-            if (part.type !== "literal") {
-                result[part.type] = part.value;
-            }
-        }
-
-        return {
-            year: Number(result.year ?? "0"),
-            month: Number(result.month ?? "0"),
-            day: Number(result.day ?? "0"),
-            hour: Number(result.hour ?? "0"),
-            minute: Number(result.minute ?? "0"),
-        };
-    };
-
-    const dayKey = (value: Date) => {
-        const p = getTimeParts(value);
-        return `${String(p.year).padStart(4, "0")}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
-    };
-
-    const compareDayKeys = (a: string, b: string) =>
-        a === b ? 0 : a < b ? -1 : 1;
-
     const toggleSource = (id: string) =>
         setHidden((prev) => {
             const n = new Set(prev);
@@ -222,41 +196,40 @@ export default function CalendarPage() {
         allEvents.filter((e) => {
             const start = new Date(e.startTime);
             const end = new Date(e.endTime || e.startTime);
-            const targetKey = dayKey(d);
-            const startKey = dayKey(start);
-            const endKey = dayKey(end);
-            if (e.allDay) {
-                return (
-                    compareDayKeys(startKey, targetKey) <= 0 &&
-                    compareDayKeys(endKey, targetKey) >= 0
-                );
-            }
-            return (
-                compareDayKeys(startKey, targetKey) <= 0 &&
-                compareDayKeys(endKey, targetKey) >= 0
+            if (e.allDay) return start <= d && d <= end;
+            const dayStart = new Date(
+                d.getFullYear(),
+                d.getMonth(),
+                d.getDate(),
+                0,
+                0,
+                0,
+                0,
             );
+            const dayEnd = new Date(
+                d.getFullYear(),
+                d.getMonth(),
+                d.getDate(),
+                23,
+                59,
+                59,
+                999,
+            );
+            return start <= dayEnd && end >= dayStart;
         });
 
     const eventsForDay = (day: number) => {
         const y = date.getFullYear();
         const m = date.getMonth();
-        const target = new Date(y, m, day);
-        const targetKey = dayKey(target);
         return allEvents.filter((e) => {
             const start = new Date(e.startTime);
             const end = new Date(e.endTime);
-            const startKey = dayKey(start);
-            const endKey = dayKey(end);
-            if (e.allDay) {
-                return (
-                    compareDayKeys(startKey, targetKey) <= 0 &&
-                    compareDayKeys(endKey, targetKey) >= 0
-                );
-            }
-            return (
-                compareDayKeys(startKey, targetKey) <= 0 &&
-                compareDayKeys(endKey, targetKey) >= 0
-            );
+            const d = new Date(y, m, day);
+            return e.allDay
+                ? start <= d && d <= end
+                : start.getFullYear() === y &&
+                      start.getMonth() === m &&
+                      start.getDate() === day;
         });
     };
 
@@ -336,6 +309,31 @@ export default function CalendarPage() {
     };
 
     const renderTimeGrid = (columns: Date[]) => {
+        const getTimeParts = (value: Date) => {
+            const parts = new Intl.DateTimeFormat("en-US", {
+                timeZone: timezone,
+                hour12: false,
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+            }).formatToParts(value);
+
+            const result: Record<string, string> = {};
+            for (const part of parts) {
+                if (part.type !== "literal") result[part.type] = part.value;
+            }
+
+            return {
+                year: Number(result.year ?? "0"),
+                month: Number(result.month ?? "0"),
+                day: Number(result.day ?? "0"),
+                hour: Number(result.hour ?? "0"),
+                minute: Number(result.minute ?? "0"),
+            };
+        };
+
         const now = new Date();
         const nowTz = getTimeParts(now);
 
@@ -353,46 +351,82 @@ export default function CalendarPage() {
                     </div>
                     <div className={s.weekDayColumns}>
                         {columns.map((day) => {
-                            const targetKey = dayKey(day);
-                            const dayTimed: LayoutEvent[] = eventsForDate(day)
+                            const dayTz = getTimeParts(day);
+
+                            const dayTimed = eventsForDate(day)
                                 .filter((e) => !e.allDay)
                                 .map((e) => {
                                     const start = new Date(e.startTime);
                                     const end = new Date(
                                         e.endTime || e.startTime,
                                     );
-                                    const startParts = getTimeParts(start);
-                                    const endParts = getTimeParts(end);
-                                    const startKey = `${String(startParts.year).padStart(4, "0")}-${String(startParts.month).padStart(2, "0")}-${String(startParts.day).padStart(2, "0")}`;
-                                    const endKey = `${String(endParts.year).padStart(4, "0")}-${String(endParts.month).padStart(2, "0")}-${String(endParts.day).padStart(2, "0")}`;
-
-                                    const startMinutes =
-                                        compareDayKeys(startKey, targetKey) < 0
-                                            ? 0
-                                            : startParts.hour * 60 +
-                                              startParts.minute;
-                                    const rawEndMinutes =
-                                        compareDayKeys(endKey, targetKey) > 0
-                                            ? 24 * 60
-                                            : endParts.hour * 60 +
-                                              endParts.minute;
-                                    const endMinutes = Math.max(
-                                        startMinutes + 1,
-                                        rawEndMinutes,
+                                    const dayStart = new Date(
+                                        day.getFullYear(),
+                                        day.getMonth(),
+                                        day.getDate(),
+                                        0,
+                                        0,
+                                        0,
+                                        0,
                                     );
-
+                                    const dayEnd = new Date(
+                                        day.getFullYear(),
+                                        day.getMonth(),
+                                        day.getDate(),
+                                        23,
+                                        59,
+                                        59,
+                                        999,
+                                    );
                                     return {
-                                        id: e.id,
-                                        startMinutes,
-                                        endMinutes,
-                                        orig: e,
+                                        ...e,
+                                        startTime:
+                                            start < dayStart
+                                                ? dayStart.toISOString()
+                                                : e.startTime,
+                                        endTime:
+                                            end > dayEnd
+                                                ? dayEnd.toISOString()
+                                                : e.endTime,
                                     };
                                 });
 
-                            const layouts =
-                                computeLayoutsFromMinuteEvents(dayTimed);
+                            const layouts = computeLayouts(dayTimed).map(
+                                (l) => {
+                                    const sParts = getTimeParts(
+                                        new Date(l.event.orig.startTime),
+                                    );
+                                    const eParts = getTimeParts(
+                                        new Date(
+                                            l.event.orig.endTime ||
+                                                l.event.orig.startTime,
+                                        ),
+                                    );
 
-                            const dayTz = getTimeParts(day);
+                                    const sameDay = (
+                                        p: ReturnType<typeof getTimeParts>,
+                                    ) =>
+                                        p.year === dayTz.year &&
+                                        p.month === dayTz.month &&
+                                        p.day === dayTz.day;
+
+                                    const startMinutes = sameDay(sParts)
+                                        ? sParts.hour * 60 + sParts.minute
+                                        : 0;
+                                    const endMinutes = sameDay(eParts)
+                                        ? eParts.hour * 60 + eParts.minute
+                                        : 24 * 60;
+
+                                    return {
+                                        ...l,
+                                        event: {
+                                            ...l.event,
+                                            startMinutes,
+                                            endMinutes,
+                                        },
+                                    };
+                                },
+                            );
 
                             const showNow =
                                 view !== "month" &&
