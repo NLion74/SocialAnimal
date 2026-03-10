@@ -231,24 +231,39 @@ export class IcloudHandler implements ProviderHandler {
         }
 
         const externalIds = events.map((e) => e.externalId);
-        let createdCount = 0;
+        let syncedCount = 0;
 
         try {
             await prisma.$transaction(async (tx: any) => {
-                const result = await tx.event.createMany({
-                    data: events.map((e) => ({
-                        calendarId: calendar.id,
-                        externalId: e.externalId,
-                        title: e.summary,
-                        description: e.description,
-                        location: e.location,
-                        startTime: e.startTime,
-                        endTime: e.endTime,
-                        allDay: e.allDay,
-                    })),
-                    skipDuplicates: true,
-                });
-                createdCount = result.count;
+                for (const e of events) {
+                    await tx.event.upsert({
+                        where: {
+                            calendarId_externalId: {
+                                calendarId: calendar.id,
+                                externalId: e.externalId,
+                            },
+                        },
+                        create: {
+                            calendarId: calendar.id,
+                            externalId: e.externalId,
+                            title: e.summary,
+                            description: e.description,
+                            location: e.location,
+                            startTime: e.startTime,
+                            endTime: e.endTime,
+                            allDay: e.allDay,
+                        },
+                        update: {
+                            title: e.summary,
+                            description: e.description,
+                            location: e.location,
+                            startTime: e.startTime,
+                            endTime: e.endTime,
+                            allDay: e.allDay,
+                        },
+                    });
+                    syncedCount += 1;
+                }
 
                 await tx.event.deleteMany({
                     where: {
@@ -263,7 +278,7 @@ export class IcloudHandler implements ProviderHandler {
                 });
             });
 
-            return { success: true, eventsSynced: createdCount };
+            return { success: true, eventsSynced: syncedCount };
         } catch {
             return {
                 success: false,

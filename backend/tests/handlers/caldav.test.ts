@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CaldavHandler } from "../../src/handlers/providers/caldav";
 import { mockPrisma, resetMocks } from "../helpers/prisma";
+import ical from "node-ical";
 
 const mockFetchCalendars = vi.fn();
 const mockFetchCalendarObjects = vi.fn();
@@ -29,6 +30,68 @@ const ICS_EVENT = [
     "DTSTART:20260303T100000Z",
     "DTEND:20260303T110000Z",
     "SUMMARY:Test",
+    "DESCRIPTION:First Description",
+    "LOCATION:First Location",
+    "END:VEVENT",
+    "END:VCALENDAR",
+].join("\r\n");
+
+const ICS_EVENT_MOVED = [
+    "BEGIN:VCALENDAR",
+    "BEGIN:VEVENT",
+    "UID:event-1",
+    "DTSTART:20260303T120000Z",
+    "DTEND:20260303T130000Z",
+    "SUMMARY:Moved Test",
+    "DESCRIPTION:Updated Description",
+    "LOCATION:Updated Location",
+    "END:VEVENT",
+    "END:VCALENDAR",
+].join("\r\n");
+
+const ICS_EVENT_FLOATING = [
+    "BEGIN:VCALENDAR",
+    "BEGIN:VEVENT",
+    "UID:event-floating",
+    "DTSTART:20260303T080000",
+    "DTEND:20260303T090000",
+    "SUMMARY:Floating",
+    "END:VEVENT",
+    "END:VCALENDAR",
+].join("\r\n");
+
+const ICS_EVENT_FLOATING_SUMMER = [
+    "BEGIN:VCALENDAR",
+    "BEGIN:VEVENT",
+    "UID:event-floating-summer",
+    "DTSTART:20260715T080000",
+    "DTEND:20260715T090000",
+    "SUMMARY:Floating Summer",
+    "END:VEVENT",
+    "END:VCALENDAR",
+].join("\r\n");
+
+const ICS_EVENT_VTIMEZONE = [
+    "BEGIN:VCALENDAR",
+    "BEGIN:VTIMEZONE",
+    "TZID:Europe/Berlin",
+    "END:VTIMEZONE",
+    "BEGIN:VEVENT",
+    "UID:event-vtimezone",
+    "DTSTART:20260303T080000",
+    "DTEND:20260303T090000",
+    "SUMMARY:VTZ",
+    "END:VEVENT",
+    "END:VCALENDAR",
+].join("\r\n");
+
+const ICS_EVENT_VALUE_DATE = [
+    "BEGIN:VCALENDAR",
+    "BEGIN:VEVENT",
+    "UID:event-allday",
+    "DTSTART;VALUE=DATE:20260715",
+    "DTEND;VALUE=DATE:20260716",
+    "SUMMARY:All Day",
     "END:VEVENT",
     "END:VCALENDAR",
 ].join("\r\n");
@@ -131,7 +194,7 @@ describe("CaldavHandler import behavior", () => {
         mockPrisma.$transaction.mockImplementationOnce(async (cb: any) => {
             const tx = {
                 event: {
-                    createMany: vi.fn().mockResolvedValue({ count: 1 }),
+                    upsert: vi.fn().mockResolvedValue({}),
                     deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
                 },
                 calendar: {
@@ -314,6 +377,214 @@ describe("CaldavHandler import behavior", () => {
         });
     });
 
+    it("sync updates existing event when same external id changes time", async () => {
+        mockPrisma.calendar.findUnique.mockResolvedValue({
+            id: "cal-1",
+            config: createCalendarConfig(GOOD_PASSWORD),
+        } as any);
+
+        mockFetchCalendarObjects
+            .mockResolvedValueOnce([{ data: ICS_EVENT }])
+            .mockResolvedValueOnce([{ data: ICS_EVENT_MOVED }]);
+
+        const txUpsert = vi.fn().mockResolvedValue({});
+        const txDeleteMany = vi.fn().mockResolvedValue({ count: 0 });
+        const txCalendarUpdate = vi.fn().mockResolvedValue({});
+
+        mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+            return cb({
+                event: {
+                    upsert: txUpsert,
+                    deleteMany: txDeleteMany,
+                },
+                calendar: {
+                    update: txCalendarUpdate,
+                },
+            });
+        });
+
+        const first = await handler.sync("cal-1");
+        const second = await handler.sync("cal-1");
+
+        expect(first).toEqual({ success: true, eventsSynced: 1 });
+        expect(second).toEqual({ success: true, eventsSynced: 1 });
+        expect(txUpsert).toHaveBeenCalledTimes(2);
+
+        expect(txUpsert).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({
+                where: {
+                    calendarId_externalId: {
+                        calendarId: "cal-1",
+                        externalId: "event-1",
+                    },
+                },
+                update: expect.objectContaining({
+                    title: "Moved Test",
+                    description: "Updated Description",
+                    location: "Updated Location",
+                    startTime: new Date("2026-03-03T12:00:00.000Z"),
+                    endTime: new Date("2026-03-03T13:00:00.000Z"),
+                    allDay: false,
+                }),
+            }),
+        );
+        expect(txDeleteMany).toHaveBeenCalledTimes(2);
+    });
+
+    it("sync interprets floating times using user timezone", async () => {
+        mockPrisma.calendar.findUnique.mockResolvedValue({
+            id: "cal-1",
+            config: createCalendarConfig(GOOD_PASSWORD),
+            user: { settings: { timezone: "Europe/Berlin" } },
+        } as any);
+
+        mockFetchCalendarObjects.mockResolvedValueOnce([
+            { data: ICS_EVENT_FLOATING },
+        ]);
+
+        const txUpsert = vi.fn().mockResolvedValue({});
+        mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+            return cb({
+                event: {
+                    upsert: txUpsert,
+                    deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+                },
+                calendar: {
+                    update: vi.fn().mockResolvedValue({}),
+                },
+            });
+        });
+
+        const result = await handler.sync("cal-1");
+
+        expect(result).toEqual({ success: true, eventsSynced: 1 });
+        expect(txUpsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                create: expect.objectContaining({
+                    startTime: new Date("2026-03-03T07:00:00.000Z"),
+                    endTime: new Date("2026-03-03T08:00:00.000Z"),
+                }),
+            }),
+        );
+    });
+
+    it("sync applies DST offset for summer floating times", async () => {
+        mockPrisma.calendar.findUnique.mockResolvedValue({
+            id: "cal-1",
+            config: createCalendarConfig(GOOD_PASSWORD),
+            user: { settings: { timezone: "Europe/Berlin" } },
+        } as any);
+
+        mockFetchCalendarObjects.mockResolvedValueOnce([
+            { data: ICS_EVENT_FLOATING_SUMMER },
+        ]);
+
+        const txUpsert = vi.fn().mockResolvedValue({});
+        mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+            return cb({
+                event: {
+                    upsert: txUpsert,
+                    deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+                },
+                calendar: {
+                    update: vi.fn().mockResolvedValue({}),
+                },
+            });
+        });
+
+        const result = await handler.sync("cal-1");
+
+        expect(result).toEqual({ success: true, eventsSynced: 1 });
+        expect(txUpsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                create: expect.objectContaining({
+                    startTime: new Date("2026-07-15T06:00:00.000Z"),
+                    endTime: new Date("2026-07-15T07:00:00.000Z"),
+                }),
+            }),
+        );
+    });
+
+    it("sync uses VTIMEZONE TZID before user timezone for floating times", async () => {
+        mockPrisma.calendar.findUnique.mockResolvedValue({
+            id: "cal-1",
+            config: createCalendarConfig(GOOD_PASSWORD),
+            user: { settings: { timezone: "Europe/London" } },
+        } as any);
+
+        mockFetchCalendarObjects.mockResolvedValueOnce([
+            { data: ICS_EVENT_VTIMEZONE },
+        ]);
+
+        const txUpsert = vi.fn().mockResolvedValue({});
+        mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+            return cb({
+                event: {
+                    upsert: txUpsert,
+                    deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+                },
+                calendar: {
+                    update: vi.fn().mockResolvedValue({}),
+                },
+            });
+        });
+
+        const result = await handler.sync("cal-1");
+
+        expect(result).toEqual({ success: true, eventsSynced: 1 });
+        expect(txUpsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                create: expect.objectContaining({
+                    startTime: new Date("2026-03-03T07:00:00.000Z"),
+                    endTime: new Date("2026-03-03T08:00:00.000Z"),
+                }),
+            }),
+        );
+    });
+
+    it("sync does not convert VALUE=DATE all-day events", async () => {
+        const parsed = Object.values(ical.parseICS(ICS_EVENT_VALUE_DATE)).find(
+            (e: any) => e?.type === "VEVENT",
+        ) as any;
+
+        mockPrisma.calendar.findUnique.mockResolvedValue({
+            id: "cal-1",
+            config: createCalendarConfig(GOOD_PASSWORD),
+            user: { settings: { timezone: "Europe/Berlin" } },
+        } as any);
+
+        mockFetchCalendarObjects.mockResolvedValueOnce([
+            { data: ICS_EVENT_VALUE_DATE },
+        ]);
+
+        const txUpsert = vi.fn().mockResolvedValue({});
+        mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+            return cb({
+                event: {
+                    upsert: txUpsert,
+                    deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+                },
+                calendar: {
+                    update: vi.fn().mockResolvedValue({}),
+                },
+            });
+        });
+
+        const result = await handler.sync("cal-1");
+
+        expect(result).toEqual({ success: true, eventsSynced: 1 });
+        expect(txUpsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                create: expect.objectContaining({
+                    startTime: new Date(parsed.start),
+                    endTime: new Date(parsed.end),
+                    allDay: true,
+                }),
+            }),
+        );
+    });
+
     it("import returns missing-user-id when user id is absent", async () => {
         const result = await handler.import({
             credentials: {
@@ -343,7 +614,7 @@ describe("CaldavHandler import behavior", () => {
         mockPrisma.$transaction.mockImplementationOnce(async (cb: any) => {
             const tx = {
                 event: {
-                    createMany: vi.fn().mockResolvedValue({ count: 1 }),
+                    upsert: vi.fn().mockResolvedValue({}),
                     deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
                 },
                 calendar: {
@@ -387,7 +658,7 @@ describe("CaldavHandler import behavior", () => {
         mockPrisma.$transaction.mockImplementationOnce(async (cb: any) => {
             const tx = {
                 event: {
-                    createMany: vi.fn().mockResolvedValue({ count: 1 }),
+                    upsert: vi.fn().mockResolvedValue({}),
                     deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
                 },
                 calendar: {

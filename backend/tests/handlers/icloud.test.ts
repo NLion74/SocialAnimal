@@ -249,7 +249,7 @@ describe("IcloudHandler", () => {
             },
         });
 
-        const txCreateMany = vi.fn().mockResolvedValue({ count: 1 });
+        const txUpsert = vi.fn().mockResolvedValue({});
         const txDeleteMany = vi.fn().mockResolvedValue({ count: 0 });
         const txCalendarUpdate = vi.fn().mockResolvedValue({});
 
@@ -257,7 +257,7 @@ describe("IcloudHandler", () => {
             async (callback: any) => {
                 return callback({
                     event: {
-                        createMany: txCreateMany,
+                        upsert: txUpsert,
                         deleteMany: txDeleteMany,
                     },
                     calendar: {
@@ -270,13 +270,107 @@ describe("IcloudHandler", () => {
         const result = await handler.sync("cal-1");
 
         expect(result).toEqual({ success: true, eventsSynced: 1 });
-        expect(txCreateMany).toHaveBeenCalledTimes(1);
+        expect(txUpsert).toHaveBeenCalledTimes(1);
         expect(txDeleteMany).toHaveBeenCalledWith({
             where: {
                 calendarId: "cal-1",
                 externalId: { notIn: ["evt-1"] },
             },
         });
+    });
+
+    it("sync updates existing event fields when same UID changes", async () => {
+        const handler = new IcloudHandler();
+
+        mockPrisma.calendar.findUnique.mockResolvedValue({
+            id: "cal-1",
+            config: {
+                username: "user@icloud.com",
+                password: "app-password",
+                calendarPath: "https://caldav.icloud.com/user/cal/work/",
+            },
+        });
+
+        mocks.mockFetchCalendars
+            .mockResolvedValueOnce([
+                { url: "https://caldav.icloud.com/user/cal/work/" },
+            ])
+            .mockResolvedValueOnce([
+                { url: "https://caldav.icloud.com/user/cal/work/" },
+            ]);
+
+        mocks.mockFetchCalendarObjects
+            .mockResolvedValueOnce([{ data: "BEGIN:VCALENDAR" }])
+            .mockResolvedValueOnce([{ data: "BEGIN:VCALENDAR" }]);
+
+        mocks.parseICS
+            .mockReturnValueOnce({
+                one: {
+                    type: "VEVENT",
+                    uid: "evt-1",
+                    summary: "Planning",
+                    description: "First Description",
+                    location: "First Location",
+                    start: new Date("2026-03-03T10:00:00.000Z"),
+                    end: new Date("2026-03-03T11:00:00.000Z"),
+                    datetype: "date-time",
+                },
+            })
+            .mockReturnValueOnce({
+                one: {
+                    type: "VEVENT",
+                    uid: "evt-1",
+                    summary: "Moved Planning",
+                    description: "Updated Description",
+                    location: "Updated Location",
+                    start: new Date("2026-03-03T12:00:00.000Z"),
+                    end: new Date("2026-03-03T13:15:00.000Z"),
+                    datetype: "date-time",
+                },
+            });
+
+        const txUpsert = vi.fn().mockResolvedValue({});
+        const txDeleteMany = vi.fn().mockResolvedValue({ count: 0 });
+        const txCalendarUpdate = vi.fn().mockResolvedValue({});
+
+        mockPrisma.$transaction.mockImplementation(async (callback: any) => {
+            return callback({
+                event: {
+                    upsert: txUpsert,
+                    deleteMany: txDeleteMany,
+                },
+                calendar: {
+                    update: txCalendarUpdate,
+                },
+            });
+        });
+
+        const first = await handler.sync("cal-1");
+        const second = await handler.sync("cal-1");
+
+        expect(first).toEqual({ success: true, eventsSynced: 1 });
+        expect(second).toEqual({ success: true, eventsSynced: 1 });
+        expect(txUpsert).toHaveBeenCalledTimes(2);
+        expect(txUpsert).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({
+                where: {
+                    calendarId_externalId: {
+                        calendarId: "cal-1",
+                        externalId: "evt-1",
+                    },
+                },
+                update: {
+                    title: "Moved Planning",
+                    description: "Updated Description",
+                    location: "Updated Location",
+                    startTime: new Date("2026-03-03T12:00:00.000Z"),
+                    endTime: new Date("2026-03-03T13:15:00.000Z"),
+                    allDay: false,
+                },
+            }),
+        );
+        expect(txDeleteMany).toHaveBeenCalledTimes(2);
     });
 
     it("sync returns fetch error and updates lastSync when event fetch fails", async () => {
