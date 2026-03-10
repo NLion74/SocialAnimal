@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { IcsHandler } from "../../src/handlers/providers/ics";
 import { mockPrisma, resetMocks } from "../helpers/prisma";
 import { generateToken } from "../../src/utils/auth";
+import ical from "node-ical";
 
 describe("IcsHandler basic behavior", () => {
     const handler = new IcsHandler();
@@ -327,7 +328,7 @@ describe("IcsHandler sync/import behavior", () => {
 
         const tx = {
             event: {
-                createMany: vi.fn().mockResolvedValue({ count: 1 }),
+                upsert: vi.fn().mockResolvedValue({}),
                 deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
             },
             calendar: {
@@ -341,9 +342,381 @@ describe("IcsHandler sync/import behavior", () => {
         const result = await handler.sync("cal-1");
 
         expect(result).toEqual({ success: true, eventsSynced: 1 });
-        expect(tx.event.createMany).toHaveBeenCalled();
+        expect(tx.event.upsert).toHaveBeenCalled();
         expect(tx.event.deleteMany).toHaveBeenCalled();
         expect(tx.calendar.update).toHaveBeenCalled();
+    });
+
+    it("sync updates existing event fields when same UID changes", async () => {
+        mockPrisma.calendar.findUnique.mockResolvedValue({
+            id: "cal-1",
+            config: { url: "https://example.com/team.ics" },
+            user: { email: "owner@example.com" },
+        });
+
+        vi.stubGlobal(
+            "fetch",
+            vi
+                .fn()
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    text: async () =>
+                        [
+                            "BEGIN:VCALENDAR",
+                            "BEGIN:VEVENT",
+                            "UID:event-1",
+                            "SUMMARY:Standup",
+                            "DESCRIPTION:First Description",
+                            "LOCATION:First Location",
+                            "DTSTART:20260303T100000Z",
+                            "DTEND:20260303T103000Z",
+                            "END:VEVENT",
+                            "END:VCALENDAR",
+                        ].join("\r\n"),
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    text: async () =>
+                        [
+                            "BEGIN:VCALENDAR",
+                            "BEGIN:VEVENT",
+                            "UID:event-1",
+                            "SUMMARY:Moved Standup",
+                            "DESCRIPTION:Updated Description",
+                            "LOCATION:Updated Location",
+                            "DTSTART:20260303T120000Z",
+                            "DTEND:20260303T130000Z",
+                            "END:VEVENT",
+                            "END:VCALENDAR",
+                        ].join("\r\n"),
+                }),
+        );
+
+        const txUpsert = vi.fn().mockResolvedValue({});
+        const txDeleteMany = vi.fn().mockResolvedValue({ count: 0 });
+        const txCalendarUpdate = vi.fn().mockResolvedValue({ id: "cal-1" });
+
+        mockPrisma.$transaction = vi.fn().mockImplementation(async (cb: any) =>
+            cb({
+                event: {
+                    upsert: txUpsert,
+                    deleteMany: txDeleteMany,
+                },
+                calendar: {
+                    update: txCalendarUpdate,
+                },
+            }),
+        );
+
+        const first = await handler.sync("cal-1");
+        const second = await handler.sync("cal-1");
+
+        expect(first).toEqual({ success: true, eventsSynced: 1 });
+        expect(second).toEqual({ success: true, eventsSynced: 1 });
+        expect(txUpsert).toHaveBeenCalledTimes(2);
+        expect(txUpsert).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({
+                where: {
+                    calendarId_externalId: {
+                        calendarId: "cal-1",
+                        externalId: "event-1",
+                    },
+                },
+                update: {
+                    title: "Moved Standup",
+                    description: "Updated Description",
+                    location: "Updated Location",
+                    startTime: new Date("2026-03-03T12:00:00.000Z"),
+                    endTime: new Date("2026-03-03T13:00:00.000Z"),
+                    allDay: false,
+                },
+            }),
+        );
+        expect(txDeleteMany).toHaveBeenCalledTimes(2);
+    });
+
+    it("interprets floating ICS times in user's configured timezone", async () => {
+        mockPrisma.calendar.findUnique.mockResolvedValue({
+            id: "cal-1",
+            config: { url: "https://example.com/team.ics" },
+            user: {
+                email: "owner@example.com",
+                settings: { timezone: "Europe/Berlin" },
+            },
+        });
+
+        vi.stubGlobal(
+            "fetch",
+            vi.fn().mockResolvedValue({
+                ok: true,
+                status: 200,
+                text: async () =>
+                    [
+                        "BEGIN:VCALENDAR",
+                        "BEGIN:VEVENT",
+                        "UID:event-floating",
+                        "SUMMARY:Floating",
+                        "DTSTART:20260303T080000",
+                        "DTEND:20260303T090000",
+                        "END:VEVENT",
+                        "END:VCALENDAR",
+                    ].join("\r\n"),
+            }),
+        );
+
+        const txUpsert = vi.fn().mockResolvedValue({});
+        mockPrisma.$transaction = vi.fn().mockImplementation(async (cb: any) =>
+            cb({
+                event: {
+                    upsert: txUpsert,
+                    deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+                },
+                calendar: {
+                    update: vi.fn().mockResolvedValue({ id: "cal-1" }),
+                },
+            }),
+        );
+
+        const result = await handler.sync("cal-1");
+
+        expect(result).toEqual({ success: true, eventsSynced: 1 });
+        expect(txUpsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                create: expect.objectContaining({
+                    startTime: new Date("2026-03-03T07:00:00.000Z"),
+                    endTime: new Date("2026-03-03T08:00:00.000Z"),
+                }),
+            }),
+        );
+    });
+
+    it("uses user timezone for floating DTSTART without TZID", async () => {
+        mockPrisma.calendar.findUnique.mockResolvedValue({
+            id: "cal-1",
+            config: { url: "https://example.com/floating.ics" },
+            user: {
+                email: "owner@example.com",
+                settings: { timezone: "Europe/Berlin" },
+            },
+        });
+
+        vi.stubGlobal(
+            "fetch",
+            vi.fn().mockResolvedValue({
+                ok: true,
+                status: 200,
+                text: async () =>
+                    [
+                        "BEGIN:VCALENDAR",
+                        "BEGIN:VEVENT",
+                        "UID:floating-2",
+                        "SUMMARY:Morning",
+                        "DTSTART:20260303T080000",
+                        "DTEND:20260303T090000",
+                        "END:VEVENT",
+                        "END:VCALENDAR",
+                    ].join("\r\n"),
+            }),
+        );
+
+        const txUpsert = vi.fn().mockResolvedValue({});
+        mockPrisma.$transaction = vi.fn().mockImplementation(async (cb: any) =>
+            cb({
+                event: {
+                    upsert: txUpsert,
+                    deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+                },
+                calendar: {
+                    update: vi.fn().mockResolvedValue({ id: "cal-1" }),
+                },
+            }),
+        );
+
+        const result = await handler.sync("cal-1");
+
+        expect(result).toEqual({ success: true, eventsSynced: 1 });
+        expect(txUpsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                create: expect.objectContaining({
+                    startTime: new Date("2026-03-03T07:00:00.000Z"),
+                    endTime: new Date("2026-03-03T08:00:00.000Z"),
+                }),
+            }),
+        );
+    });
+
+    it("uses calendar-level X-WR-TIMEZONE for floating times before user timezone", async () => {
+        mockPrisma.calendar.findUnique.mockResolvedValue({
+            id: "cal-1",
+            config: { url: "https://example.com/floating-berlin.ics" },
+            user: {
+                email: "owner@example.com",
+                settings: { timezone: "Europe/London" },
+            },
+        });
+
+        vi.stubGlobal(
+            "fetch",
+            vi.fn().mockResolvedValue({
+                ok: true,
+                status: 200,
+                text: async () =>
+                    [
+                        "BEGIN:VCALENDAR",
+                        "X-WR-TIMEZONE:Europe/Berlin",
+                        "BEGIN:VEVENT",
+                        "UID:floating-berlin-1",
+                        "SUMMARY:Berlin Floating",
+                        "DTSTART:20260303T080000",
+                        "DTEND:20260303T090000",
+                        "END:VEVENT",
+                        "END:VCALENDAR",
+                    ].join("\r\n"),
+            }),
+        );
+
+        const txUpsert = vi.fn().mockResolvedValue({});
+        mockPrisma.$transaction = vi.fn().mockImplementation(async (cb: any) =>
+            cb({
+                event: {
+                    upsert: txUpsert,
+                    deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+                },
+                calendar: {
+                    update: vi.fn().mockResolvedValue({ id: "cal-1" }),
+                },
+            }),
+        );
+
+        const result = await handler.sync("cal-1");
+
+        expect(result).toEqual({ success: true, eventsSynced: 1 });
+        expect(txUpsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                create: expect.objectContaining({
+                    startTime: new Date("2026-03-03T07:00:00.000Z"),
+                    endTime: new Date("2026-03-03T08:00:00.000Z"),
+                }),
+            }),
+        );
+    });
+
+    it("converts summer floating times using DST offset", async () => {
+        mockPrisma.calendar.findUnique.mockResolvedValue({
+            id: "cal-1",
+            config: { url: "https://example.com/summer.ics" },
+            user: {
+                email: "owner@example.com",
+                settings: { timezone: "Europe/Berlin" },
+            },
+        });
+
+        vi.stubGlobal(
+            "fetch",
+            vi.fn().mockResolvedValue({
+                ok: true,
+                status: 200,
+                text: async () =>
+                    [
+                        "BEGIN:VCALENDAR",
+                        "BEGIN:VEVENT",
+                        "UID:summer-1",
+                        "SUMMARY:Summer Floating",
+                        "DTSTART:20260715T080000",
+                        "DTEND:20260715T090000",
+                        "END:VEVENT",
+                        "END:VCALENDAR",
+                    ].join("\r\n"),
+            }),
+        );
+
+        const txUpsert = vi.fn().mockResolvedValue({});
+        mockPrisma.$transaction = vi.fn().mockImplementation(async (cb: any) =>
+            cb({
+                event: {
+                    upsert: txUpsert,
+                    deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+                },
+                calendar: {
+                    update: vi.fn().mockResolvedValue({ id: "cal-1" }),
+                },
+            }),
+        );
+
+        const result = await handler.sync("cal-1");
+
+        expect(result).toEqual({ success: true, eventsSynced: 1 });
+        expect(txUpsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                create: expect.objectContaining({
+                    startTime: new Date("2026-07-15T06:00:00.000Z"),
+                    endTime: new Date("2026-07-15T07:00:00.000Z"),
+                }),
+            }),
+        );
+    });
+
+    it("does not convert VALUE=DATE all-day events", async () => {
+        const icsText = [
+            "BEGIN:VCALENDAR",
+            "BEGIN:VEVENT",
+            "UID:allday-1",
+            "SUMMARY:All Day",
+            "DTSTART;VALUE=DATE:20260715",
+            "DTEND;VALUE=DATE:20260716",
+            "END:VEVENT",
+            "END:VCALENDAR",
+        ].join("\r\n");
+        const parsed = Object.values(ical.parseICS(icsText)).find(
+            (e: any) => e?.type === "VEVENT",
+        ) as any;
+
+        mockPrisma.calendar.findUnique.mockResolvedValue({
+            id: "cal-1",
+            config: { url: "https://example.com/allday.ics" },
+            user: {
+                email: "owner@example.com",
+                settings: { timezone: "Europe/Berlin" },
+            },
+        });
+
+        vi.stubGlobal(
+            "fetch",
+            vi.fn().mockResolvedValue({
+                ok: true,
+                status: 200,
+                text: async () => icsText,
+            }),
+        );
+
+        const txUpsert = vi.fn().mockResolvedValue({});
+        mockPrisma.$transaction = vi.fn().mockImplementation(async (cb: any) =>
+            cb({
+                event: {
+                    upsert: txUpsert,
+                    deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+                },
+                calendar: {
+                    update: vi.fn().mockResolvedValue({ id: "cal-1" }),
+                },
+            }),
+        );
+
+        const result = await handler.sync("cal-1");
+
+        expect(result).toEqual({ success: true, eventsSynced: 1 });
+        expect(txUpsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                create: expect.objectContaining({
+                    startTime: new Date(parsed.start),
+                    endTime: new Date(parsed.end),
+                    allDay: true,
+                }),
+            }),
+        );
     });
 
     it("returns database error during sync transaction failure", async () => {

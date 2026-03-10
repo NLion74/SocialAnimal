@@ -151,30 +151,44 @@ class GoogleCalendarSync {
             return { success: true, eventsSynced: 0 };
         }
 
-        const externalIds = events.map((e) => e.id);
-        let createdCount = 0;
+        const normalizedEvents = events.map((e) => {
+            const allDay = !e.start.dateTime;
+            return {
+                calendarId: calendar.id,
+                externalId: e.id,
+                title: e.summary ?? "Untitled",
+                description: e.description ?? null,
+                location: e.location ?? null,
+                startTime: new Date(e.start.dateTime ?? e.start.date!),
+                endTime: new Date(e.end.dateTime ?? e.end.date!),
+                allDay,
+            };
+        });
+        const externalIds = normalizedEvents.map((e) => e.externalId);
+        let syncedCount = 0;
 
         try {
             await prisma.$transaction(async (tx: any) => {
-                const result = await tx.event.createMany({
-                    data: events.map((e) => {
-                        const allDay = !e.start.dateTime;
-                        return {
-                            calendarId: calendar.id,
-                            externalId: e.id,
-                            title: e.summary ?? "Untitled",
-                            description: e.description ?? null,
-                            location: e.location ?? null,
-                            startTime: new Date(
-                                e.start.dateTime ?? e.start.date!,
-                            ),
-                            endTime: new Date(e.end.dateTime ?? e.end.date!),
-                            allDay,
-                        };
-                    }),
-                    skipDuplicates: true,
-                });
-                createdCount = result.count;
+                for (const event of normalizedEvents) {
+                    await tx.event.upsert({
+                        where: {
+                            calendarId_externalId: {
+                                calendarId: event.calendarId,
+                                externalId: event.externalId,
+                            },
+                        },
+                        create: event,
+                        update: {
+                            title: event.title,
+                            description: event.description,
+                            location: event.location,
+                            startTime: event.startTime,
+                            endTime: event.endTime,
+                            allDay: event.allDay,
+                        },
+                    });
+                    syncedCount += 1;
+                }
 
                 await tx.event.deleteMany({
                     where: {
@@ -189,7 +203,7 @@ class GoogleCalendarSync {
                 });
             });
 
-            return { success: true, eventsSynced: createdCount };
+            return { success: true, eventsSynced: syncedCount };
         } catch (error) {
             console.error(`[google:sync:error] ${calendar.id}:`, error);
             return {

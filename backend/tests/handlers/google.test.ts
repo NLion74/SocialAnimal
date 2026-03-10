@@ -138,7 +138,7 @@ describe("GoogleHandler", () => {
             user: { email: "a@example.com" },
         } as any);
 
-        const txCreateMany = vi.fn().mockResolvedValue({ count: 1 });
+        const txUpsert = vi.fn().mockResolvedValue({});
         const txDeleteMany = vi.fn().mockResolvedValue({ count: 0 });
         const txCalendarUpdate = vi.fn().mockResolvedValue({});
 
@@ -146,7 +146,7 @@ describe("GoogleHandler", () => {
             async (callback: any) => {
                 return callback({
                     event: {
-                        createMany: txCreateMany,
+                        upsert: txUpsert,
                         deleteMany: txDeleteMany,
                     },
                     calendar: {
@@ -194,7 +194,7 @@ describe("GoogleHandler", () => {
                 },
             },
         });
-        expect(txCreateMany).toHaveBeenCalledTimes(1);
+        expect(txUpsert).toHaveBeenCalledTimes(1);
     });
 
     it("sync updates lastSync and returns zero when remote has no events", async () => {
@@ -223,6 +223,97 @@ describe("GoogleHandler", () => {
             where: { id: "cal-empty" },
             data: { lastSync: expect.any(Date) },
         });
+    });
+
+    it("sync updates existing event fields when same id changes", async () => {
+        const handler = new GoogleHandler();
+
+        mockPrisma.calendar.findUnique.mockResolvedValue({
+            id: "cal-1",
+            config: {
+                accessToken: "token-1",
+                refreshToken: "refresh-1",
+                calendarId: "gcal-1",
+            },
+            user: { email: "a@example.com" },
+        } as any);
+
+        const txUpsert = vi.fn().mockResolvedValue({});
+        const txDeleteMany = vi.fn().mockResolvedValue({ count: 0 });
+        const txCalendarUpdate = vi.fn().mockResolvedValue({});
+
+        mockPrisma.$transaction.mockImplementation(async (callback: any) => {
+            return callback({
+                event: {
+                    upsert: txUpsert,
+                    deleteMany: txDeleteMany,
+                },
+                calendar: {
+                    update: txCalendarUpdate,
+                },
+            });
+        });
+
+        vi.mocked(fetch)
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => ({
+                    items: [
+                        {
+                            id: "evt-1",
+                            summary: "Planning",
+                            description: "First Description",
+                            location: "First Location",
+                            start: { dateTime: "2026-03-03T10:00:00.000Z" },
+                            end: { dateTime: "2026-03-03T11:00:00.000Z" },
+                        },
+                    ],
+                }),
+            } as any)
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => ({
+                    items: [
+                        {
+                            id: "evt-1",
+                            summary: "Updated Planning",
+                            description: "Updated Description",
+                            location: "Updated Location",
+                            start: { dateTime: "2026-03-03T12:00:00.000Z" },
+                            end: { dateTime: "2026-03-03T13:30:00.000Z" },
+                        },
+                    ],
+                }),
+            } as any);
+
+        const first = await handler.sync("cal-1");
+        const second = await handler.sync("cal-1");
+
+        expect(first).toEqual({ success: true, eventsSynced: 1 });
+        expect(second).toEqual({ success: true, eventsSynced: 1 });
+        expect(txUpsert).toHaveBeenCalledTimes(2);
+        expect(txUpsert).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({
+                where: {
+                    calendarId_externalId: {
+                        calendarId: "cal-1",
+                        externalId: "evt-1",
+                    },
+                },
+                update: {
+                    title: "Updated Planning",
+                    description: "Updated Description",
+                    location: "Updated Location",
+                    startTime: new Date("2026-03-03T12:00:00.000Z"),
+                    endTime: new Date("2026-03-03T13:30:00.000Z"),
+                    allDay: false,
+                },
+            }),
+        );
+        expect(txDeleteMany).toHaveBeenCalledTimes(2);
     });
 
     it("returns test failure for invalid config", async () => {

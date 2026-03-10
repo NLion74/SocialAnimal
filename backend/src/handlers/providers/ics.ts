@@ -17,6 +17,16 @@ export interface IcsConfig {
 
 type VEvent = any;
 
+type FloatingHint = {
+    raw: string;
+    floating: boolean;
+};
+
+type FloatingHints = {
+    byUid: Record<string, { start?: FloatingHint; end?: FloatingHint }>;
+    calendarTimeZone?: string;
+};
+
 class IcsCalendarSync {
     getType(): string {
         return "ics";
@@ -36,17 +46,209 @@ class IcsCalendarSync {
 
     protected async fetchEvents(calendar: CalendarWithUser): Promise<any[]> {
         const config = this.getConfig(calendar.config);
+        const userTimezone = (calendar as any)?.user?.settings?.timezone;
         const icsText = await this.fetchIcs(config);
+        const hints = this.extractFloatingHints(icsText);
         const events = this.extractEvents(ical.parseICS(icsText));
         return events.map((e: VEvent) => ({
             externalId: e.uid || `${calendar.id}-${e.start.toISOString()}`,
             summary: e.summary || "Untitled",
             description: e.description || null,
             location: e.location || null,
-            startTime: e.start,
-            endTime: e.end,
+            startTime: this.resolveDate(
+                e.start,
+                e.datetype === "date",
+                e.uid,
+                "start",
+                hints,
+                userTimezone,
+            ),
+            endTime: this.resolveDate(
+                e.end,
+                e.datetype === "date",
+                e.uid,
+                "end",
+                hints,
+                userTimezone,
+            ),
             allDay: e.datetype === "date",
         }));
+    }
+
+    private resolveDate(
+        value: Date,
+        isAllDay: boolean,
+        uid: string | undefined,
+        field: "start" | "end",
+        hints: FloatingHints,
+        userTimezone?: string,
+    ): Date {
+        if (isAllDay) return new Date(value);
+
+        const withTz = value as Date & { tz?: string; dateOnly?: true };
+        if (withTz.tz || withTz.dateOnly) {
+            return new Date(value);
+        }
+
+        const hint = uid ? hints.byUid[uid]?.[field] : undefined;
+        if (!hint?.floating) {
+            return new Date(value);
+        }
+
+        const tz = hints.calendarTimeZone || userTimezone;
+        if (!tz) {
+            return new Date(value);
+        }
+
+        return this.floatingToUtc(hint.raw, tz);
+    }
+
+    private extractFloatingHints(icsText: string): FloatingHints {
+        const lines = icsText
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter(Boolean);
+
+        const byUid: FloatingHints["byUid"] = {};
+        const calendarTimeZone = this.extractCalendarTimeZone(lines);
+
+        let inEvent = false;
+        let uid: string | undefined;
+        let start: FloatingHint | undefined;
+        let end: FloatingHint | undefined;
+
+        const flush = () => {
+            if (!uid) return;
+            byUid[uid] = {
+                ...(start ? { start } : {}),
+                ...(end ? { end } : {}),
+            };
+        };
+
+        for (const line of lines) {
+            if (line === "BEGIN:VEVENT") {
+                inEvent = true;
+                uid = undefined;
+                start = undefined;
+                end = undefined;
+                continue;
+            }
+            if (line === "END:VEVENT") {
+                flush();
+                inEvent = false;
+                uid = undefined;
+                start = undefined;
+                end = undefined;
+                continue;
+            }
+            if (!inEvent) continue;
+
+            if (line.startsWith("UID:")) {
+                uid = line.slice(4).trim();
+                continue;
+            }
+
+            const parseField = (prefix: string): FloatingHint | undefined => {
+                if (!line.startsWith(prefix)) return undefined;
+                const colon = line.indexOf(":");
+                if (colon < 0) return undefined;
+                const left = line.slice(0, colon);
+                const raw = line.slice(colon + 1).trim();
+                const isDateOnly = /(?:^|;)VALUE=DATE(?:;|$)/.test(left);
+                const hasTzid = /(?:^|;)TZID=/.test(left);
+                const hasZoneSuffix = /(?:Z|[+-]\d{2}:?\d{2})$/.test(raw);
+                const floating =
+                    !isDateOnly &&
+                    !hasTzid &&
+                    !hasZoneSuffix &&
+                    /^\d{8}T\d{6}$/.test(raw);
+                return { raw, floating };
+            };
+
+            start = start ?? parseField("DTSTART");
+            end = end ?? parseField("DTEND");
+        }
+
+        return { byUid, ...(calendarTimeZone ? { calendarTimeZone } : {}) };
+    }
+
+    private extractCalendarTimeZone(lines: string[]): string | undefined {
+        for (const line of lines) {
+            if (line.startsWith("X-WR-TIMEZONE:")) {
+                const tz = line.slice("X-WR-TIMEZONE:".length).trim();
+                if (tz) return tz;
+            }
+            if (line.startsWith("TIMEZONE-ID:")) {
+                const tz = line.slice("TIMEZONE-ID:".length).trim();
+                if (tz) return tz;
+            }
+        }
+
+        let inVTimeZone = false;
+        for (const line of lines) {
+            if (line === "BEGIN:VTIMEZONE") {
+                inVTimeZone = true;
+                continue;
+            }
+            if (line === "END:VTIMEZONE") {
+                inVTimeZone = false;
+                continue;
+            }
+            if (inVTimeZone && line.startsWith("TZID:")) {
+                const tz = line.slice("TZID:".length).trim();
+                if (tz) return tz;
+            }
+        }
+
+        return undefined;
+    }
+
+    private floatingToUtc(raw: string, timeZone: string): Date {
+        const y = Number(raw.slice(0, 4));
+        const m = Number(raw.slice(4, 6)) - 1;
+        const d = Number(raw.slice(6, 8));
+        const h = Number(raw.slice(9, 11));
+        const min = Number(raw.slice(11, 13));
+        const sec = Number(raw.slice(13, 15));
+
+        let utcTs = Date.UTC(y, m, d, h, min, sec);
+        for (let i = 0; i < 2; i++) {
+            const offset = this.timeZoneOffsetMs(new Date(utcTs), timeZone);
+            const adjusted = Date.UTC(y, m, d, h, min, sec) - offset;
+            if (adjusted === utcTs) break;
+            utcTs = adjusted;
+        }
+
+        return new Date(utcTs);
+    }
+
+    private timeZoneOffsetMs(value: Date, timeZone: string): number {
+        const parts = new Intl.DateTimeFormat("en-US", {
+            timeZone,
+            hour12: false,
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+        }).formatToParts(value);
+
+        const map: Record<string, string> = {};
+        for (const part of parts) {
+            if (part.type !== "literal") map[part.type] = part.value;
+        }
+
+        const asUtc = Date.UTC(
+            Number(map.year),
+            Number(map.month) - 1,
+            Number(map.day),
+            Number(map.hour),
+            Number(map.minute),
+            Number(map.second),
+        );
+
+        return asUtc - value.getTime();
     }
 
     public async syncCalendar(calendar: CalendarWithUser): Promise<SyncResult> {
@@ -75,23 +277,38 @@ class IcsCalendarSync {
             return { success: true, eventsSynced: 0 };
         }
         const externalIds = events.map((e) => e.externalId);
-        let createdCount = 0;
+        let syncedCount = 0;
         try {
             await prisma.$transaction(async (tx: any) => {
-                const result = await tx.event.createMany({
-                    data: events.map((e) => ({
-                        calendarId: calendar.id,
-                        externalId: e.externalId,
-                        title: e.summary,
-                        description: e.description,
-                        location: e.location,
-                        startTime: e.startTime,
-                        endTime: e.endTime,
-                        allDay: e.allDay,
-                    })),
-                    skipDuplicates: true,
-                });
-                createdCount = result.count;
+                for (const e of events) {
+                    await tx.event.upsert({
+                        where: {
+                            calendarId_externalId: {
+                                calendarId: calendar.id,
+                                externalId: e.externalId,
+                            },
+                        },
+                        create: {
+                            calendarId: calendar.id,
+                            externalId: e.externalId,
+                            title: e.summary,
+                            description: e.description,
+                            location: e.location,
+                            startTime: e.startTime,
+                            endTime: e.endTime,
+                            allDay: e.allDay,
+                        },
+                        update: {
+                            title: e.summary,
+                            description: e.description,
+                            location: e.location,
+                            startTime: e.startTime,
+                            endTime: e.endTime,
+                            allDay: e.allDay,
+                        },
+                    });
+                    syncedCount += 1;
+                }
                 await tx.event.deleteMany({
                     where: {
                         calendarId: calendar.id,
@@ -103,7 +320,7 @@ class IcsCalendarSync {
                     data: { lastSync: new Date() },
                 });
             });
-            return { success: true, eventsSynced: createdCount };
+            return { success: true, eventsSynced: syncedCount };
         } catch (error) {
             console.error(`[ics:sync:error] ${calendar.id}:`, error);
             return {
@@ -229,7 +446,14 @@ export class IcsHandler implements ProviderHandler {
     async sync(calendarId: string): Promise<SyncResult> {
         const calendar = await prisma.calendar.findUnique({
             where: { id: calendarId },
-            include: { user: { select: { email: true } } },
+            include: {
+                user: {
+                    select: {
+                        email: true,
+                        settings: { select: { timezone: true } },
+                    },
+                },
+            },
         });
         if (!calendar) {
             return {
