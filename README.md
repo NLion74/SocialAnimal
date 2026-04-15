@@ -66,7 +66,6 @@ SocialAnimal takes a different approach: it connects to your existing calendars 
 
 - User authentication and profile settings
 - Friend system (requests, accept/decline)
-- Search users by username
 
 **Calendar Integration**
 
