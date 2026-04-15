@@ -105,11 +105,11 @@ What is still planned:
 - [ ] Admin dashboard with user management
 - [ ] Improved permission system (intuitive and advanced mode, possibly ABAC)
 - [ ] More export types with direct push to calendars
-- [ ] Better Invite System
-- [x] Account deletion in frontend profile
-- [ ] Managing Events directly within the app
+- [ ] Better invite system (multiple codes, shareable invite links)
+- [ ] Managing Events directly within the app (Own calendar provider type, would allow shared calendars multiple people can manage)
 - [ ] Determine Shared Free Time
 - [ ] Calendar color customization
+- [ ] Email verification, two-factor authentication, and password reset
 - [ ] Internal things like incremental sync, rate limiting...
 - [ ] Many more small improvements...
 
@@ -218,7 +218,6 @@ Events (`/api/events`):
 Friends (`/api/friends`):
 
 - `GET /`
-- `GET /search-users`
 - `POST /request`
 - `POST /:id/accept`
 - `DELETE /:id`
