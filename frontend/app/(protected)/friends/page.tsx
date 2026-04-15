@@ -8,7 +8,7 @@ import type {
     Friend,
     CalendarData,
     Permission,
-    UserSearchResult,
+    // UserSearchResult, // commented out: no longer used (search-users removed)
 } from "../../../lib/types";
 import Modal from "../../../components/Modal";
 
@@ -23,10 +23,12 @@ export default function FriendsPage() {
     const [calendars, setCalendars] = useState<CalendarData[]>([]);
     const [loading, setLoading] = useState(true);
     const [showAdd, setShowAdd] = useState(false);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [searching, setSearching] = useState(false);
-    const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
-    const [selectedUserId, setSelectedUserId] = useState("");
+    // const [searchQuery, setSearchQuery] = useState("");
+    // const [searching, setSearching] = useState(false);
+    // const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
+    // const [selectedUserId, setSelectedUserId] = useState("");
+
+    const [emailInput, setEmailInput] = useState(""); // remove when uncommenting search
     const [addErr, setAddErr] = useState("");
     const [adding, setAdding] = useState(false);
     const [shareTarget, setShareTarget] = useState<Friend | null>(null);
@@ -55,53 +57,78 @@ export default function FriendsPage() {
     const isIncoming = (f: Friend) =>
         f.status === "pending" && f.user2.id === uid;
 
-    useEffect(() => {
-        if (!showAdd) return;
-        const trimmed = searchQuery.trim();
-        if (!trimmed) {
-            setSearchResults([]);
-            setSearching(false);
-            return;
-        }
+    // useEffect(() => {
+    //     if (!showAdd) return;
+    //     const trimmed = searchQuery.trim();
+    //     if (!trimmed) {
+    //         setSearchResults([]);
+    //         setSearching(false);
+    //         return;
+    //     }
 
-        const timeout = setTimeout(async () => {
-            setSearching(true);
-            try {
-                const res = await apiClient.get<UserSearchResult[]>(
-                    `/api/friends/search-users?query=${encodeURIComponent(trimmed)}`,
-                );
-                setSearchResults(res);
-                const selectedStillExists = res.some(
-                    (user) => user.id === selectedUserId,
-                );
-                if (!selectedStillExists) setSelectedUserId("");
-                setAddErr("");
-            } catch (e: any) {
-                setSearchResults([]);
-                setAddErr(e.message);
-            } finally {
-                setSearching(false);
-            }
-        }, 250);
+    //     const timeout = setTimeout(async () => {
+    //         setSearching(true);
+    //         try {
+    //             const res = await apiClient.get<UserSearchResult[]>(
+    //                 `/api/friends/search-users?query=${encodeURIComponent(trimmed)}`,
+    //             );
+    //             setSearchResults(res);
+    //             const selectedStillExists = res.some(
+    //                 (user) => user.id === selectedUserId,
+    //             );
+    //             if (!selectedStillExists) setSelectedUserId("");
+    //             setAddErr("");
+    //         } catch (e: any) {
+    //             setSearchResults([]);
+    //             setAddErr(e.message);
+    //         } finally {
+    //             setSearching(false);
+    //         }
+    //     }, 250);
 
-        return () => clearTimeout(timeout);
-    }, [showAdd, searchQuery, selectedUserId]);
+    //     return () => clearTimeout(timeout);
+    // }, [showAdd, searchQuery, selectedUserId]);
 
+    // const closeAddModal = () => {
+    //     setShowAdd(false);
+    //     setSearchQuery("");
+    //     setSearchResults([]);
+    //     setSelectedUserId("");
+    //     setAddErr("");
+    // };
+
+    // const sendRequest = async () => {
+    //     if (!selectedUserId) return;
+    //     setAdding(true);
+    //     setAddErr("");
+    //     try {
+    //         await apiClient.post("/api/friends/request", {
+    //             targetUserId: selectedUserId,
+    //         });
+    //         closeAddModal();
+    //         load();
+    //     } catch (e: any) {
+    //         setAddErr(e.message);
+    //     } finally {
+    //         setAdding(false);
+    //     }
+    // };
+
+    // --- code below replaces search functionality
     const closeAddModal = () => {
         setShowAdd(false);
-        setSearchQuery("");
-        setSearchResults([]);
-        setSelectedUserId("");
+        setEmailInput("");
         setAddErr("");
     };
 
     const sendRequest = async () => {
-        if (!selectedUserId) return;
+        const trimmed = emailInput.trim();
+        if (!trimmed) return;
         setAdding(true);
         setAddErr("");
         try {
             await apiClient.post("/api/friends/request", {
-                targetUserId: selectedUserId,
+                email: trimmed,
             });
             closeAddModal();
             load();
@@ -111,6 +138,7 @@ export default function FriendsPage() {
             setAdding(false);
         }
     };
+    // --- code above replaces search functionality
 
     const accept = async (id: string) => {
         await apiClient.post(`/api/friends/${id}/accept`).catch(() => {});
@@ -298,6 +326,7 @@ export default function FriendsPage() {
                 </div>
             )}
 
+            {/* uncomment to restore search functionality instead of email input
             <Modal isOpen={showAdd} onClose={closeAddModal} title="Add Friend">
                 <div className={s.formStack}>
                     <div>
@@ -364,6 +393,54 @@ export default function FriendsPage() {
                             style={{ flex: 1 }}
                             onClick={sendRequest}
                             disabled={adding || !selectedUserId}
+                        >
+                            {adding ? "Sending…" : "Send Request"}
+                        </button>
+                        <button
+                            className={`${s.btn} ${s.btnSecondary}`}
+                            onClick={closeAddModal}
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+            */}
+
+            <Modal isOpen={showAdd} onClose={closeAddModal} title="Add Friend">
+                <div className={s.formStack}>
+                    <div>
+                        <label
+                            className={s.fieldLabel}
+                            htmlFor="friend-email-input"
+                        >
+                            Friend's Email
+                        </label>
+                        <input
+                            id="friend-email-input"
+                            className={s.input}
+                            type="email"
+                            value={emailInput}
+                            onChange={(e) => {
+                                setEmailInput(e.target.value);
+                                setAddErr("");
+                            }}
+                            placeholder="Enter email address"
+                            onKeyDown={(e) =>
+                                e.key === "Enter" &&
+                                emailInput.trim() &&
+                                sendRequest()
+                            }
+                            autoFocus
+                        />
+                    </div>
+                    {addErr && <div className={s.error}>{addErr}</div>}
+                    <div className={s.formRow}>
+                        <button
+                            className={`${s.btn} ${s.btnPrimary}`}
+                            style={{ flex: 1 }}
+                            onClick={sendRequest}
+                            disabled={adding || !emailInput.trim()}
                         >
                             {adding ? "Sending…" : "Send Request"}
                         </button>

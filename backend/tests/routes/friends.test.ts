@@ -74,49 +74,49 @@ describe("Friends Routes", () => {
         });
     });
 
-    describe("GET /api/friends/search-users", () => {
-        it("should return users matching username query", async () => {
-            const user = createMockUser();
-            const found = [
-                { id: "user-2", name: "john", email: "john@example.com" },
-            ];
+    // describe("GET /api/friends/search-users", () => {
+    //     it("should return users matching username query", async () => {
+    //         const user = createMockUser();
+    //         const found = [
+    //             { id: "user-2", name: "john", email: "john@example.com" },
+    //         ];
 
-            mockPrisma.user.findUnique.mockResolvedValue(user);
-            mockPrisma.user.findMany.mockResolvedValue(found);
+    //         mockPrisma.user.findUnique.mockResolvedValue(user);
+    //         mockPrisma.user.findMany.mockResolvedValue(found);
 
-            const res = await app.inject({
-                method: "GET",
-                url: "/api/friends/search-users?query=john",
-                headers: createAuthHeader(user.id),
-            });
+    //         const res = await app.inject({
+    //             method: "GET",
+    //             url: "/api/friends/search-users?query=john",
+    //             headers: createAuthHeader(user.id),
+    //         });
 
-            expect(res.statusCode).toBe(200);
-            expect(JSON.parse(res.body)).toEqual(found);
-        });
+    //         expect(res.statusCode).toBe(200);
+    //         expect(JSON.parse(res.body)).toEqual(found);
+    //     });
 
-        it("should reject missing query", async () => {
-            const user = createMockUser();
-            mockPrisma.user.findUnique.mockResolvedValue(user);
+    //     it("should reject missing query", async () => {
+    //         const user = createMockUser();
+    //         mockPrisma.user.findUnique.mockResolvedValue(user);
 
-            const res = await app.inject({
-                method: "GET",
-                url: "/api/friends/search-users",
-                headers: createAuthHeader(user.id),
-            });
+    //         const res = await app.inject({
+    //             method: "GET",
+    //             url: "/api/friends/search-users",
+    //             headers: createAuthHeader(user.id),
+    //         });
 
-            expect(res.statusCode).toBe(400);
-            expect(JSON.parse(res.body).error).toBe("Search query required");
-        });
+    //         expect(res.statusCode).toBe(400);
+    //         expect(JSON.parse(res.body).error).toBe("Search query required");
+    //     });
 
-        it("should require authentication", async () => {
-            const res = await app.inject({
-                method: "GET",
-                url: "/api/friends/search-users?query=john",
-            });
+    //     it("should require authentication", async () => {
+    //         const res = await app.inject({
+    //             method: "GET",
+    //             url: "/api/friends/search-users?query=john",
+    //         });
 
-            expect(res.statusCode).toBe(401);
-        });
-    });
+    //         expect(res.statusCode).toBe(401);
+    //     });
+    // });
 
     describe("POST /api/friends/request", () => {
         it("should send friend request by target user id", async () => {
