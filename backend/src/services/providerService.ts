@@ -2,6 +2,7 @@ import type { Calendar } from "@prisma/client";
 import { prisma } from "../utils/db";
 import type { SyncResult, TestResult } from "../types";
 import { getProviderHandler } from "../handlers/providers/registry";
+import { getUserLimits } from "../handlers/providers/base";
 
 export async function handleProviderImport(type: string, data: any) {
     const handler = getProviderHandler(type);
@@ -69,18 +70,30 @@ export async function handleProviderExport(type: string, params: any) {
 
 export async function runDueCalendars(): Promise<void> {
     const now = new Date();
-    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 
-    const due = await prisma.calendar.findMany({
-        where: {
-            syncInterval: { gt: 0 },
-            OR: [{ lastSync: null }, { lastSync: { lt: oneHourAgo } }],
-        },
-        select: { id: true },
+    const candidates = await prisma.calendar.findMany({
+        where: { syncInterval: { gt: 0 } },
+        select: { id: true, userId: true, syncInterval: true, lastSync: true },
     });
 
+    const due = await Promise.all(
+        candidates.map(async (cal: any) => {
+            const { minSyncInterval } = await getUserLimits(cal.userId);
+            const effectiveInterval = Math.max(
+                cal.syncInterval,
+                minSyncInterval,
+            );
+            if (!cal.lastSync) return cal;
+            const elapsedMinutes =
+                (now.getTime() - cal.lastSync.getTime()) / 60_000;
+            return elapsedMinutes >= effectiveInterval ? cal : null;
+        }),
+    );
+
     await Promise.allSettled(
-        due.map((cal: { id: string }) => syncCalendar(cal.id)),
+        due
+            .filter((cal): cal is NonNullable<typeof cal> => cal !== null)
+            .map((cal) => syncCalendar(cal.id)),
     );
 }
 

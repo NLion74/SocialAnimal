@@ -43,8 +43,7 @@ describe("Users Routes", () => {
             });
 
             expect(res.statusCode).toBe(201);
-            const body = JSON.parse(res.body);
-            expect(body.email).toBe("new@example.com");
+            expect(JSON.parse(res.body).email).toBe("new@example.com");
         });
 
         it("should reject missing email", async () => {
@@ -131,10 +130,7 @@ describe("Users Routes", () => {
             const res = await app.inject({
                 method: "POST",
                 url: "/api/users/register",
-                payload: {
-                    email: "test@example.com",
-                    password: "pass123",
-                },
+                payload: { email: "test@example.com", password: "pass123" },
             });
 
             expect(res.statusCode).toBe(403);
@@ -153,10 +149,7 @@ describe("Users Routes", () => {
             const res = await app.inject({
                 method: "POST",
                 url: "/api/users/register",
-                payload: {
-                    email: "test@example.com",
-                    password: "pass123",
-                },
+                payload: { email: "test@example.com", password: "pass123" },
             });
 
             expect(res.statusCode).toBe(403);
@@ -175,7 +168,6 @@ describe("Users Routes", () => {
                 passwordHash: hash,
                 salt,
             });
-
             mockPrisma.user.findUnique.mockResolvedValue(mockUser);
 
             const res = await app.inject({
@@ -202,16 +194,12 @@ describe("Users Routes", () => {
                 passwordHash: hash,
                 salt,
             });
-
             mockPrisma.user.findUnique.mockResolvedValue(mockUser);
 
             const res = await app.inject({
                 method: "POST",
                 url: "/api/users/login",
-                payload: {
-                    email: "login@example.com",
-                    password: "wrongpass",
-                },
+                payload: { email: "login@example.com", password: "wrongpass" },
             });
 
             expect(res.statusCode).toBe(401);
@@ -280,8 +268,7 @@ describe("Users Routes", () => {
             });
 
             expect(res.statusCode).toBe(200);
-            const body = JSON.parse(res.body);
-            expect(body.email).toBe("me@example.com");
+            expect(JSON.parse(res.body).email).toBe("me@example.com");
         });
 
         it("should reject request without token", async () => {
@@ -289,7 +276,6 @@ describe("Users Routes", () => {
                 method: "GET",
                 url: "/api/users/me",
             });
-
             expect(res.statusCode).toBe(401);
         });
 
@@ -336,8 +322,7 @@ describe("Users Routes", () => {
             });
 
             expect(res.statusCode).toBe(200);
-            const body = JSON.parse(res.body);
-            expect(body.name).toBe("New Name");
+            expect(JSON.parse(res.body).name).toBe("New Name");
             expect(mockPrisma.userSettings.upsert).toHaveBeenCalledWith(
                 expect.objectContaining({
                     update: {
@@ -402,7 +387,6 @@ describe("Users Routes", () => {
                 method: "DELETE",
                 url: "/api/users/me",
             });
-
             expect(res.statusCode).toBe(401);
         });
 
@@ -460,181 +444,6 @@ describe("Users Routes", () => {
 
             expect(res.statusCode).toBe(204);
             expect(mockPrisma.$transaction).toHaveBeenCalled();
-        });
-    });
-
-    describe("GET /api/users/app-settings", () => {
-        it("should return app settings for admin", async () => {
-            const admin = createMockUser({ isAdmin: true });
-            mockPrisma.user.findUnique
-                .mockResolvedValueOnce(admin)
-                .mockResolvedValueOnce(admin);
-
-            mockPrisma.appSettings.upsert.mockResolvedValue({
-                id: "global",
-                registrationsOpen: true,
-                inviteOnly: false,
-                updatedAt: new Date(),
-            });
-
-            const res = await app.inject({
-                method: "GET",
-                url: "/api/users/app-settings",
-                headers: createAuthHeader(admin.id),
-            });
-
-            expect(res.statusCode).toBe(200);
-        });
-
-        it("should reject non-admin users", async () => {
-            const user = createMockUser({ isAdmin: false });
-            mockPrisma.user.findUnique
-                .mockResolvedValueOnce(user)
-                .mockResolvedValueOnce(user);
-
-            const res = await app.inject({
-                method: "GET",
-                url: "/api/users/app-settings",
-                headers: createAuthHeader(user.id),
-            });
-
-            expect(res.statusCode).toBe(403);
-        });
-    });
-
-    describe("PUT /api/users/app-settings", () => {
-        it("should update app settings for admin", async () => {
-            const admin = createMockUser({ isAdmin: true });
-            mockPrisma.user.findUnique
-                .mockResolvedValueOnce(admin)
-                .mockResolvedValueOnce(admin);
-
-            mockPrisma.appSettings.upsert.mockResolvedValue({
-                id: "global",
-                registrationsOpen: false,
-                inviteOnly: true,
-                updatedAt: new Date(),
-            });
-
-            const res = await app.inject({
-                method: "PUT",
-                url: "/api/users/app-settings",
-                headers: createAuthHeader(admin.id),
-                payload: { registrationsOpen: false, inviteOnly: true },
-            });
-
-            expect(res.statusCode).toBe(200);
-            const body = JSON.parse(res.body);
-            expect(body.registrationsOpen).toBe(false);
-            expect(body.inviteOnly).toBe(true);
-        });
-
-        it("should reject non-admin users", async () => {
-            const user = createMockUser({ isAdmin: false });
-            mockPrisma.user.findUnique
-                .mockResolvedValueOnce(user)
-                .mockResolvedValueOnce(user);
-
-            const res = await app.inject({
-                method: "PUT",
-                url: "/api/users/app-settings",
-                headers: createAuthHeader(user.id),
-                payload: { registrationsOpen: true },
-            });
-
-            expect(res.statusCode).toBe(403);
-        });
-
-        it("should require authentication", async () => {
-            const res = await app.inject({
-                method: "PUT",
-                url: "/api/users/app-settings",
-                payload: { registrationsOpen: true },
-            });
-
-            expect(res.statusCode).toBe(401);
-        });
-
-        it("should return 500 when service throws", async () => {
-            const admin = createMockUser({ isAdmin: true });
-            mockPrisma.user.findUnique
-                .mockResolvedValueOnce(admin)
-                .mockResolvedValueOnce(admin);
-
-            mockPrisma.appSettings.upsert.mockRejectedValue(
-                new Error("DB crash"),
-            );
-
-            const res = await app.inject({
-                method: "PUT",
-                url: "/api/users/app-settings",
-                headers: createAuthHeader(admin.id),
-                payload: { registrationsOpen: true },
-            });
-
-            expect(res.statusCode).toBe(500);
-        });
-    });
-
-    describe("POST /api/users/invite", () => {
-        it("should create invite code for admin", async () => {
-            const admin = createMockUser({ isAdmin: true });
-            mockPrisma.user.findUnique
-                .mockResolvedValueOnce(admin)
-                .mockResolvedValueOnce(admin);
-
-            mockPrisma.inviteCode.create.mockResolvedValue({
-                id: "invite-id",
-                code: "CODE123",
-                createdBy: admin.id,
-                usedBy: null,
-                usedAt: null,
-                createdAt: new Date(),
-            });
-
-            const res = await app.inject({
-                method: "POST",
-                url: "/api/users/invite",
-                headers: createAuthHeader(admin.id),
-            });
-
-            expect(res.statusCode).toBe(200);
-            const body = JSON.parse(res.body);
-            expect(body).toHaveProperty("code");
-        });
-
-        it("should reject non-admin users", async () => {
-            const user = createMockUser({ isAdmin: false });
-            mockPrisma.user.findUnique
-                .mockResolvedValueOnce(user)
-                .mockResolvedValueOnce(user);
-
-            const res = await app.inject({
-                method: "POST",
-                url: "/api/users/invite",
-                headers: createAuthHeader(user.id),
-            });
-
-            expect(res.statusCode).toBe(403);
-        });
-
-        it("should return 500 when service throws", async () => {
-            const admin = createMockUser({ isAdmin: true });
-            mockPrisma.user.findUnique
-                .mockResolvedValueOnce(admin)
-                .mockResolvedValueOnce(admin);
-
-            mockPrisma.inviteCode.create.mockRejectedValue(
-                new Error("DB crash"),
-            );
-
-            const res = await app.inject({
-                method: "POST",
-                url: "/api/users/invite",
-                headers: createAuthHeader(admin.id),
-            });
-
-            expect(res.statusCode).toBe(500);
         });
     });
 });

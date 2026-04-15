@@ -2,8 +2,10 @@ import type { Calendar } from "@prisma/client";
 
 export interface SyncResult {
     success: boolean;
-    eventsSynced?: number;
     error?: string;
+    added?: number;
+    updated?: number;
+    removed?: number;
 }
 
 export interface TestResult {

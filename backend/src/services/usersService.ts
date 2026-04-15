@@ -1,6 +1,6 @@
 import { prisma } from "../utils/db";
 import { hashPassword, verifyPassword, generateToken } from "../utils/auth";
-import crypto from "crypto";
+import { getOrCreateAppSettings } from "./adminService";
 
 export async function registerUser(opts: {
     email: string;
@@ -31,24 +31,22 @@ export async function registerUser(opts: {
     if (existing) return "exists";
 
     const { hash, salt } = await hashPassword(password);
-    const user = await prisma.user.create({
+    return prisma.user.create({
         data: {
             email,
             passwordHash: hash,
             salt,
             name,
-            isAdmin: isFirstUser,
+            role: isFirstUser ? "admin" : "user",
         },
         select: {
             id: true,
             email: true,
             name: true,
-            isAdmin: true,
+            role: true,
             createdAt: true,
         },
     });
-
-    return user;
 }
 
 export async function loginUser(email: string, password: string) {
@@ -56,13 +54,12 @@ export async function loginUser(email: string, password: string) {
     if (!user) return null;
     const valid = await verifyPassword(password, user.passwordHash, user.salt);
     if (!valid) return null;
-
     return {
         user: {
             id: user.id,
             email: user.email,
             name: user.name,
-            isAdmin: user.isAdmin,
+            role: user.role,
         },
         token: generateToken(user.id),
     };
@@ -75,7 +72,7 @@ export async function getMe(userId: string) {
             id: true,
             email: true,
             name: true,
-            isAdmin: true,
+            role: true,
             createdAt: true,
             settings: true,
         },
@@ -139,59 +136,13 @@ export async function updateMe(userId: string, payload: any) {
 
 export async function deleteMe(userId: string, password: string) {
     if (!password) throw new Error("Password required");
-
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return null;
-
     const valid = await verifyPassword(password, user.passwordHash, user.salt);
     if (!valid) throw new Error("Password incorrect");
-
     await prisma.$transaction([
         prisma.calendar.deleteMany({ where: { userId } }),
         prisma.user.delete({ where: { id: userId } }),
     ]);
-
     return { ok: true };
-}
-
-export async function getOrCreateAppSettings() {
-    return prisma.appSettings.upsert({
-        where: { id: "global" },
-        update: {},
-        create: { id: "global", registrationsOpen: true, inviteOnly: false },
-    });
-}
-
-export async function isAdmin(userId: string) {
-    const u = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { isAdmin: true },
-    });
-    return !!u?.isAdmin;
-}
-
-export async function setAppSettings(opts: {
-    registrationsOpen?: boolean;
-    inviteOnly?: boolean;
-}) {
-    return prisma.appSettings.upsert({
-        where: { id: "global" },
-        update: {
-            registrationsOpen: opts.registrationsOpen,
-            inviteOnly: opts.inviteOnly,
-        },
-        create: {
-            id: "global",
-            registrationsOpen: opts.registrationsOpen ?? true,
-            inviteOnly: opts.inviteOnly ?? false,
-        },
-    });
-}
-
-export async function createInvite(createdBy: string) {
-    const code = crypto.randomBytes(8).toString("hex");
-    const invite = await prisma.inviteCode.create({
-        data: { code, createdBy },
-    });
-    return { code: invite.code };
 }

@@ -53,13 +53,13 @@ describe("Security - Route Authentication", () => {
                 url: "/api/users/me",
                 payload: { name: "x" },
             },
-            { method: "GET" as const, url: "/api/users/app-settings" },
+            { method: "GET" as const, url: "/api/admin/app-settings" },
             {
                 method: "PUT" as const,
-                url: "/api/users/app-settings",
+                url: "/api/admin/app-settings",
                 payload: { registrationsOpen: true },
             },
-            { method: "POST" as const, url: "/api/users/invite" },
+            { method: "POST" as const, url: "/api/admin/invite" },
             {
                 method: "POST" as const,
                 url: "/api/providers/ics/import",
@@ -379,7 +379,7 @@ describe("Security - Admin Route Protection", () => {
 
         const res = await app.inject({
             method: "GET",
-            url: "/api/users/app-settings",
+            url: "/api/admin/app-settings",
             headers: createAuthHeader(user.id),
         });
 
@@ -394,7 +394,7 @@ describe("Security - Admin Route Protection", () => {
 
         const res = await app.inject({
             method: "PUT",
-            url: "/api/users/app-settings",
+            url: "/api/admin/app-settings",
             headers: createAuthHeader(user.id),
             payload: { registrationsOpen: true },
         });
@@ -410,7 +410,7 @@ describe("Security - Admin Route Protection", () => {
 
         const res = await app.inject({
             method: "POST",
-            url: "/api/users/invite",
+            url: "/api/admin/invite",
             headers: createAuthHeader(user.id),
         });
 
@@ -431,7 +431,7 @@ describe("Security - Admin Route Protection", () => {
 
         const res = await app.inject({
             method: "GET",
-            url: "/api/users/app-settings",
+            url: "/api/admin/app-settings",
             headers: createAuthHeader(admin.id),
         });
 

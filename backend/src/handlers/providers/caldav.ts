@@ -1,4 +1,4 @@
-import { ProviderHandler } from "./base";
+import { checkCalendarLimit, ProviderHandler } from "./base";
 import { prisma } from "../../utils/db";
 import * as calendarService from "../../services/calendarService";
 import { createDAVClient } from "tsdav";
@@ -547,6 +547,15 @@ export class CaldavHandler implements ProviderHandler {
                     error:
                         error?.message ||
                         "Failed to fetch CalDAV calendar during import",
+                };
+            }
+
+            const limit = await checkCalendarLimit(data.userId);
+            if (!limit.allowed) {
+                return {
+                    success: false,
+                    error: `Calendar limit reached (${limit.current}/${limit.max})`,
+                    eventsSynced: 0,
                 };
             }
 

@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Calendar, Users, Home, User, LogOut } from "lucide-react";
+import { Calendar, Users, Home, User, LogOut, Shield } from "lucide-react";
 import { apiClient } from "../../lib/api";
 import s from "./layout.module.css";
 
-const TABS = [
+const BASE_TABS = [
     { id: "/dashboard", label: "Dashboard", icon: Home },
     { id: "/calendar", label: "Calendar", icon: Calendar },
     { id: "/friends", label: "Friends", icon: Users },
@@ -23,6 +23,11 @@ export default function ProtectedLayout({
     const router = useRouter();
     const pathname = usePathname();
     const [user, setUser] = useState<any>(null);
+    const [isAdmin, setIsAdmin] = useState(false);
+
+    const tabs = isAdmin
+        ? [...BASE_TABS, { id: "/admin", label: "Admin", icon: Shield }]
+        : BASE_TABS;
 
     useEffect(() => {
         let cancelled = false;
@@ -36,7 +41,6 @@ export default function ProtectedLayout({
                     () => reject(new Error("Request timed out")),
                     timeoutMs,
                 );
-
                 promise
                     .then((value) => {
                         clearTimeout(timeout);
@@ -55,12 +59,13 @@ export default function ProtectedLayout({
                 router.push("/");
                 return;
             }
-
             try {
-                const res = await withTimeout(apiClient.get("/api/users/me"));
-
+                const res = await withTimeout(
+                    apiClient.get<any>("/api/users/me"),
+                );
                 if (!cancelled) {
                     setUser(res);
+                    if (res.role === "admin") setIsAdmin(true);
                 }
             } catch (err) {
                 console.error("Failed to load user:", err);
@@ -73,7 +78,6 @@ export default function ProtectedLayout({
         };
 
         loadUser();
-
         return () => {
             cancelled = true;
         };
@@ -112,7 +116,7 @@ export default function ProtectedLayout({
             </header>
 
             <div className={s.tabBar}>
-                {TABS.map(({ id, label, icon: Icon }) => (
+                {tabs.map(({ id, label, icon: Icon }) => (
                     <Link
                         key={id}
                         href={id}

@@ -135,7 +135,6 @@ describe("registerUser", () => {
 describe("loginUser", () => {
     it("returns user and token on valid credentials", async () => {
         const user = createMockUser({ email: "user@example.com" });
-        const { hashPassword } = await import("../../src/utils/auth");
         const { hash, salt } = await hashPassword("password123");
 
         mockPrisma.user.findUnique.mockResolvedValue({
@@ -165,7 +164,6 @@ describe("loginUser", () => {
 
     it("returns null when password is wrong", async () => {
         const user = createMockUser();
-        const { hashPassword } = await import("../../src/utils/auth");
         const { hash, salt } = await hashPassword("correct-password");
 
         mockPrisma.user.findUnique.mockResolvedValue({
@@ -217,94 +215,14 @@ describe("getMe", () => {
     });
 });
 
-describe("isAdmin", () => {
-    it("returns true when user is admin", async () => {
-        mockPrisma.user.findUnique.mockResolvedValue({ isAdmin: true });
-        const result = await usersService.isAdmin("user-1");
-        expect(result).toBe(true);
-    });
-
-    it("returns false when user is not admin", async () => {
-        mockPrisma.user.findUnique.mockResolvedValue({ isAdmin: false });
-        const result = await usersService.isAdmin("user-1");
-        expect(result).toBe(false);
-    });
-
-    it("returns false when user not found", async () => {
-        mockPrisma.user.findUnique.mockResolvedValue(null);
-        const result = await usersService.isAdmin("non-existent");
-        expect(result).toBe(false);
-    });
-});
-
-describe("createInvite", () => {
-    it("creates and returns invite code", async () => {
-        mockPrisma.inviteCode.create.mockResolvedValue({
-            id: "invite-1",
-            code: "abc123",
-            createdBy: "admin-1",
-            usedBy: null,
-            usedAt: null,
-            createdAt: new Date(),
-        });
-
-        const result = await usersService.createInvite("admin-1");
-
-        expect(result.code).toBeDefined();
-        expect(mockPrisma.inviteCode.create).toHaveBeenCalledWith(
-            expect.objectContaining({
-                data: expect.objectContaining({ createdBy: "admin-1" }),
-            }),
-        );
-    });
-});
-
-describe("getOrCreateAppSettings", () => {
-    it("returns existing settings", async () => {
-        mockPrisma.appSettings.upsert.mockResolvedValue({
-            id: "global",
-            registrationsOpen: true,
-            inviteOnly: false,
-            updatedAt: new Date(),
-        });
-
-        const result = await usersService.getOrCreateAppSettings();
-
-        expect(result.id).toBe("global");
-        expect(result.registrationsOpen).toBe(true);
-    });
-});
-
-describe("setAppSettings", () => {
-    it("updates app settings", async () => {
-        mockPrisma.appSettings.upsert.mockResolvedValue({
-            id: "global",
-            registrationsOpen: false,
-            inviteOnly: true,
-            updatedAt: new Date(),
-        });
-
-        const result = await usersService.setAppSettings({
-            registrationsOpen: false,
-            inviteOnly: true,
-        });
-
-        expect(result.registrationsOpen).toBe(false);
-        expect(result.inviteOnly).toBe(true);
-    });
-});
-
 describe("updateMe", () => {
     it("updates name only", async () => {
         const user = createMockUser();
         mockPrisma.user.findUnique
             .mockResolvedValueOnce(user)
             .mockResolvedValueOnce({
-                id: user.id,
-                email: user.email,
+                ...user,
                 name: "New Name",
-                isAdmin: user.isAdmin,
-                createdAt: user.createdAt,
                 settings: null,
             });
         mockPrisma.user.update.mockResolvedValue({ ...user, name: "New Name" });
@@ -324,11 +242,9 @@ describe("updateMe", () => {
 
     it("returns null when user not found", async () => {
         mockPrisma.user.findUnique.mockResolvedValue(null);
-
         const result = await usersService.updateMe("non-existent", {
             name: "X",
         });
-
         expect(result).toBeNull();
         expect(mockPrisma.user.update).not.toHaveBeenCalled();
     });
@@ -339,14 +255,7 @@ describe("updateMe", () => {
 
         mockPrisma.user.findUnique
             .mockResolvedValueOnce(user)
-            .mockResolvedValueOnce({
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                isAdmin: user.isAdmin,
-                createdAt: user.createdAt,
-                settings: null,
-            });
+            .mockResolvedValueOnce({ ...user, settings: null });
         mockPrisma.user.update.mockResolvedValue(user);
 
         await usersService.updateMe(user.id, {
@@ -390,14 +299,7 @@ describe("updateMe", () => {
         const user = createMockUser();
         mockPrisma.user.findUnique
             .mockResolvedValueOnce(user)
-            .mockResolvedValueOnce({
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                isAdmin: user.isAdmin,
-                createdAt: user.createdAt,
-                settings: null,
-            });
+            .mockResolvedValueOnce({ ...user, settings: null });
         mockPrisma.userSettings.upsert.mockResolvedValue({});
 
         await usersService.updateMe(user.id, { firstDayOfWeek: "sunday" });
@@ -415,11 +317,7 @@ describe("updateMe", () => {
         mockPrisma.user.findUnique
             .mockResolvedValueOnce(user)
             .mockResolvedValueOnce({
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                isAdmin: user.isAdmin,
-                createdAt: user.createdAt,
+                ...user,
                 settings: {
                     firstDayOfWeek: "monday",
                     timezone: "Europe/Berlin",
@@ -433,9 +331,7 @@ describe("updateMe", () => {
         expect(mockPrisma.userSettings.upsert).toHaveBeenCalledWith(
             expect.objectContaining({
                 update: { timezone: "Europe/Berlin" },
-                create: expect.objectContaining({
-                    timezone: "Europe/Berlin",
-                }),
+                create: expect.objectContaining({ timezone: "Europe/Berlin" }),
             }),
         );
     });
@@ -445,11 +341,7 @@ describe("updateMe", () => {
         mockPrisma.user.findUnique
             .mockResolvedValueOnce(user)
             .mockResolvedValueOnce({
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                isAdmin: user.isAdmin,
-                createdAt: user.createdAt,
+                ...user,
                 settings: {
                     firstDayOfWeek: "monday",
                     timezone: "UTC",
@@ -501,7 +393,6 @@ describe("deleteMe", () => {
 
     it("throws when password is missing", async () => {
         const user = createMockUser();
-
         await expect(usersService.deleteMe(user.id, "")).rejects.toThrow(
             "Password required",
         );
@@ -510,9 +401,7 @@ describe("deleteMe", () => {
 
     it("returns null when user does not exist", async () => {
         mockPrisma.user.findUnique.mockResolvedValue(null);
-
         const result = await usersService.deleteMe("missing-user", "secret");
-
         expect(result).toBeNull();
         expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });

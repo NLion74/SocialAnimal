@@ -416,6 +416,15 @@ export class GoogleHandler implements ProviderHandler {
                 select: { id: true },
             });
 
+            const limit = await checkCalendarLimit(data.userId);
+            if (!limit.allowed) {
+                return {
+                    success: false,
+                    error: `Calendar limit reached (${limit.current}/${limit.max})`,
+                    eventsSynced: 0,
+                };
+            }
+
             const calendarId =
                 existing?.id ??
                 (

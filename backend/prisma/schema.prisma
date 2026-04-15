@@ -26,37 +26,47 @@ enum CalendarType {
   fastmail
 }
 
+enum UserRole {
+  admin
+  user
+  readonly
+}
+
 model User {
-  id           String        @id @default(uuid())
-  email        String        @unique
+  id           String   @id @default(uuid())
+  email        String   @unique
   passwordHash String
-  salt         String        @default("")
+  salt         String   @default("")
   name         String?
   avatar       String?
-  createdAt    DateTime      @default(now())
+  createdAt    DateTime @default(now())
+  role         UserRole @default(user)           // replaces isAdmin
+  maxCalendarsOverride Int?                        // null = use global AppSettings limit
+  syncIntervalOverride Int?                        // null = use global AppSettings minimum
 
   calendars      Calendar[]
   friendships    Friendship[]    @relation("User1")
   friendships2   Friendship[]    @relation("User2")
   calendarShares CalendarShare[] @relation("SharedWith")
   settings       UserSettings?
-  isAdmin  Boolean  @default(false)
 }
 
 model AppSettings {
-  id                String  @id @default("global")
-  registrationsOpen Boolean @default(true)
-  inviteOnly        Boolean @default(false)
-  updatedAt         DateTime @updatedAt
+  id                  String   @id @default("global")
+  registrationsOpen   Boolean  @default(true)
+  inviteOnly          Boolean  @default(false)
+  maxCalendarsPerUser Int      @default(10)  // global cap; per-user override takes precedence
+  minSyncInterval     Int      @default(15)  // minutes; 0 = allow manual-only
+  updatedAt           DateTime @updatedAt
 }
 
 model UserSettings {
-  id                     String @id @default(uuid())
-  userId                 String @unique
-  user                   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  firstDayOfWeek         String @default("monday")
-  timezone               String @default("Europe/Berlin")
-  defaultTab             String @default("dashboard")
+  id             String @id @default(uuid())
+  userId         String @unique
+  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstDayOfWeek String @default("monday")
+  timezone       String @default("Europe/Berlin")
+  defaultTab     String @default("dashboard")
 }
 
 model InviteCode {
@@ -69,30 +79,30 @@ model InviteCode {
 }
 
 model Calendar {
-  id           String    @id @default(cuid())
+  id           String       @id @default(cuid())
   userId       String
   name         String
   type         CalendarType
   url          String?
-  config       Json      @default("{}")
-  syncInterval Int       @default(60)   // minutes, 0 = manual only
+  config       Json         @default("{}")
+  syncInterval Int          @default(60)
   lastSync     DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
-  user   User            @relation(fields: [userId], references: [id])
-  events Event[]
-  shares CalendarShare[]
+  user     User            @relation(fields: [userId], references: [id])
+  events   Event[]
+  shares   CalendarShare[]
 }
 
 model CalendarShare {
-  id           String   @id @default(uuid())
+  id           String          @id @default(uuid())
   calendarId   String
-  calendar     Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  calendar     Calendar        @relation(fields: [calendarId], references: [id], onDelete: Cascade)
   sharedWithId String
-  sharedWith   User     @relation("SharedWith", fields: [sharedWithId], references: [id], onDelete: Cascade)
+  sharedWith   User            @relation("SharedWith", fields: [sharedWithId], references: [id], onDelete: Cascade)
   permission   SharePermission @default(full)
-  createdAt    DateTime @default(now())
+  createdAt    DateTime        @default(now())
 
   @@unique([calendarId, sharedWithId])
   @@index([sharedWithId])
@@ -117,16 +127,16 @@ model Event {
 }
 
 model Friendship {
-  id        String   @id @default(uuid())
-  user1Id   String
-  user1     User     @relation("User1", fields: [user1Id], references: [id], onDelete: Cascade)
-  user2Id   String
-  user2     User     @relation("User2", fields: [user2Id], references: [id], onDelete: Cascade)
-  status FriendshipStatus @default(pending)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  sharedCalendars Boolean @default(false)
-  
+  id              String           @id @default(uuid())
+  user1Id         String
+  user1           User             @relation("User1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2Id         String
+  user2           User             @relation("User2", fields: [user2Id], references: [id], onDelete: Cascade)
+  status          FriendshipStatus @default(pending)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  sharedCalendars Boolean          @default(false)
+
   @@unique([user1Id, user2Id])
   @@index([user1Id])
   @@index([user2Id])

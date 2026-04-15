@@ -51,7 +51,7 @@ https://socialanimal.net
 
 ## Why SocialAnimal?
 
-Many proprietary apps act as a social calendar, but usually require everyone to use their platform as a calendar provider.
+Many proprietary apps act as a social calendar, but often require everyone to use their platform as a calendar provider.
 
 But what if you want to keep using your existing calendar provider and simply share it with others?
 
@@ -59,6 +59,8 @@ SocialAnimal takes a different approach: it connects to your existing calendars 
 
 - View shared events directly in the app or export them back to your own calendar (planned feature - see [Roadmap](#roadmap))
 - Fine-grained permissions let you control **exactly what you share, with whom, under which conditions** (planned feature - see [Roadmap](#roadmap))
+
+Besides that SocialAnimal is fully OpenSource, and self-hostable, giving you full control over your data.
 
 ## Current Features
 

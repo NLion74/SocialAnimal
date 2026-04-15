@@ -42,10 +42,6 @@ export default function ProfilePage() {
     const [defaultTab, setDefaultTab] = useState<
         "dashboard" | "calendar" | "friends" | "profile"
     >("dashboard");
-    const [showAdminSettings, setShowAdminSettings] = useState(false);
-    const [regOpen, setRegOpen] = useState(true);
-    const [inviteOnly, setInviteOnly] = useState(false);
-    const [inviteCode, setInviteCode] = useState("");
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [msg, setMsg] = useState("");
@@ -73,24 +69,6 @@ export default function ProfilePage() {
                 );
                 setTimezone(u.settings?.timezone ?? browserTimezone);
                 setDefaultTab(u.settings?.defaultTab ?? "dashboard");
-                let adminAccess = !!u.isAdmin;
-                if (!adminAccess) {
-                    const token = localStorage.getItem("token");
-                    if (token) {
-                        const probe = await fetch("/api/users/app-settings", {
-                            headers: { Authorization: `Bearer ${token}` },
-                        });
-                        adminAccess = probe.ok;
-                    }
-                }
-
-                setShowAdminSettings(adminAccess);
-                if (adminAccess) {
-                    const s = await apiClient.get("/api/users/app-settings");
-                    if (!mounted) return;
-                    setRegOpen(s.registrationsOpen ?? true);
-                    setInviteOnly(s.inviteOnly ?? false);
-                }
             } catch (err: any) {
                 console.error("Failed to load profile", err);
 
@@ -179,34 +157,6 @@ export default function ProfilePage() {
         }
     };
 
-    const saveAdmin = async () => {
-        setSaving(true);
-        setMsg("");
-        setErr("");
-        try {
-            await apiClient.put("/api/users/app-settings", {
-                registrationsOpen: regOpen,
-                inviteOnly,
-            });
-            setMsg("Admin settings saved!");
-        } catch (e: any) {
-            setErr(e.message);
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const genInvite = async () => {
-        try {
-            const r = await apiClient.post<{ code: string }>(
-                "/api/users/invite",
-            );
-            setInviteCode(r.code);
-        } catch (e: any) {
-            setErr(e.message);
-        }
-    };
-
     if (!user)
         return (
             <div className={s.loading}>
@@ -218,21 +168,7 @@ export default function ProfilePage() {
     return (
         <div className={s.page}>
             <div className={s.pageHeader}>
-                <h1 className={s.pageTitle}>
-                    Profile & Settings
-                    {showAdminSettings && (
-                        <span
-                            className={s.badgePurple}
-                            style={{
-                                marginLeft: "0.75rem",
-                                verticalAlign: "middle",
-                            }}
-                        >
-                            <Shield size={11} style={{ marginRight: 3 }} />
-                            Admin
-                        </span>
-                    )}
-                </h1>
+                <h1 className={s.pageTitle}>Profile & Settings</h1>
             </div>
 
             <div className={s.section}>
@@ -398,61 +334,6 @@ export default function ProfilePage() {
                     </button>
                 </div>
             </div>
-
-            {showAdminSettings && (
-                <div className={s.section}>
-                    <div className={s.sectionHeader}>
-                        <span className={s.sectionTitle}>
-                            <Shield size={13} style={{ marginRight: 4 }} />
-                            Admin - Registration
-                        </span>
-                    </div>
-                    <div className={s.formStack}>
-                        <label className={s.checkboxLabel}>
-                            <input
-                                type="checkbox"
-                                checked={regOpen}
-                                onChange={(e) => setRegOpen(e.target.checked)}
-                            />
-                            <span className={s.checkboxText}>
-                                Allow new registrations
-                            </span>
-                        </label>
-                        <label className={s.checkboxLabel}>
-                            <input
-                                type="checkbox"
-                                checked={inviteOnly}
-                                onChange={(e) =>
-                                    setInviteOnly(e.target.checked)
-                                }
-                            />
-                            <span className={s.checkboxText}>
-                                Require invite code to register
-                            </span>
-                        </label>
-
-                        <div className={s.formRow}>
-                            <button
-                                className={`${s.btn} ${s.btnSecondary}`}
-                                onClick={saveAdmin}
-                                disabled={saving}
-                            >
-                                Save Admin Settings
-                            </button>
-                            <button
-                                className={`${s.btn} ${s.btnSecondary}`}
-                                onClick={genInvite}
-                            >
-                                <Ticket size={14} /> Generate Invite Code
-                            </button>
-                        </div>
-
-                        {inviteCode && (
-                            <div className={s.inviteCode}>{inviteCode}</div>
-                        )}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

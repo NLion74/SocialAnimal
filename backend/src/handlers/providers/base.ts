@@ -117,3 +117,37 @@ export function maskExportEventFields<
         location: null,
     };
 }
+
+export async function getUserLimits(userId: string): Promise<{
+    maxCalendars: number;
+    minSyncInterval: number;
+}> {
+    const [user, settings] = await Promise.all([
+        prisma.user.findUnique({
+            where: { id: userId },
+            select: { maxCalendarsOverride: true, syncIntervalOverride: true },
+        }),
+        prisma.appSettings.findUnique({
+            where: { id: "global" },
+            select: { maxCalendarsPerUser: true, minSyncInterval: true },
+        }),
+    ]);
+
+    const globalMaxCalendars = settings?.maxCalendarsPerUser ?? 10;
+    const globalMinSync = settings?.minSyncInterval ?? 15;
+
+    return {
+        maxCalendars: user?.maxCalendarsOverride ?? globalMaxCalendars,
+        minSyncInterval: user?.syncIntervalOverride ?? globalMinSync,
+    };
+}
+
+export async function checkCalendarLimit(userId: string): Promise<{
+    allowed: boolean;
+    current: number;
+    max: number;
+}> {
+    const { maxCalendars } = await getUserLimits(userId);
+    const current = await prisma.calendar.count({ where: { userId } });
+    return { allowed: current < maxCalendars, current, max: maxCalendars };
+}

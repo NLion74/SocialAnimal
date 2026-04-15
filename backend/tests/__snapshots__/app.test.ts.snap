@@ -9,7 +9,8 @@ exports[`Routes snapshot > prints the same route tree 1`] = `
     │       │   ├── register (POST)
     │       │   ├── login (POST)
     │       │   ├── public-settings (GET, HEAD)
-    │       │   ├── me (GET, HEAD, PUT, DELETE)
+    │       │   └── me (GET, HEAD, PUT, DELETE)
+    │       ├── admin/
     │       │   ├── app-settings (GET, HEAD, PUT)
     │       │   └── invite (POST)
     │       ├── calendars (GET, HEAD)

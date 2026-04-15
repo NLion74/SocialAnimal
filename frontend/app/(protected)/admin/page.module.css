@@ -1,0 +1,217 @@
+.tabs {
+    display: flex;
+    gap: var(--space-1);
+    margin-bottom: var(--space-6);
+    border-bottom: 1px solid var(--color-border);
+}
+.tab {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    border-bottom: 2px solid transparent;
+    background: none;
+    cursor: pointer;
+    transition: color var(--transition-interactive);
+    margin-bottom: -1px;
+}
+.tab:hover {
+    color: var(--color-text);
+}
+.tabActive {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+}
+
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--space-4);
+}
+.statCard {
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+}
+.statValue {
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    color: var(--color-text);
+}
+.statLabel {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin-top: var(--space-1);
+}
+.statBreakdown {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin-top: var(--space-3);
+}
+.statChip {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: var(--text-xs);
+    background: var(--color-surface-offset);
+    border-radius: var(--radius-full);
+    padding: 2px var(--space-2);
+    color: var(--color-text-muted);
+}
+
+.searchRow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+.totalCount {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+
+.userTable {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+.userRow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+.userInfo {
+    flex: 1;
+    min-width: 0;
+}
+.userName {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--color-text);
+    truncate: true;
+}
+.userEmail {
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+}
+.userMeta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-shrink: 0;
+}
+.roleBadge {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: var(--text-xs);
+    border-radius: var(--radius-full);
+    padding: 2px var(--space-2);
+}
+.role_admin {
+    background: color-mix(in oklch, var(--color-primary) 15%, transparent);
+    color: var(--color-primary);
+}
+.role_user {
+    background: var(--color-surface-offset);
+    color: var(--color-text-muted);
+}
+.role_readonly {
+    background: color-mix(in oklch, var(--color-warning) 15%, transparent);
+    color: var(--color-warning);
+}
+.calCount {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+}
+.overrideBadge {
+    font-size: var(--text-xs);
+    background: color-mix(in oklch, var(--color-gold) 15%, transparent);
+    color: var(--color-gold);
+    border-radius: var(--radius-full);
+    padding: 2px var(--space-2);
+}
+.userActions {
+    display: flex;
+    gap: var(--space-2);
+    flex-shrink: 0;
+}
+.btnDanger {
+    color: var(--color-error);
+    border-color: transparent;
+}
+.btnDanger:hover {
+    background: color-mix(in oklch, var(--color-error) 10%, transparent);
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
+    margin-top: var(--space-4);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+}
+
+.fieldRow {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+.fieldLabel {
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    font-weight: 500;
+}
+.fieldHint {
+    font-weight: 400;
+    color: var(--color-text-muted);
+    margin-left: var(--space-2);
+}
+
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: oklch(0 0 0 / 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+.modal {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    width: min(480px, 90vw);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+.modalTitle {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    color: var(--color-text);
+}
+.modalSub {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin-top: calc(-1 * var(--space-2));
+}
+.modalActions {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+}

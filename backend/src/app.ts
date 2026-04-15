@@ -9,6 +9,7 @@ import providerExportRoutes from "./routes/providers/exportRoutes";
 import providerTestRoutes from "./routes/providers/testRoutes";
 import providerDiscoverRoutes from "./routes/providers/discoverRoutes";
 import providerGoogleAuthRoutes from "./routes/providers/googleAuthRoutes";
+import adminRoutes from "./routes/admin";
 
 export async function buildApp(): Promise<FastifyInstance> {
     const app = Fastify({ logger: false });
@@ -20,6 +21,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     }));
 
     await app.register(usersRoutes, { prefix: "/api/users" });
+    await app.register(adminRoutes, { prefix: "/api/admin" });
     await app.register(calendarsRoutes, { prefix: "/api/calendars" });
     await app.register(eventsRoutes, { prefix: "/api/events" });
     await app.register(friendsRoutes, { prefix: "/api/friends" });
