@@ -15,6 +15,8 @@ const authOptions: any = {
 };
 
 const friendsRoutes: FastifyPluginAsync = async (fastify) => {
+    /*
+    * TODO: Temporarly disabled, as it can be used find all users. Rethink this endpoint and maybe add pagination or limit it to friends of friends only
     fastify.get(
         "/search-users",
         authOptions,
@@ -35,6 +37,7 @@ const friendsRoutes: FastifyPluginAsync = async (fastify) => {
             }
         },
     );
+    */
 
     fastify.get(
         "/",

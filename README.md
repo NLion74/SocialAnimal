@@ -101,12 +101,14 @@ Major architectural changes, severe bugs, or data loss are to be expected.
 
 What is still planned:
 
-- [ ] Easy integration for Proton and Outlook
+- [ ] Easy integration for Proton, Outlook, Fastmail and possibly more
 - [ ] Admin dashboard with user management
-- [ ] Per Event Permission system, possibly with regex excludes
+- [ ] Improved permission system (intuitive and advanced mode, possibly ABAC)
 - [ ] More export types with direct push to calendars
 - [ ] Better Invite System
 - [x] Account deletion in frontend profile
+- [ ] Managing Events directly within the app
+- [ ] Determine Shared Free Time
 - [ ] Calendar color customization
 - [ ] Internal things like incremental sync, rate limiting...
 - [ ] Many more small improvements...
@@ -167,7 +169,7 @@ Without Google credentials, users can still import calendars via ICS/iCal URL.
 
 ## Development
 
-This project is in early development and contributions are very much appreciated! Feel free to open issues, suggest features, or submit pull requests.
+This project is in early development and contributions are very much appreciated! For larger architectural changes or if you're unsure feel free to open an issue. Otherwise you may open a PR directly for smaller fixes, or even something larger but don't be disappointed if without further discussion in an issue your changes may not be merged
 
 ### Documentation
 

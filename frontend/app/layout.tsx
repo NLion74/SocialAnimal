@@ -6,7 +6,10 @@ export const metadata: Metadata = {
     description: "Share your calendar with friends",
     icons: {
         icon: "/favicon.svg",
+        shortcut: "/favicon-32x32.png",
+        apple: "/apple-touch-icon.png",
     },
+    manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({
