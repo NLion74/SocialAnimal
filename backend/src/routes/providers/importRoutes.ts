@@ -4,7 +4,7 @@ export default function importRoutes(fastify: any) {
     fastify.post(
         "/",
         { preHandler: authenticateToken },
-        async (request: any, reply: any) => {
+        	async (request: any, reply: any) => {
             const type = request.params.type;
             const result = await handleProviderImport(type, {
                 ...(request.body || {}),

@@ -6,6 +6,7 @@ interface CreateCalendarInput {
     type: string;
     url?: string;
     config?: any;
+    syncInterval?: number;
 }
 
 interface UpdateCalendarInput {
@@ -51,12 +52,32 @@ export async function findCalendarForUser(calendarId: string, userId: string) {
 export async function createCalendar(input: CreateCalendarInput) {
     const { userId, name, type, url, config } = input;
 
+    // validate sync interval against user/global minimum if provided
+    if (input.syncInterval != null) {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { syncIntervalOverride: true },
+        });
+        const app = await prisma.appSettings.findUnique({
+            where: { id: "global" },
+            select: { minSyncInterval: true },
+        });
+        const globalMin = app?.minSyncInterval ?? 0;
+        const minAllowed = user?.syncIntervalOverride ?? globalMin;
+        if (input.syncInterval < minAllowed) {
+            throw new Error(`Sync interval must be ≥ ${minAllowed} minutes`);
+        }
+    }
+
     return prisma.calendar.create({
         data: {
             userId,
             name,
             type,
             config: config ?? (url ? { url } : {}),
+            ...(input.syncInterval !== undefined && {
+                syncInterval: input.syncInterval,
+            }),
         },
     });
 }
@@ -72,6 +93,23 @@ export async function updateCalendar(input: UpdateCalendarInput) {
     });
 
     if (!calendar) return null;
+
+    // validate sync interval against user/global minimum if provided
+    if (syncInterval !== undefined && syncInterval != null) {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { syncIntervalOverride: true },
+        });
+        const app = await prisma.appSettings.findUnique({
+            where: { id: "global" },
+            select: { minSyncInterval: true },
+        });
+        const globalMin = app?.minSyncInterval ?? 0;
+        const minAllowed = user?.syncIntervalOverride ?? globalMin;
+        if (syncInterval < minAllowed) {
+            throw new Error(`Sync interval must be ≥ ${minAllowed} minutes`);
+        }
+    }
 
     return prisma.calendar.update({
         where: { id: calendarId },

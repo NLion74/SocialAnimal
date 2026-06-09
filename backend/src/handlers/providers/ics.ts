@@ -3,6 +3,7 @@ import {
     ProviderHandler,
     resolveShareExportAccess,
 } from "./base";
+import { signExportToken } from "../../utils/auth";
 import type { CalendarWithUser, SyncResult } from "../../types";
 import { prisma } from "../../utils/db";
 import { env } from "../../utils/env";
@@ -519,7 +520,10 @@ export class IcsHandler implements ProviderHandler {
                 return { error: "Provider not found or export not supported" };
             }
 
-            const token = encodeURIComponent(data.token);
+            // issue a short-lived export token (HMAC) to avoid exposing a
+            // full user JWT in the public link
+            const exportToken = signExportToken(data.userId, data.calendarId, 60);
+            const token = encodeURIComponent(exportToken);
             return {
                 url: `${env.publicUrl}/api/providers/ics/export/${data.calendarId}?token=${token}`,
             };

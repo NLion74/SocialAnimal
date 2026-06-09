@@ -48,15 +48,8 @@ export default function CalendarPage() {
     const [loading, setLoading] = useState(true);
     const [firstDay, setFirstDay] = useState<FirstDay>("monday");
     const [timezone, setTimezone] = useState(browserTimezone || "UTC");
-    const [date, setDate] = useState<Date>(() => {
-        try {
-            const raw = localStorage.getItem(LS_KEYS.date);
-            if (raw) return new Date(raw);
-        } catch (e) {
-            console.error("Failed to parse date from localStorage:", e);
-        }
-        return new Date();
-    });
+    // Always default to today's date on load (do not restore last-open date)
+    const [date, setDate] = useState<Date>(() => new Date());
     const [view, setView] = useState<"month" | "week" | "day">(
         () =>
             (localStorage.getItem(LS_KEYS.view) as "month" | "week" | "day") ||

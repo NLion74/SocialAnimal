@@ -1,4 +1,4 @@
-import { ProviderHandler } from "./base";
+import { ProviderHandler, checkCalendarLimit } from "./base";
 import type { CalendarWithUser, SyncResult } from "../../types";
 import { env, isGoogleConfigured } from "../../utils/env";
 import { prisma } from "../../utils/db";
@@ -376,12 +376,23 @@ export class GoogleHandler implements ProviderHandler {
                 if (!userId || !data.code) {
                     return { error: "missing userId/state or code" };
                 }
+
                 const tokens = await exchangeGoogleCode(data.code);
                 const calendars = await fetchGoogleCalendars(
                     tokens.accessToken,
                 );
+
+                const limit = await checkCalendarLimit(userId);
+                const available = limit.max - limit.current;
+                if (available <= 0) {
+                    return {
+                        error: `Calendar limit reached (${limit.current}/${limit.max})`,
+                    };
+                }
+
+                const toImport = calendars.slice(0, available);
                 const imported = [];
-                for (const cal of calendars) {
+                for (const cal of toImport) {
                     imported.push(
                         await this.import({
                             userId,
@@ -393,7 +404,17 @@ export class GoogleHandler implements ProviderHandler {
                         }),
                     );
                 }
-                return { count: imported.length, calendars: imported };
+
+                return {
+                    count: imported.length,
+                    calendars: imported,
+                    ...(calendars.length > toImport.length
+                        ? {
+                              skipped: calendars.length - toImport.length,
+                              reason: "limit",
+                          }
+                        : {}),
+                };
             }
 
             if (!data?.calendarId || !data?.userId) {

@@ -20,7 +20,7 @@ export const authSchema = {
 };
 
 export interface AuthRequest extends FastifyRequest {
-    user: { id: string; email: string };
+    user: { id: string; email: string; role?: string };
 }
 
 export async function hashPassword(
@@ -48,13 +48,44 @@ export function verifyToken(token: string): { sub: string } {
 }
 
 function extractToken(request: FastifyRequest): string | null {
-    const query = (request.query as any).token;
-    if (query) return query;
-
+    // Only accept Authorization header for authentication.
     const authHeader = request.headers.authorization;
     if (authHeader?.startsWith("Bearer ")) return authHeader.substring(7);
-
     return null;
+}
+
+// Export token helpers: sign and verify short-lived export tokens used for
+// calendar share links. These are HMAC-signed strings and MUST NOT be
+// accepted as full auth tokens by `authenticateToken`.
+export function signExportToken(
+    userId: string,
+    calendarId: string,
+    ttlMinutes: number = 60,
+): string {
+    const expires = Math.floor(Date.now() / 1000) + ttlMinutes * 60;
+    const payload = `${userId}.${calendarId}.${expires}`;
+    const hmac = crypto.createHmac("sha256", JWT_SECRET);
+    hmac.update(payload);
+    const sig = hmac.digest("hex");
+    return `${payload}.${sig}`;
+}
+
+export function verifyExportToken(token: string): { userId: string; calendarId: string } {
+    const parts = token.split(".");
+    if (parts.length !== 4) throw new Error("Invalid export token");
+    const [userId, calendarId, expiresStr, sig] = parts;
+    const expires = parseInt(expiresStr, 10);
+    if (Number.isNaN(expires) || expires < Math.floor(Date.now() / 1000)) {
+        throw new Error("Export token expired");
+    }
+    const payload = `${userId}.${calendarId}.${expires}`;
+    const hmac = crypto.createHmac("sha256", JWT_SECRET);
+    hmac.update(payload);
+    const expected = hmac.digest("hex");
+    if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig))) {
+        throw new Error("Invalid export token");
+    }
+    return { userId, calendarId };
 }
 
 export async function authenticateToken(
@@ -69,10 +100,12 @@ export async function authenticateToken(
         const payload = verifyToken(token);
         const user = await prisma.user.findUnique({
             where: { id: payload.sub },
-            select: { id: true, email: true, name: true },
+            select: { id: true, email: true, name: true, role: true },
         });
         if (!user) return reply.status(401).send({ error: "User not found" });
         (request as any).user = user;
+
+        // no role-based muting performed here
     } catch {
         return reply.status(401).send({ error: "Invalid or expired token" });
     }

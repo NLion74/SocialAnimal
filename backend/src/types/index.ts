@@ -6,6 +6,7 @@ export interface SyncResult {
     added?: number;
     updated?: number;
     removed?: number;
+    eventsSynced?: number;
 }
 
 export interface TestResult {

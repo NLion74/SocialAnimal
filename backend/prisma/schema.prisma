@@ -29,7 +29,6 @@ enum CalendarType {
 enum UserRole {
   admin
   user
-  readonly
 }
 
 model User {

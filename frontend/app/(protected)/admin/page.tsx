@@ -45,7 +45,6 @@ type Tab = "settings" | "stats" | "users";
 const ROLE_ICONS: Record<string, React.ReactNode> = {
     admin: <ShieldCheck size={12} />,
     user: <User size={12} />,
-    readonly: <Lock size={12} />,
 };
 
 export default function AdminPage() {
@@ -75,7 +74,17 @@ export default function AdminPage() {
     const [editRole, setEditRole] = useState("");
     const [editMaxCal, setEditMaxCal] = useState("");
     const [editMinSync, setEditMinSync] = useState("");
+    const [editPassword, setEditPassword] = useState("");
     const [editSaving, setEditSaving] = useState(false);
+
+    const [creating, setCreating] = useState(false);
+    const [newEmail, setNewEmail] = useState("");
+    const [newName, setNewName] = useState("");
+    const [newRole, setNewRole] = useState("user");
+    const [newPassword, setNewPassword] = useState("");
+    const [newMaxCal, setNewMaxCal] = useState("");
+    const [newMinSync, setNewMinSync] = useState("");
+    const [createSaving, setCreateSaving] = useState(false);
 
     const [msg, setMsg] = useState("");
     const [err, setErr] = useState("");
@@ -181,11 +190,22 @@ export default function AdminPage() {
                 ? String(u.syncIntervalOverride)
                 : "",
         );
+        setEditPassword("");
     };
 
     const saveUser = async () => {
         if (!editingUser) return;
         setEditSaving(true);
+        // enforce global minimum sync interval for per-user overrides
+        const minAllowed = settings?.minSyncInterval ?? 0;
+        if (editMinSync !== "") {
+            const v = parseInt(editMinSync);
+            if (!Number.isNaN(v) && v < minAllowed) {
+                flash(`Sync interval must be ≥ ${minAllowed} minutes`, true);
+                setEditSaving(false);
+                return;
+            }
+        }
         try {
             await apiClient.put(`/api/admin/users/${editingUser.id}`, {
                 role: editRole,
@@ -193,6 +213,8 @@ export default function AdminPage() {
                     editMaxCal !== "" ? parseInt(editMaxCal) : null,
                 syncIntervalOverride:
                     editMinSync !== "" ? parseInt(editMinSync) : null,
+                // allow admin to override password; empty = no change
+                ...(editPassword ? { password: editPassword } : {}),
             });
             flash("User updated!");
             setEditingUser(null);
@@ -201,6 +223,53 @@ export default function AdminPage() {
             flash(e.message, true);
         } finally {
             setEditSaving(false);
+        }
+    };
+
+    const openCreate = () => {
+        setCreating(true);
+        setNewEmail("");
+        setNewName("");
+        setNewRole("user");
+        setNewPassword("");
+        setNewMaxCal("");
+        setNewMinSync("");
+    };
+
+    const createUser = async () => {
+        setCreateSaving(true);
+        const minAllowed = settings?.minSyncInterval ?? 0;
+        if (newMinSync !== "") {
+            const v = parseInt(newMinSync);
+            if (!Number.isNaN(v) && v < minAllowed) {
+                flash(`Sync interval must be ≥ ${minAllowed} minutes`, true);
+                setCreateSaving(false);
+                return;
+            }
+        }
+        if (!newEmail) {
+            flash("Email required", true);
+            setCreateSaving(false);
+            return;
+        }
+        try {
+            await apiClient.post(`/api/admin/users`, {
+                email: newEmail,
+                name: newName || undefined,
+                role: newRole,
+                password: newPassword || undefined,
+                maxCalendarsOverride:
+                    newMaxCal !== "" ? parseInt(newMaxCal) : null,
+                syncIntervalOverride:
+                    newMinSync !== "" ? parseInt(newMinSync) : null,
+            });
+            flash("User created!");
+            setCreating(false);
+            loadUsers(1, usersSearch);
+        } catch (e: any) {
+            flash(e.message, true);
+        } finally {
+            setCreateSaving(false);
         }
     };
 
@@ -361,6 +430,53 @@ export default function AdminPage() {
                     )}
                 </div>
             )}
+            {creating && (
+                <div className={s.modalOverlay} onClick={() => setCreating(false)}>
+                    <div className={s.modal} onClick={(e) => e.stopPropagation()}>
+                        <h2 className={s.modalTitle}>Create user</h2>
+                        <p className={s.modalSub}>Create a new account</p>
+
+                        <div className={s.formStack}>
+                            <div className={s.fieldRow}>
+                                <label className={s.fieldLabel}>Email</label>
+                                <input className={s.input} value={newEmail} onChange={(e)=>setNewEmail(e.target.value)} />
+                            </div>
+                            <div className={s.fieldRow}>
+                                <label className={s.fieldLabel}>Name</label>
+                                <input className={s.input} value={newName} onChange={(e)=>setNewName(e.target.value)} />
+                            </div>
+                            <div className={s.fieldRow}>
+                                <label className={s.fieldLabel}>Role</label>
+                                <select className={s.input} value={newRole} onChange={(e)=>setNewRole(e.target.value)}>
+                                    <option value="admin">admin</option>
+                                    <option value="user">user</option>
+                                </select>
+                            </div>
+                            <div className={s.fieldRow}>
+                                <label className={s.fieldLabel}>Password (optional)</label>
+                                <input type="password" className={s.input} value={newPassword} onChange={(e)=>setNewPassword(e.target.value)} />
+                            </div>
+                            <div className={s.fieldRow}>
+                                <label className={s.fieldLabel}>Max calendars override
+                                    <span className={s.fieldHint}>(leave blank = use global)</span>
+                                </label>
+                                <input type="number" min={1} className={s.input} placeholder="—" value={newMaxCal} onChange={(e)=>setNewMaxCal(e.target.value)} />
+                            </div>
+                            <div className={s.fieldRow}>
+                                <label className={s.fieldLabel}>Sync interval override (min)
+                                    <span className={s.fieldHint}>(leave blank = use global)</span>
+                                </label>
+                                <input type="number" min={settings?.minSyncInterval ?? 0} className={s.input} placeholder="—" value={newMinSync} onChange={(e)=>setNewMinSync(e.target.value)} />
+                            </div>
+                        </div>
+
+                        <div className={s.modalActions}>
+                            <button className={`${s.btn} ${s.btnPrimary}`} onClick={createUser} disabled={createSaving}>{createSaving?"Creating…":"Create"}</button>
+                            <button className={`${s.btn} ${s.btnSecondary}`} onClick={()=>setCreating(false)}>Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {activeTab === "stats" && (
                 <div className={s.section}>
@@ -432,7 +548,12 @@ export default function AdminPage() {
                                 loadUsers(1, e.target.value);
                             }}
                         />
-                        <span className={s.totalCount}>{usersTotal} users</span>
+                        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                            <span className={s.totalCount}>{usersTotal} users</span>
+                            <button className={`${s.btn} ${s.btnPrimary}`} onClick={openCreate}>
+                                Create User
+                            </button>
+                        </div>
                     </div>
 
                     {usersLoading ? (
@@ -542,7 +663,6 @@ export default function AdminPage() {
                                 >
                                     <option value="admin">admin</option>
                                     <option value="user">user</option>
-                                    <option value="readonly">readonly</option>
                                 </select>
                             </div>
                             <div className={s.fieldRow}>
@@ -572,13 +692,28 @@ export default function AdminPage() {
                                 </label>
                                 <input
                                     type="number"
-                                    min={0}
+                                    min={settings?.minSyncInterval ?? 0}
                                     className={s.input}
                                     placeholder="—"
                                     value={editMinSync}
                                     onChange={(e) =>
                                         setEditMinSync(e.target.value)
                                     }
+                                />
+                            </div>
+                            <div className={s.fieldRow}>
+                                <label className={s.fieldLabel}>
+                                    Password override
+                                    <span className={s.fieldHint}>
+                                        (leave blank to keep existing password)
+                                    </span>
+                                </label>
+                                <input
+                                    type="password"
+                                    className={s.input}
+                                    placeholder="—"
+                                    value={editPassword}
+                                    onChange={(e) => setEditPassword(e.target.value)}
                                 />
                             </div>
                         </div>

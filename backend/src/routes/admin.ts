@@ -107,12 +107,17 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         async (request: FastifyRequest, reply) => {
             try {
                 const { id } = request.params as any;
-                const { role, maxCalendarsOverride, syncIntervalOverride } =
-                    request.body as any;
+                const {
+                    role,
+                    maxCalendarsOverride,
+                    syncIntervalOverride,
+                    password,
+                } = request.body as any;
                 const res = await adminService.updateUser(request.user.id, id, {
                     role,
                     maxCalendarsOverride,
                     syncIntervalOverride,
+                    password,
                 });
                 if (!res) return notFound(reply);
                 return res;
@@ -122,6 +127,40 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
                     "Cannot modify your own account via admin panel"
                 )
                     return badRequest(reply, err.message);
+                // validation errors from service (e.g. sync interval too low)
+                if (err?.message && err.message.includes("Sync interval"))
+                    return badRequest(reply, err.message);
+                fastify.log.error(err);
+                return serverError(reply);
+            }
+        },
+    );
+
+    fastify.post(
+        "/users",
+        adminOnly,
+        async (request: FastifyRequest, reply) => {
+            try {
+                const {
+                    email,
+                    name,
+                    role,
+                    password,
+                    maxCalendarsOverride,
+                    syncIntervalOverride,
+                } = request.body as any;
+                const user = await adminService.createUser({
+                    email,
+                    name,
+                    role,
+                    password,
+                    maxCalendarsOverride,
+                    syncIntervalOverride,
+                });
+                return user;
+            } catch (err: any) {
+                if (err?.message && err.message.includes("exists"))
+                    return badRequest(reply, "User already exists");
                 fastify.log.error(err);
                 return serverError(reply);
             }

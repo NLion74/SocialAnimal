@@ -14,6 +14,7 @@ export async function listFriendshipsWithShares(userId: string) {
     return Promise.all(
         friendships.map(async (f: any) => {
             const friendId = f.user1Id === userId ? f.user2Id : f.user1Id;
+
             const [myShares, theirShares] = await Promise.all([
                 prisma.calendarShare.findMany({
                     where: {
@@ -34,6 +35,7 @@ export async function listFriendshipsWithShares(userId: string) {
                     },
                 }),
             ]);
+
             return {
                 ...f,
                 sharedCalendarIds: myShares.map((s: any) => s.calendarId),
@@ -61,6 +63,7 @@ export async function requestFriend(userId: string, identifier: string) {
         },
         select: { id: true },
     });
+
     if (!target) return "not-found";
 
     return requestFriendByUserId(userId, target.id);
@@ -74,6 +77,7 @@ export async function requestFriendByUserId(
         where: { id: targetUserId },
         select: { id: true },
     });
+
     if (!target) return "not-found";
     if (target.id === userId) return "self";
 
@@ -85,6 +89,7 @@ export async function requestFriendByUserId(
             ],
         },
     });
+
     if (existing) return "exists";
 
     const friendship = await prisma.friendship.create({
@@ -128,7 +133,9 @@ export async function acceptFriendRequest(
     const f = await prisma.friendship.findFirst({
         where: { id: friendshipId, user2Id: userId, status: "pending" },
     });
+
     if (!f) return null;
+
     return prisma.friendship.update({
         where: { id: friendshipId },
         data: { status: "accepted" },
@@ -142,7 +149,9 @@ export async function removeFriendship(userId: string, friendshipId: string) {
             OR: [{ user1Id: userId }, { user2Id: userId }],
         },
     });
+
     if (!f) return false;
+
     const friendId = f.user1Id === userId ? f.user2Id : f.user1Id;
 
     await prisma.calendarShare.deleteMany({
@@ -176,11 +185,13 @@ export async function setCalendarShare(opts: {
             ],
         },
     });
+
     if (!friendship) return "not-friend";
 
     const calendar = await prisma.calendar.findFirst({
         where: { id: calendarId, userId: ownerId },
     });
+
     if (!calendar) return "no-calendar";
 
     if (share) {

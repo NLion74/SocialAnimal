@@ -1,5 +1,5 @@
 import type { SharePermission } from "@prisma/client";
-import { verifyToken } from "../../utils/auth";
+import { verifyToken, verifyExportToken } from "../../utils/auth";
 import { prisma } from "../../utils/db";
 
 export interface Syncable {
@@ -45,10 +45,18 @@ export async function resolveShareExportAccess(
     }
 
     let userId: string;
+    let tokenCalendarId: string | undefined;
     try {
         userId = verifyToken(token).sub;
     } catch {
-        return { allowed: false, permission: "busy" };
+        // not a regular auth token — attempt export-token verification
+        try {
+            const parsed = verifyExportToken(token);
+            userId = parsed.userId;
+            tokenCalendarId = parsed.calendarId;
+        } catch {
+            return { allowed: false, permission: "busy" };
+        }
     }
 
     const calendar = await prisma.calendar.findUnique({
@@ -63,6 +71,10 @@ export async function resolveShareExportAccess(
     });
 
     if (!calendar) {
+        return { allowed: false, permission: "busy", userId };
+    }
+    // If token encoded a specific calendarId, ensure it matches
+    if (tokenCalendarId && tokenCalendarId !== calendarId) {
         return { allowed: false, permission: "busy", userId };
     }
 

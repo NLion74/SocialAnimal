@@ -43,6 +43,8 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
                 return updated;
             } catch (err) {
                 fastify.log.error(err);
+                if (err?.message && err.message.includes("Sync interval"))
+                    return reply.status(400).send({ error: err.message });
                 return serverError(reply, "Failed to update calendar");
             }
         },
@@ -70,7 +72,10 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.post(
         "/:id/sync",
         auth,
-        async (request: FastifyRequest, reply: FastifyReply) => {
+        async (
+            request: FastifyRequest,
+            reply: FastifyReply,
+        ): Promise<{ message: string; eventsSynced?: number } | void> => {
             try {
                 const { id } = request.params as any;
 
@@ -84,10 +89,10 @@ const calendarsRoutes: FastifyPluginAsync = async (fastify) => {
                 if (!result.success)
                     return serverError(reply, result.error ?? "Sync failed");
 
-                return {
+                return reply.send({
                     message: "Sync complete",
                     eventsSynced: result.eventsSynced,
-                };
+                });
             } catch (err) {
                 fastify.log.error(err);
                 return serverError(reply, "Sync failed");

@@ -1,5 +1,6 @@
 import { prisma } from "../utils/db";
 import crypto from "crypto";
+import { hashPassword } from "../utils/auth";
 
 export async function getUserRole(userId: string) {
     const u = await prisma.user.findUnique({
@@ -136,6 +137,7 @@ export async function updateUser(
         role?: string;
         maxCalendarsOverride?: number | null;
         syncIntervalOverride?: number | null;
+        password?: string | null;
     },
 ) {
     if (actorId === targetId)
@@ -147,9 +149,67 @@ export async function updateUser(
     });
     if (!target) return null;
 
+    // validate sync interval override against global settings
+    if (payload.syncIntervalOverride != null) {
+        const app = await getOrCreateAppSettings();
+        const min = app.minSyncInterval ?? 0;
+        if (payload.syncIntervalOverride < min) {
+            throw new Error(
+                `Sync interval override must be >= ${min} minutes`,
+            );
+        }
+    }
+
+    const data: any = { ...(payload as any) };
+    // handle password override by hashing
+    if (payload.password != null) {
+        const { hash, salt } = await hashPassword(payload.password);
+        data.passwordHash = hash;
+        data.salt = salt;
+        delete data.password;
+    }
+
     return prisma.user.update({
         where: { id: targetId },
-        data: payload as any,
+        data,
+        select: USER_SELECT,
+    });
+}
+
+export async function createUser(opts: {
+    email: string;
+    name?: string | null;
+    role?: string;
+    password?: string | null;
+    maxCalendarsOverride?: number | null;
+    syncIntervalOverride?: number | null;
+}) {
+    const { email, name, role = "user", password } = opts;
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) throw new Error("User already exists");
+    let hash = "";
+    let salt = "";
+    if (password) {
+        const h = await hashPassword(password);
+        hash = h.hash;
+        salt = h.salt;
+    } else {
+        // create a random unusable password hash so account cannot login via password
+        const h = await hashPassword(crypto.randomBytes(16).toString("hex"));
+        hash = h.hash;
+        salt = h.salt;
+    }
+
+    return prisma.user.create({
+        data: {
+            email,
+            name,
+            role: role as any,
+            passwordHash: hash,
+            salt,
+            maxCalendarsOverride: opts.maxCalendarsOverride ?? null,
+            syncIntervalOverride: opts.syncIntervalOverride ?? null,
+        },
         select: USER_SELECT,
     });
 }
