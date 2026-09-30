@@ -1,84 +1,89 @@
+name: socialanimal-build
+
+x-backend-environment: &backend-environment
+    NODE_ENV: production
+    PORT: "4000"
+    DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+    JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+    CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?Set CREDENTIAL_ENCRYPTION_KEY}
+    PUBLIC_URL: ${PUBLIC_URL:?Set PUBLIC_URL}
+    GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+    MIN_SYNC_INTERVAL_MINUTES: ${MIN_SYNC_INTERVAL_MINUTES:-15}
+    SYNC_CONCURRENCY: ${SYNC_CONCURRENCY:-3}
+
 services:
     db:
         image: postgres:16
-        container_name: db
         restart: unless-stopped
         environment:
-            POSTGRES_USER: postgres
-            POSTGRES_PASSWORD: postgres
-            POSTGRES_DB: socialanimal
+            POSTGRES_USER: ${POSTGRES_USER:-postgres}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+            POSTGRES_DB: ${POSTGRES_DB:-socialanimal}
         volumes:
             - db_data:/var/lib/postgresql/data
-        healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U postgres"]
-            interval: 10s
-            timeout: 5s
-            retries: 5
-        networks:
-            - app-network
-
-    backend:
-        build:
-            context: ./backend
-            dockerfile: Dockerfile
-        container_name: backend
-        restart: unless-stopped
-        env_file:
-            - .env.build
-        environment:
-            NODE_ENV: "${NODE_ENV:-production}"
-            PORT: "${BACKEND_PORT:-4000}"
-            DATABASE_URL: "${DATABASE_URL:-postgresql://postgres:postgres@db:5432/socialanimal}"
-            JWT_SECRET: "${JWT_SECRET}"
-            GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
-            GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET}"
-            GOOGLE_REDIRECT_URI: "${GOOGLE_REDIRECT_URI}"
-            PUBLIC_URL: "${PUBLIC_URL:-http://localhost:3000}"
-        depends_on:
-            db:
-                condition: service_healthy
         healthcheck:
             test:
                 [
                     "CMD-SHELL",
-                    "wget -qO- http://127.0.0.1:4000/health || exit 1",
+                    "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB",
                 ]
-            interval: 10s
-            timeout: 5s
-            retries: 5
+            interval: 5s
+            timeout: 3s
+            retries: 20
+            start_period: 5s
+
+    migrate:
+        build:
+            context: ./backend
+        image: nlion/socialanimal-backend:${SOCIALANIMAL_VERSION:-local}
+        restart: "no"
+        environment: *backend-environment
+        command: ["node", "dist/migrate.js"]
+        depends_on:
+            db:
+                condition: service_healthy
+
+    backend:
+        build:
+            context: ./backend
+        image: nlion/socialanimal-backend:${SOCIALANIMAL_VERSION:-local}
+        restart: unless-stopped
+        environment: *backend-environment
+        depends_on:
+            db:
+                condition: service_healthy
+            migrate:
+                condition: service_completed_successfully
+        healthcheck:
+            test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/ready"]
+            interval: 5s
+            timeout: 3s
+            retries: 20
             start_period: 10s
-        networks:
-            - app-network
 
     frontend:
         build:
             context: ./frontend
-            dockerfile: Dockerfile
-        container_name: frontend
+        image: nlion/socialanimal-frontend:${SOCIALANIMAL_VERSION:-local}
         restart: unless-stopped
         ports:
-            - "3000:3000"
-        env_file:
-            - .env.build
+            - "${FRONTEND_PORT:-3000}:3000"
         environment:
-            NODE_ENV: "${NODE_ENV:-production}"
-            PORT: "${FRONTEND_PORT:-3000}"
-            PUBLIC_URL: "${PUBLIC_URL}"
+            NODE_ENV: production
+            PORT: "3000"
+            PUBLIC_URL: ${PUBLIC_URL:?Set PUBLIC_URL}
         depends_on:
             backend:
                 condition: service_healthy
         healthcheck:
-            test: ["CMD-SHELL", "wget -O- http://127.0.0.1:3000 || exit 1"]
-            interval: 10s
-            timeout: 5s
-            retries: 5
+            test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+            interval: 5s
+            timeout: 3s
+            retries: 20
             start_period: 10s
-        networks:
-            - app-network
 
 volumes:
     db_data:
-
-networks:
-    app-network:
-        driver: bridge
+        name: ${DATABASE_VOLUME:-socialanimal_build_db_data}

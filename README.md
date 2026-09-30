@@ -133,10 +133,13 @@ Edit .env with your configuration:
 # See Google Calendar Setup below
 GOOGLE_CLIENT_ID=clientid
 GOOGLE_CLIENT_SECRET=clientsecret
-GOOGLE_REDIRECT_URI=http://localhost:3000/api/providers/google/callback
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/v1/connections/google/callback
 
-DATABASE_URL="postgresql://postgres:postgres@db:5432/socialanimal"
-JWT_SECRET="supersecretkey"
+POSTGRES_PASSWORD="generate-with-openssl-rand-hex-32"
+DATABASE_URL="postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/socialanimal"
+JWT_SECRET="replace-with-a-random-secret"
+CREDENTIAL_ENCRYPTION_KEY="generate-with-openssl-rand-hex-32-and-back-up"
+SOCIALANIMAL_VERSION="your-published-release-tag"
 NODE_ENV=production
 FRONTEND_PORT=3000
 PUBLIC_URL=http://localhost:3000
@@ -149,7 +152,7 @@ Start the services:
 docker compose up -d
 ```
 
-The service will be available at http://localhost:3000
+The service will be available at `PUBLIC_URL`. Set `FRONTEND_PORT` to choose its host port. Containers use fixed internal ports; only the frontend is exposed in production. Keep the database password and encryption key stable when reusing a database.
 
 ### Google Calendar Setup (Optional)
 
@@ -161,10 +164,10 @@ To enable Google Calendar integration:
 4. APIs and services → OAuth Consent Screen
 5. Under Data access, add scope .../auth/calendar.readonly, then save
 6. Go to Clients and create a Client ID of type Web Application
-7. Add authorized redirect URI: `https://your-public-url/api/providers/google/callback`
+7. Add authorized redirect URI: `https://your-public-url/api/v1/connections/google/callback`
 8. Copy the Client ID and Client Secret to your .env file
 
-Without Google credentials, users can still import calendars via ICS/iCal URL.
+Without Google credentials, users can still connect Apple Calendar (iCloud), CalDAV, or an ICS/iCal URL.
 
 ## Development
 
@@ -183,87 +186,7 @@ This project is in early development and contributions are very much appreciated
 
 #### Backend API
 
-The backend API structure shown below **may be out of date** - check the latest snapshot [here](https://raw.githubusercontent.com/NLion74/SocialAnimal/refs/heads/main/backend/tests/__snapshots__/app.test.ts.snap).
-
-Base routes:
-
-- `GET /health`
-
-Users (`/api/users`):
-
-- `POST /register`
-- `POST /login`
-- `GET /public-settings`
-- `GET /me`
-- `PUT /me`
-- `DELETE /me`
-- `GET /app-settings` (admin)
-- `PUT /app-settings` (admin)
-- `POST /invite` (admin)
-
-Calendars (`/api/calendars`):
-
-- `GET /`
-- `PUT /:id`
-- `DELETE /:id`
-- `POST /:id/sync`
-- `GET /:id/test`
-
-Events (`/api/events`):
-
-- `GET /`
-- `GET /friends`
-
-Friends (`/api/friends`):
-
-- `GET /`
-- `POST /request`
-- `POST /:id/accept`
-- `DELETE /:id`
-- `POST /share-calendar`
-
-Providers:
-
-- `POST /api/providers/:type/import`
-- `GET /api/providers/:type/export/:calendarId`
-- `POST /api/providers/:type/test`
-- `GET /api/providers/:type/discover`
-- `POST /api/providers/:type/discover`
-- `GET /api/providers/google/auth-url`
-- `GET /api/providers/google/callback`
-
-#### Architecture
-
-The backend follows a route - service - data/utils structure.
-
-Core backend areas:
-
-- Calendar providers
-- User auth and settings management
-- Calendars and events
-- Friends
-
-Providers use a capability based handler. They implement traits like:
-
-- importable
-- syncable
-- discoverable
-- testable
-- exportable
-
-This allows providers to implement only features they allow.
-
-Layer separation:
-
-1. **Routes** - HTTP layer
-2. **Services** - business logic
-3. **Data & utilities** - DB persistence, auth, permission and helper logic
-
-Frontend architecture:
-
-- Provides a main layout and authentication routes
-- Once authenticated, users interact with the protected layout and app pages
-- Handles rendering of calendars, events, and friend-sharing controls from backend
+The backend is a modular monolith with feature modules and shared `core/` infrastructure. The frontend uses feature screens and a generated TypeScript API client. See [architecture and boundaries](docs/architecture.md).
 
 ### Development Setup
 
@@ -273,11 +196,14 @@ To start a development instance use:
 git clone https://github.com/NLion74/SocialAnimal.git
 cd SocialAnimal
 
-# Adjust .env as needed
+# Fill in POSTGRES_PASSWORD, JWT_SECRET and CREDENTIAL_ENCRYPTION_KEY.
 cp example.env .env
 
-docker compose -f dev-docker-compose.yml up
+node scripts/validate-compose.mjs development .env
+docker compose --env-file .env -f dev-docker-compose.yml up --wait
 ```
+
+Development uses source mounts, dependency/cache volumes, and live reload. It always runs with `NODE_ENV=development`; `BACKEND_PORT` and `DB_PORT` select host ports. To reuse an existing development database, retain its current PostgreSQL credentials and set `DEV_DATABASE_VOLUME` to its existing Docker volume name.
 
 ### Testing Production Build
 
@@ -285,12 +211,16 @@ docker compose -f dev-docker-compose.yml up
 git clone https://github.com/NLion74/SocialAnimal.git
 cd SocialAnimal
 
-# Adjust .env as needed
+# Configure secrets, PUBLIC_URL and SOCIALANIMAL_VERSION=local.
 cp example.env .env.build
 
-docker compose -f build-docker-compose.yml build --no-cache
-docker compose -f build-docker-compose.yml --env-file .env.build up
+node scripts/validate-compose.mjs build .env.build
+docker compose --env-file .env.build -f build-docker-compose.yml up --build --wait
 ```
+
+Build Compose runs the production Dockerfiles without source mounts and uses its own `socialanimal-build` project. Choose a different `FRONTEND_PORT` and matching `PUBLIC_URL` in `.env.build` when development is also running. Always pass `--env-file .env.build` to build-stack commands.
+
+`docker-compose.yml` pulls the published images tagged by `SOCIALANIMAL_VERSION`; it does not build source. `legacy-docker-compose.yml` is a compatibility filename for the same production services. Additional instances need a unique `-p NAME`, host ports, and `DATABASE_VOLUME` (or `DEV_DATABASE_VOLUME` for development). Build and production use separate database volumes by default; set `DATABASE_VOLUME` explicitly to reuse a database between them.
 
 ### Running Tests
 

@@ -1,0 +1,401 @@
+[
+	{
+		"table_name": "AppSettings",
+		"column_name": "id",
+		"data_type": "text",
+		"column_default": "'global'::text",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "AppSettings",
+		"column_name": "registrationsOpen",
+		"data_type": "boolean",
+		"column_default": "true",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "AppSettings",
+		"column_name": "inviteOnly",
+		"data_type": "boolean",
+		"column_default": "false",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "AppSettings",
+		"column_name": "updatedAt",
+		"data_type": "timestamp without time zone",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Calendar",
+		"column_name": "id",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Calendar",
+		"column_name": "userId",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Calendar",
+		"column_name": "name",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Calendar",
+		"column_name": "config",
+		"data_type": "jsonb",
+		"column_default": "'{}'::jsonb",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Calendar",
+		"column_name": "lastSync",
+		"data_type": "timestamp without time zone",
+		"column_default": null,
+		"is_nullable": "YES"
+	},
+	{
+		"table_name": "Calendar",
+		"column_name": "createdAt",
+		"data_type": "timestamp without time zone",
+		"column_default": "CURRENT_TIMESTAMP",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Calendar",
+		"column_name": "updatedAt",
+		"data_type": "timestamp without time zone",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Calendar",
+		"column_name": "url",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "YES"
+	},
+	{
+		"table_name": "Calendar",
+		"column_name": "syncInterval",
+		"data_type": "integer",
+		"column_default": "60",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Calendar",
+		"column_name": "type",
+		"data_type": "USER-DEFINED",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "CalendarShare",
+		"column_name": "id",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "CalendarShare",
+		"column_name": "calendarId",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "CalendarShare",
+		"column_name": "sharedWithId",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "CalendarShare",
+		"column_name": "createdAt",
+		"data_type": "timestamp without time zone",
+		"column_default": "CURRENT_TIMESTAMP",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "CalendarShare",
+		"column_name": "permission",
+		"data_type": "USER-DEFINED",
+		"column_default": "'full'::\"SharePermission\"",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Event",
+		"column_name": "id",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Event",
+		"column_name": "calendarId",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Event",
+		"column_name": "title",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Event",
+		"column_name": "description",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "YES"
+	},
+	{
+		"table_name": "Event",
+		"column_name": "location",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "YES"
+	},
+	{
+		"table_name": "Event",
+		"column_name": "startTime",
+		"data_type": "timestamp without time zone",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Event",
+		"column_name": "endTime",
+		"data_type": "timestamp without time zone",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Event",
+		"column_name": "allDay",
+		"data_type": "boolean",
+		"column_default": "false",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Event",
+		"column_name": "createdAt",
+		"data_type": "timestamp without time zone",
+		"column_default": "CURRENT_TIMESTAMP",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Event",
+		"column_name": "updatedAt",
+		"data_type": "timestamp without time zone",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Event",
+		"column_name": "externalId",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "YES"
+	},
+	{
+		"table_name": "Friendship",
+		"column_name": "id",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Friendship",
+		"column_name": "user1Id",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Friendship",
+		"column_name": "user2Id",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Friendship",
+		"column_name": "createdAt",
+		"data_type": "timestamp without time zone",
+		"column_default": "CURRENT_TIMESTAMP",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Friendship",
+		"column_name": "updatedAt",
+		"data_type": "timestamp without time zone",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Friendship",
+		"column_name": "sharedCalendars",
+		"data_type": "boolean",
+		"column_default": "false",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "Friendship",
+		"column_name": "status",
+		"data_type": "USER-DEFINED",
+		"column_default": "'pending'::\"FriendshipStatus\"",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "InviteCode",
+		"column_name": "id",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "InviteCode",
+		"column_name": "code",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "InviteCode",
+		"column_name": "createdBy",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "InviteCode",
+		"column_name": "usedBy",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "YES"
+	},
+	{
+		"table_name": "InviteCode",
+		"column_name": "usedAt",
+		"data_type": "timestamp without time zone",
+		"column_default": null,
+		"is_nullable": "YES"
+	},
+	{
+		"table_name": "InviteCode",
+		"column_name": "createdAt",
+		"data_type": "timestamp without time zone",
+		"column_default": "CURRENT_TIMESTAMP",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "User",
+		"column_name": "id",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "User",
+		"column_name": "email",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "User",
+		"column_name": "passwordHash",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "User",
+		"column_name": "name",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "YES"
+	},
+	{
+		"table_name": "User",
+		"column_name": "avatar",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "YES"
+	},
+	{
+		"table_name": "User",
+		"column_name": "createdAt",
+		"data_type": "timestamp without time zone",
+		"column_default": "CURRENT_TIMESTAMP",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "User",
+		"column_name": "salt",
+		"data_type": "text",
+		"column_default": "''::text",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "User",
+		"column_name": "isAdmin",
+		"data_type": "boolean",
+		"column_default": "false",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "UserSettings",
+		"column_name": "id",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "UserSettings",
+		"column_name": "userId",
+		"data_type": "text",
+		"column_default": null,
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "UserSettings",
+		"column_name": "firstDayOfWeek",
+		"data_type": "text",
+		"column_default": "'monday'::text",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "UserSettings",
+		"column_name": "defaultSharePermission",
+		"data_type": "USER-DEFINED",
+		"column_default": "'full'::\"SharePermission\"",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "UserSettings",
+		"column_name": "timezone",
+		"data_type": "text",
+		"column_default": "'UTC'::text",
+		"is_nullable": "NO"
+	},
+	{
+		"table_name": "UserSettings",
+		"column_name": "defaultTab",
+		"data_type": "text",
+		"column_default": "'dashboard'::text",
+		"is_nullable": "NO"
+	}
+]

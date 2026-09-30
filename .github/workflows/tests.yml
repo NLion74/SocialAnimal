@@ -1,15 +1,33 @@
 name: CI Tests
 
 on:
+    workflow_call:
+    workflow_dispatch:
     push:
         branches: [main]
     pull_request:
         branches: [main]
 
+permissions:
+    contents: read
+
 jobs:
     backend:
         name: Backend Tests
         runs-on: ubuntu-latest
+        services:
+            postgres:
+                image: postgres:16
+                env:
+                    POSTGRES_PASSWORD: postgres
+                    POSTGRES_DB: socialanimal_ci_test
+                ports: ["5432:5432"]
+                options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+        env:
+            TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/socialanimal_ci_test
+            DATABASE_URL: postgresql://postgres:postgres@localhost:5432/socialanimal_ci_test
+            JWT_SECRET: ci-only
+            CREDENTIAL_ENCRYPTION_KEY: abababababababababababababababababababababababababababababababab
 
         steps:
             - name: Checkout code
@@ -34,13 +52,34 @@ jobs:
               working-directory: ./backend
               run: npm run lint -- --max-warnings=0
 
+            - name: Validate populated baseline upgrade
+              working-directory: ./backend
+              run: node tests/database/baseline.mjs && node tests/database/upgrade.mjs
+
             - name: Run tests
               working-directory: ./backend
-              run: npm run test
+              run: npm test
+
+            - name: Check generated API client
+              working-directory: ./backend
+              run: npm run client:generate && git diff --exit-code -- ../docs/openapi.json ../frontend/lib/generated/client.ts
 
             - name: Build
               working-directory: ./backend
               run: npm run build
+
+            - name: Verify database backup restoration
+              working-directory: ./backend
+              env:
+                  TEST_PG_CONTAINER: ${{ job.services.postgres.id }}
+              run: node tests/database/restore.mjs
+
+            - name: Install Firefox browser test dependencies
+              run: npm ci --prefix frontend && cd frontend && npx playwright install --with-deps firefox
+
+            - name: Run Firefox browser tests
+              working-directory: ./frontend
+              run: npm run test:e2e
 
     frontend:
         name: Frontend Tests
@@ -67,63 +106,102 @@ jobs:
 
             - name: Run tests
               working-directory: ./frontend
-              run: npm run test
+              run: npm test -- --run
 
             - name: Build
               working-directory: ./frontend
               run: npm run build
 
     services-health-check:
-        name: Services Health Check
+        name: Compose Deployment Checks
         runs-on: ubuntu-latest
         needs: [backend, frontend]
+        env:
+            COMPOSE_PROJECT_NAME: socialanimal-ci
+            DATABASE_VOLUME: socialanimal-ci_db_data
+            DEV_DATABASE_VOLUME: socialanimal-ci-dev_db_data
+            SMOKE_BASE_URL: http://127.0.0.1:3000
+            SMOKE_ALLOW_WRITES: "1"
 
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
 
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+
             - name: Set up Docker
               uses: docker/setup-buildx-action@v3
-              
-            - name: Create .env.build from example
+
+            - name: Validate workflows
+              run: docker run --rm -v "$PWD:/repo:ro" -w /repo rhysd/actionlint:1.7.7 -color
+
+            - name: Create disposable environment from production example
               run: |
-                  cp example.env .env.build
+                  node --input-type=module <<'JS'
+                  import { readFileSync, writeFileSync } from "node:fs";
+                  import { randomBytes } from "node:crypto";
+                  let text = readFileSync("example.env", "utf8");
+                  const values = {
+                      SOCIALANIMAL_VERSION: "ci",
+                      PUBLIC_URL: "http://127.0.0.1:3000",
+                      POSTGRES_PASSWORD: randomBytes(32).toString("hex"),
+                      JWT_SECRET: randomBytes(32).toString("hex"),
+                      CREDENTIAL_ENCRYPTION_KEY: randomBytes(32).toString("hex"),
+                  };
+                  for (const [key, value] of Object.entries(values)) {
+                      text = text.replace(new RegExp(`^${key}=.*$`, "m"), `${key}=${value}`);
+                  }
+                  writeFileSync(".env.build", text, { mode: 0o600 });
+                  JS
 
-                  # Remove Google credentials
-                  sed -i 's/^GOOGLE_CLIENT_ID=.*/GOOGLE_CLIENT_ID=/' .env.build
-                  sed -i 's/^GOOGLE_CLIENT_SECRET=.*/GOOGLE_CLIENT_SECRET=/' .env.build
-                  sed -i 's/^GOOGLE_REDIRECT_URI=.*/GOOGLE_REDIRECT_URI=/' .env.build
-
-            - name: Start services
-              run: docker compose -f build-docker-compose.yml --env-file .env.build up -d
-
-            - name: Wait for services to be healthy
+            - name: Validate all Compose modes
               run: |
-                  echo "Waiting for database..."
-                  timeout 60 sh -c 'until docker compose -f build-docker-compose.yml ps db | grep -q "healthy"; do sleep 2; done'
+                  node scripts/validate-compose.mjs development .env.build
+                  node scripts/validate-compose.mjs build .env.build
+                  node scripts/validate-compose.mjs production .env.build
+                  node scripts/validate-compose.mjs legacy .env.build
 
-                  echo "Waiting for backend..."
-                  timeout 90 sh -c 'until docker compose -f build-docker-compose.yml ps backend | grep -q "healthy"; do sleep 2; done'
+            - name: Build and start production-mode images
+              run: docker compose --env-file .env.build -f build-docker-compose.yml up --build --wait --wait-timeout 180
 
-                  echo "Waiting for frontend..."
-                  timeout 60 sh -c 'until docker compose -f build-docker-compose.yml ps frontend | grep -q "healthy"; do sleep 2; done'
+            - name: Smoke-test built images
+              run: |
+                  docker compose --env-file .env.build -f build-docker-compose.yml exec -T backend wget -qO- http://127.0.0.1:4000/ready
+                  node tests/deployment/compose-smoke.mjs
 
-            - name: Test backend health
-              run: docker compose -f build-docker-compose.yml exec -T backend wget -qO- http://127.0.0.1:4000/health
+            - name: Start production Compose using the same prebuilt images and database
+              run: |
+                  docker compose --env-file .env.build -f build-docker-compose.yml down
+                  docker compose --env-file .env.build -f docker-compose.yml up --no-build --pull never --wait --wait-timeout 180
 
-            - name: Test frontend accessibility
-              run: curl -f http://localhost:3000 || exit 1
+            - name: Smoke-test production Compose
+              run: node tests/deployment/compose-smoke.mjs
+
+            - name: Smoke-test legacy Compose filename
+              run: |
+                  docker compose --env-file .env.build -f legacy-docker-compose.yml up --no-build --pull never --wait --wait-timeout 180
+                  node tests/deployment/compose-smoke.mjs
+
+            - name: Stop production services before testing development ports
+              run: docker compose --env-file .env.build -f docker-compose.yml down
+
+            - name: Start development Compose
+              run: docker compose -p socialanimal-ci-dev --env-file .env.build -f dev-docker-compose.yml up --wait --wait-timeout 300
+
+            - name: Smoke-test development Compose
+              run: node tests/deployment/compose-smoke.mjs
 
             - name: Show service logs
               if: failure()
               run: |
-                  echo "=== Backend Logs ==="
-                  docker compose -f build-docker-compose.yml logs backend
-                  echo "=== Frontend Logs ==="
-                  docker compose -f build-docker-compose.yml logs frontend
-                  echo "=== Database Logs ==="
-                  docker compose -f build-docker-compose.yml logs db
+                  docker compose --env-file .env.build -f docker-compose.yml logs --tail 100
+                  docker compose -p socialanimal-ci-dev --env-file .env.build -f dev-docker-compose.yml logs --tail 100
 
-            - name: Stop services
+            - name: Stop disposable test services
               if: always()
-              run: docker compose -f build-docker-compose.yml down -v
+              run: |
+                  docker compose --env-file .env.build -f docker-compose.yml down -v
+                  docker compose -p socialanimal-ci-dev --env-file .env.build -f dev-docker-compose.yml down -v

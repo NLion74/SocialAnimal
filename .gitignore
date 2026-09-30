@@ -21,3 +21,13 @@ pnpm-debug.log*
 .idea/
 .vscode/
 *.swp
+
+.agents
+skills-lock.json
+AGENT.md
+
+# Local browser test artifacts
+playwright-report/
+test-results/
+
+.next-e2e/

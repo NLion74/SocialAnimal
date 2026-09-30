@@ -1,0 +1,7791 @@
+{
+	"openapi": "3.1.0",
+	"info": { "title": "SocialAnimal REST", "version": "1.0.0" },
+	"components": {
+		"securitySchemes": {
+			"bearerAuth": { "type": "http", "scheme": "bearer" }
+		}
+	},
+	"paths": {
+		"/api/v1/auth/registrations": {
+			"post": {
+				"operationId": "register",
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"additionalProperties": false,
+								"properties": {
+									"email": {
+										"type": "string",
+										"format": "email",
+										"maxLength": 254
+									},
+									"password": {
+										"type": "string",
+										"minLength": 8,
+										"maxLength": 72
+									},
+									"name": {
+										"type": "string",
+										"maxLength": 100
+									},
+									"inviteCode": { "type": "string" }
+								},
+								"required": ["email", "password"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "201",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"id": { "type": "string" },
+										"email": { "type": "string" },
+										"name": { "type": ["null", "string"] },
+										"isAdmin": { "type": "boolean" },
+										"createdAt": {
+											"type": "string",
+											"format": "date-time"
+										}
+									},
+									"required": [
+										"id",
+										"email",
+										"name",
+										"isAdmin"
+									]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/auth/sessions": {
+			"post": {
+				"operationId": "login",
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"additionalProperties": false,
+								"properties": {
+									"email": {
+										"type": "string",
+										"format": "email",
+										"maxLength": 254
+									},
+									"password": {
+										"type": "string",
+										"minLength": 1,
+										"maxLength": 72
+									}
+								},
+								"required": ["email", "password"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"token": { "type": "string" },
+										"user": {
+											"type": "object",
+											"additionalProperties": false,
+											"properties": {
+												"id": { "type": "string" },
+												"email": { "type": "string" },
+												"name": {
+													"type": ["null", "string"]
+												},
+												"isAdmin": {
+													"type": "boolean"
+												},
+												"createdAt": {
+													"type": "string",
+													"format": "date-time"
+												}
+											},
+											"required": [
+												"id",
+												"email",
+												"name",
+												"isAdmin"
+											]
+										}
+									},
+									"required": ["token", "user"]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/me": {
+			"get": {
+				"operationId": "me",
+				"parameters": [],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"id": { "type": "string" },
+										"email": { "type": "string" },
+										"name": { "type": ["null", "string"] },
+										"isAdmin": { "type": "boolean" },
+										"createdAt": {
+											"type": "string",
+											"format": "date-time"
+										}
+									},
+									"required": [
+										"id",
+										"email",
+										"name",
+										"isAdmin",
+										"createdAt"
+									]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"operationId": "updateMe",
+				"parameters": [],
+				"security": [{ "bearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"additionalProperties": false,
+								"properties": {
+									"name": {
+										"type": "string",
+										"maxLength": 100
+									}
+								},
+								"required": []
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"id": { "type": "string" },
+										"email": { "type": "string" },
+										"name": { "type": ["null", "string"] },
+										"isAdmin": { "type": "boolean" },
+										"createdAt": {
+											"type": "string",
+											"format": "date-time"
+										}
+									},
+									"required": [
+										"id",
+										"email",
+										"name",
+										"isAdmin",
+										"createdAt"
+									]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"operationId": "deleteMe",
+				"parameters": [],
+				"security": [{ "bearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"additionalProperties": false,
+								"properties": {
+									"password": { "type": "string" }
+								},
+								"required": ["password"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"204": { "description": "204" },
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/me/password": {
+			"put": {
+				"operationId": "changePassword",
+				"parameters": [],
+				"security": [{ "bearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"additionalProperties": false,
+								"properties": {
+									"currentPassword": { "type": "string" },
+									"newPassword": {
+										"type": "string",
+										"minLength": 8,
+										"maxLength": 72
+									}
+								},
+								"required": ["currentPassword", "newPassword"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"ok": { "type": "boolean" }
+									},
+									"required": ["ok"]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/invitations": {
+			"post": {
+				"operationId": "createInvitation",
+				"parameters": [],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"201": {
+						"description": "201",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"id": { "type": "string" },
+										"code": { "type": "string" }
+									},
+									"required": ["id", "code"]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/settings/public": {
+			"get": {
+				"operationId": "publicSettings",
+				"parameters": [],
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"registrationsOpen": {
+											"type": "boolean"
+										},
+										"inviteOnly": { "type": "boolean" }
+									},
+									"required": [
+										"registrationsOpen",
+										"inviteOnly"
+									]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/admin/settings": {
+			"get": {
+				"operationId": "adminSettings",
+				"parameters": [],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"registrationsOpen": {
+											"type": "boolean"
+										},
+										"inviteOnly": { "type": "boolean" }
+									},
+									"required": [
+										"registrationsOpen",
+										"inviteOnly"
+									]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"operationId": "updateAdminSettings",
+				"parameters": [],
+				"security": [{ "bearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"additionalProperties": false,
+								"properties": {
+									"registrationsOpen": { "type": "boolean" },
+									"inviteOnly": { "type": "boolean" }
+								},
+								"required": []
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"registrationsOpen": {
+											"type": "boolean"
+										},
+										"inviteOnly": { "type": "boolean" }
+									},
+									"required": [
+										"registrationsOpen",
+										"inviteOnly"
+									]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/me/settings": {
+			"get": {
+				"operationId": "mySettings",
+				"parameters": [],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"firstDayOfWeek": {
+											"type": "string",
+											"enum": ["monday", "sunday"]
+										},
+										"timezone": { "type": "string" },
+										"defaultTab": {
+											"type": "string",
+											"enum": [
+												"dashboard",
+												"calendar",
+												"friends",
+												"profile"
+											]
+										}
+									},
+									"required": [
+										"firstDayOfWeek",
+										"timezone",
+										"defaultTab"
+									]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"operationId": "updateMySettings",
+				"parameters": [],
+				"security": [{ "bearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"additionalProperties": false,
+								"properties": {
+									"firstDayOfWeek": {
+										"type": "string",
+										"enum": ["monday", "sunday"]
+									},
+									"timezone": { "type": "string" },
+									"defaultTab": {
+										"type": "string",
+										"enum": [
+											"dashboard",
+											"calendar",
+											"friends",
+											"profile"
+										]
+									}
+								},
+								"required": []
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"firstDayOfWeek": {
+											"type": "string",
+											"enum": ["monday", "sunday"]
+										},
+										"timezone": { "type": "string" },
+										"defaultTab": {
+											"type": "string",
+											"enum": [
+												"dashboard",
+												"calendar",
+												"friends",
+												"profile"
+											]
+										}
+									},
+									"required": [
+										"firstDayOfWeek",
+										"timezone",
+										"defaultTab"
+									]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/users": {
+			"get": {
+				"operationId": "searchUsers",
+				"parameters": [
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 500,
+							"default": 100
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"required": false,
+						"schema": { "type": "string" }
+					},
+					{
+						"name": "query",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 2,
+							"maxLength": 100
+						}
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"items": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"additionalProperties": false,
+												"properties": {
+													"id": { "type": "string" },
+													"email": {
+														"type": "string"
+													},
+													"name": {
+														"type": [
+															"null",
+															"string"
+														]
+													}
+												},
+												"required": [
+													"id",
+													"email",
+													"name"
+												]
+											}
+										},
+										"nextCursor": {
+											"type": ["null", "string"]
+										}
+									},
+									"required": ["items", "nextCursor"]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/friendships": {
+			"get": {
+				"operationId": "friendships",
+				"parameters": [
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 500,
+							"default": 100
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"required": false,
+						"schema": { "type": "string" }
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"items": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"additionalProperties": false,
+												"properties": {
+													"id": { "type": "string" },
+													"user1": {
+														"type": "object",
+														"additionalProperties": false,
+														"properties": {
+															"id": {
+																"type": "string"
+															},
+															"email": {
+																"type": "string"
+															},
+															"name": {
+																"type": [
+																	"null",
+																	"string"
+																]
+															}
+														},
+														"required": [
+															"id",
+															"email",
+															"name"
+														]
+													},
+													"user2": {
+														"type": "object",
+														"additionalProperties": false,
+														"properties": {
+															"id": {
+																"type": "string"
+															},
+															"email": {
+																"type": "string"
+															},
+															"name": {
+																"type": [
+																	"null",
+																	"string"
+																]
+															}
+														},
+														"required": [
+															"id",
+															"email",
+															"name"
+														]
+													},
+													"status": {
+														"type": "string"
+													},
+													"sharedCalendarIds": {
+														"type": "array",
+														"items": {
+															"type": "string"
+														}
+													},
+													"sharedCalendarPermissions": {
+														"type": "object",
+														"additionalProperties": {
+															"type": "string",
+															"enum": [
+																"busy",
+																"titles",
+																"full"
+															]
+														}
+													},
+													"sharedWithMe": {
+														"type": "array",
+														"items": {
+															"type": "object",
+															"additionalProperties": false,
+															"properties": {
+																"id": {
+																	"type": "string"
+																},
+																"name": {
+																	"type": "string"
+																},
+																"permission": {
+																	"type": "string",
+																	"enum": [
+																		"busy",
+																		"titles",
+																		"full"
+																	]
+																}
+															},
+															"required": [
+																"id",
+																"name",
+																"permission"
+															]
+														}
+													}
+												},
+												"required": [
+													"id",
+													"status",
+													"user1",
+													"user2"
+												]
+											}
+										},
+										"nextCursor": {
+											"type": ["null", "string"]
+										}
+									},
+									"required": ["items", "nextCursor"]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"operationId": "requestFriendship",
+				"parameters": [],
+				"security": [{ "bearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"additionalProperties": false,
+								"properties": {
+									"targetUserId": { "type": "string" },
+									"identifier": { "type": "string" }
+								},
+								"required": [],
+								"anyOf": [
+									{ "required": ["targetUserId"] },
+									{ "required": ["identifier"] }
+								]
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "201",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"id": { "type": "string" },
+										"user1": {
+											"type": "object",
+											"additionalProperties": false,
+											"properties": {
+												"id": { "type": "string" },
+												"email": { "type": "string" },
+												"name": {
+													"type": ["null", "string"]
+												}
+											},
+											"required": ["id", "email", "name"]
+										},
+										"user2": {
+											"type": "object",
+											"additionalProperties": false,
+											"properties": {
+												"id": { "type": "string" },
+												"email": { "type": "string" },
+												"name": {
+													"type": ["null", "string"]
+												}
+											},
+											"required": ["id", "email", "name"]
+										},
+										"status": { "type": "string" },
+										"sharedCalendarIds": {
+											"type": "array",
+											"items": { "type": "string" }
+										},
+										"sharedCalendarPermissions": {
+											"type": "object",
+											"additionalProperties": {
+												"type": "string",
+												"enum": [
+													"busy",
+													"titles",
+													"full"
+												]
+											}
+										},
+										"sharedWithMe": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"additionalProperties": false,
+												"properties": {
+													"id": { "type": "string" },
+													"name": {
+														"type": "string"
+													},
+													"permission": {
+														"type": "string",
+														"enum": [
+															"busy",
+															"titles",
+															"full"
+														]
+													}
+												},
+												"required": [
+													"id",
+													"name",
+													"permission"
+												]
+											}
+										}
+									},
+									"required": [
+										"id",
+										"status",
+										"user1",
+										"user2"
+									]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/friendships/{id}": {
+			"patch": {
+				"operationId": "acceptFriendship",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 2048
+						}
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"additionalProperties": false,
+								"properties": {
+									"status": {
+										"type": "string",
+										"enum": ["accepted"]
+									}
+								},
+								"required": ["status"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"id": { "type": "string" },
+										"user1": {
+											"type": "object",
+											"additionalProperties": false,
+											"properties": {
+												"id": { "type": "string" },
+												"email": { "type": "string" },
+												"name": {
+													"type": ["null", "string"]
+												}
+											},
+											"required": ["id", "email", "name"]
+										},
+										"user2": {
+											"type": "object",
+											"additionalProperties": false,
+											"properties": {
+												"id": { "type": "string" },
+												"email": { "type": "string" },
+												"name": {
+													"type": ["null", "string"]
+												}
+											},
+											"required": ["id", "email", "name"]
+										},
+										"status": { "type": "string" },
+										"sharedCalendarIds": {
+											"type": "array",
+											"items": { "type": "string" }
+										},
+										"sharedCalendarPermissions": {
+											"type": "object",
+											"additionalProperties": {
+												"type": "string",
+												"enum": [
+													"busy",
+													"titles",
+													"full"
+												]
+											}
+										},
+										"sharedWithMe": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"additionalProperties": false,
+												"properties": {
+													"id": { "type": "string" },
+													"name": {
+														"type": "string"
+													},
+													"permission": {
+														"type": "string",
+														"enum": [
+															"busy",
+															"titles",
+															"full"
+														]
+													}
+												},
+												"required": [
+													"id",
+													"name",
+													"permission"
+												]
+											}
+										}
+									},
+									"required": [
+										"id",
+										"status",
+										"user1",
+										"user2"
+									]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"operationId": "removeFriendship",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 2048
+						}
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"204": { "description": "204" },
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/calendars": {
+			"get": {
+				"operationId": "calendars",
+				"parameters": [
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 500,
+							"default": 100
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"required": false,
+						"schema": { "type": "string" }
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"items": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"additionalProperties": false,
+												"properties": {
+													"id": { "type": "string" },
+													"name": {
+														"type": "string"
+													},
+													"type": {
+														"type": "string"
+													},
+													"connectionId": {
+														"type": [
+															"null",
+															"string"
+														]
+													},
+													"remoteId": {
+														"type": [
+															"null",
+															"string"
+														]
+													},
+													"syncInterval": {
+														"type": "integer"
+													},
+													"eventCount": {
+														"type": "integer"
+													},
+													"lastSync": {
+														"type": [
+															"null",
+															"string"
+														]
+													},
+													"lastAttempt": {
+														"type": [
+															"null",
+															"string"
+														]
+													},
+													"lastSuccess": {
+														"type": [
+															"null",
+															"string"
+														]
+													},
+													"lastError": {
+														"type": [
+															"null",
+															"string"
+														]
+													}
+												},
+												"required": [
+													"id",
+													"name",
+													"type",
+													"syncInterval"
+												]
+											}
+										},
+										"nextCursor": {
+											"type": ["null", "string"]
+										}
+									},
+									"required": ["items", "nextCursor"]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/calendars/{id}": {
+			"patch": {
+				"operationId": "updateCalendar",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 2048
+						}
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"additionalProperties": false,
+								"properties": {
+									"name": {
+										"type": "string",
+										"minLength": 1,
+										"maxLength": 200
+									},
+									"syncInterval": {
+										"type": "integer",
+										"minimum": 0,
+										"maximum": 525600
+									}
+								},
+								"required": []
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"id": { "type": "string" },
+										"name": { "type": "string" },
+										"type": { "type": "string" },
+										"connectionId": {
+											"type": ["null", "string"]
+										},
+										"remoteId": {
+											"type": ["null", "string"]
+										},
+										"syncInterval": { "type": "integer" },
+										"eventCount": { "type": "integer" },
+										"lastSync": {
+											"type": ["null", "string"]
+										},
+										"lastAttempt": {
+											"type": ["null", "string"]
+										},
+										"lastSuccess": {
+											"type": ["null", "string"]
+										},
+										"lastError": {
+											"type": ["null", "string"]
+										}
+									},
+									"required": [
+										"id",
+										"name",
+										"type",
+										"syncInterval"
+									]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"operationId": "deleteCalendar",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 2048
+						}
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"204": { "description": "204" },
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/events": {
+			"get": {
+				"operationId": "events",
+				"parameters": [
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 500,
+							"default": 100
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"required": false,
+						"schema": { "type": "string" }
+					},
+					{
+						"name": "start",
+						"in": "query",
+						"required": true,
+						"schema": { "type": "string", "format": "date-time" }
+					},
+					{
+						"name": "end",
+						"in": "query",
+						"required": true,
+						"schema": { "type": "string", "format": "date-time" }
+					},
+					{
+						"name": "calendarId",
+						"in": "query",
+						"required": false,
+						"schema": { "type": "string" }
+					},
+					{
+						"name": "scope",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": ["mine", "shared", "all"],
+							"default": "all"
+						}
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"items": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"additionalProperties": false,
+												"properties": {
+													"id": { "type": "string" },
+													"calendarId": {
+														"type": "string"
+													},
+													"title": {
+														"type": "string"
+													},
+													"description": {
+														"type": [
+															"null",
+															"string"
+														]
+													},
+													"location": {
+														"type": [
+															"null",
+															"string"
+														]
+													},
+													"startTime": {
+														"type": "string",
+														"format": "date-time"
+													},
+													"endTime": {
+														"type": "string",
+														"format": "date-time"
+													},
+													"allDay": {
+														"type": "boolean"
+													},
+													"isFriend": {
+														"type": "boolean"
+													},
+													"calendar": {
+														"type": "object",
+														"additionalProperties": false,
+														"properties": {
+															"id": {
+																"type": "string"
+															},
+															"name": {
+																"type": "string"
+															},
+															"type": {
+																"type": "string"
+															}
+														},
+														"required": [
+															"id",
+															"name",
+															"type"
+														]
+													},
+													"owner": {
+														"type": "object",
+														"additionalProperties": false,
+														"properties": {
+															"id": {
+																"type": "string"
+															},
+															"email": {
+																"type": "string"
+															},
+															"name": {
+																"type": [
+																	"null",
+																	"string"
+																]
+															}
+														},
+														"required": [
+															"id",
+															"email",
+															"name"
+														]
+													}
+												},
+												"required": [
+													"id",
+													"calendarId",
+													"title",
+													"description",
+													"location",
+													"startTime",
+													"endTime",
+													"allDay",
+													"isFriend",
+													"calendar",
+													"owner"
+												]
+											}
+										},
+										"nextCursor": {
+											"type": ["null", "string"]
+										}
+									},
+									"required": ["items", "nextCursor"]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/calendars/{id}/sync-runs": {
+			"post": {
+				"operationId": "submitSync",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 2048
+						}
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"202": {
+						"description": "202",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"id": { "type": "string" },
+										"calendarId": { "type": "string" },
+										"status": { "type": "string" },
+										"eventsSynced": {
+											"type": ["null", "integer"]
+										},
+										"error": { "type": ["null", "string"] },
+										"statusUrl": { "type": "string" }
+									},
+									"required": ["id", "calendarId", "status"]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/sync-runs/{id}": {
+			"get": {
+				"operationId": "syncRun",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 2048
+						}
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"id": { "type": "string" },
+										"calendarId": { "type": "string" },
+										"status": { "type": "string" },
+										"eventsSynced": {
+											"type": ["null", "integer"]
+										},
+										"error": { "type": ["null", "string"] },
+										"statusUrl": { "type": "string" }
+									},
+									"required": ["id", "calendarId", "status"]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/providers": {
+			"get": {
+				"operationId": "providers",
+				"parameters": [],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"items": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"additionalProperties": false,
+												"properties": {
+													"id": { "type": "string" },
+													"name": {
+														"type": "string"
+													},
+													"discovery": {
+														"type": "boolean"
+													},
+													"sync": {
+														"type": "boolean"
+													},
+													"test": {
+														"type": "boolean"
+													},
+													"oauth": {
+														"type": "boolean"
+													},
+													"import": {
+														"type": "boolean"
+													}
+												},
+												"required": [
+													"id",
+													"name",
+													"discovery",
+													"sync",
+													"test",
+													"oauth",
+													"import"
+												]
+											}
+										},
+										"nextCursor": {
+											"type": ["null", "string"]
+										}
+									},
+									"required": ["items", "nextCursor"]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/connections": {
+			"get": {
+				"operationId": "connections",
+				"parameters": [
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 500,
+							"default": 100
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"required": false,
+						"schema": { "type": "string" }
+					},
+					{
+						"name": "flow",
+						"in": "query",
+						"required": false,
+						"schema": { "type": "string" }
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"items": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"additionalProperties": false,
+												"properties": {
+													"id": { "type": "string" },
+													"name": {
+														"type": "string"
+													},
+													"type": {
+														"type": "string"
+													},
+													"hasCredentials": {
+														"type": "boolean"
+													}
+												},
+												"required": [
+													"id",
+													"name",
+													"type",
+													"hasCredentials"
+												]
+											}
+										},
+										"nextCursor": {
+											"type": ["null", "string"]
+										}
+									},
+									"required": ["items", "nextCursor"]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"operationId": "createConnection",
+				"parameters": [],
+				"security": [{ "bearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"additionalProperties": false,
+								"properties": {
+									"type": {
+										"type": "string",
+										"enum": [
+											"ics",
+											"caldav",
+											"icloud",
+											"google"
+										]
+									},
+									"name": {
+										"type": "string",
+										"minLength": 1,
+										"maxLength": 100
+									},
+									"credentials": {
+										"type": "object",
+										"additionalProperties": false,
+										"properties": {
+											"url": { "type": "string" },
+											"username": { "type": "string" },
+											"password": { "type": "string" },
+											"accessToken": { "type": "string" },
+											"refreshToken": { "type": "string" }
+										},
+										"required": []
+									}
+								},
+								"required": ["type", "name", "credentials"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "201",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"id": { "type": "string" },
+										"name": { "type": "string" },
+										"type": { "type": "string" },
+										"hasCredentials": { "type": "boolean" }
+									},
+									"required": [
+										"id",
+										"name",
+										"type",
+										"hasCredentials"
+									]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/connections/{id}": {
+			"patch": {
+				"operationId": "updateConnection",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 2048
+						}
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"additionalProperties": false,
+								"properties": {
+									"name": { "type": "string" },
+									"credentials": {
+										"type": "object",
+										"additionalProperties": false,
+										"properties": {
+											"url": { "type": "string" },
+											"username": { "type": "string" },
+											"password": { "type": "string" },
+											"accessToken": { "type": "string" },
+											"refreshToken": { "type": "string" }
+										},
+										"required": []
+									}
+								},
+								"required": []
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"id": { "type": "string" },
+										"name": { "type": "string" },
+										"type": { "type": "string" },
+										"hasCredentials": { "type": "boolean" }
+									},
+									"required": [
+										"id",
+										"name",
+										"type",
+										"hasCredentials"
+									]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/connections/{id}/discoveries": {
+			"post": {
+				"operationId": "discoverConnection",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 2048
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 500,
+							"default": 100
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"required": false,
+						"schema": { "type": "string" }
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"items": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"additionalProperties": false,
+												"properties": {
+													"id": { "type": "string" },
+													"remoteId": {
+														"type": "string"
+													},
+													"name": {
+														"type": "string"
+													},
+													"importedCalendarId": {
+														"type": [
+															"null",
+															"string"
+														]
+													},
+													"color": {
+														"type": "string"
+													}
+												},
+												"required": [
+													"id",
+													"remoteId",
+													"name",
+													"importedCalendarId"
+												]
+											}
+										},
+										"nextCursor": {
+											"type": ["null", "string"]
+										}
+									},
+									"required": ["items", "nextCursor"]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/connections/{id}/tests": {
+			"post": {
+				"operationId": "testConnection",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 2048
+						}
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"success": { "type": "boolean" }
+									},
+									"required": ["success"]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/calendar-imports": {
+			"post": {
+				"operationId": "importCalendar",
+				"parameters": [],
+				"security": [{ "bearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"additionalProperties": false,
+								"properties": {
+									"connectionId": { "type": "string" },
+									"remoteId": {
+										"type": "string",
+										"minLength": 1
+									},
+									"name": {
+										"type": "string",
+										"minLength": 1
+									},
+									"syncInterval": {
+										"type": "integer",
+										"minimum": 0
+									}
+								},
+								"required": ["connectionId", "remoteId", "name"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "201",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"id": { "type": "string" },
+										"name": { "type": "string" },
+										"type": { "type": "string" },
+										"connectionId": {
+											"type": ["null", "string"]
+										},
+										"remoteId": {
+											"type": ["null", "string"]
+										},
+										"syncInterval": { "type": "integer" },
+										"eventCount": { "type": "integer" },
+										"lastSync": {
+											"type": ["null", "string"]
+										},
+										"lastAttempt": {
+											"type": ["null", "string"]
+										},
+										"lastSuccess": {
+											"type": ["null", "string"]
+										},
+										"lastError": {
+											"type": ["null", "string"]
+										}
+									},
+									"required": [
+										"id",
+										"name",
+										"type",
+										"syncInterval"
+									]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/connections/google/authorizations": {
+			"post": {
+				"operationId": "googleAuthorization",
+				"parameters": [],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"url": { "type": "string" }
+									},
+									"required": ["url"]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/connections/google/callback": {
+			"get": {
+				"operationId": "googleCallback",
+				"parameters": [
+					{
+						"name": "state",
+						"in": "query",
+						"required": true,
+						"schema": { "type": "string" }
+					},
+					{
+						"name": "code",
+						"in": "query",
+						"required": true,
+						"schema": { "type": "string" }
+					}
+				],
+				"responses": {
+					"302": {
+						"description": "302",
+						"content": {
+							"application/json": { "schema": { "type": "null" } }
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/calendars/{id}/grants/{userId}": {
+			"put": {
+				"operationId": "setGrant",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 2048
+						}
+					},
+					{
+						"name": "userId",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 2048
+						}
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"additionalProperties": false,
+								"properties": {
+									"permission": {
+										"type": "string",
+										"enum": ["busy", "titles", "full"]
+									}
+								},
+								"required": ["permission"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"204": { "description": "204" },
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"operationId": "removeGrant",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 2048
+						}
+					},
+					{
+						"name": "userId",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 2048
+						}
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"204": { "description": "204" },
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/calendars/{id}/subscriptions": {
+			"get": {
+				"operationId": "subscriptions",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 2048
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 500,
+							"default": 100
+						}
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"required": false,
+						"schema": { "type": "string" }
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"items": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"additionalProperties": false,
+												"properties": {
+													"id": { "type": "string" },
+													"calendarId": {
+														"type": "string"
+													},
+													"ceiling": {
+														"type": "string",
+														"enum": [
+															"busy",
+															"titles",
+															"full"
+														]
+													},
+													"createdAt": {
+														"type": "string",
+														"format": "date-time"
+													},
+													"revokedAt": {
+														"type": [
+															"null",
+															"string"
+														]
+													}
+												},
+												"required": [
+													"id",
+													"calendarId",
+													"ceiling",
+													"createdAt",
+													"revokedAt"
+												]
+											}
+										},
+										"nextCursor": {
+											"type": ["null", "string"]
+										}
+									},
+									"required": ["items", "nextCursor"]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"operationId": "createSubscription",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 2048
+						}
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"additionalProperties": false,
+								"properties": {
+									"ceiling": {
+										"type": "string",
+										"enum": ["busy", "titles", "full"]
+									}
+								},
+								"required": ["ceiling"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "201",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"id": { "type": "string" },
+										"calendarId": { "type": "string" },
+										"ceiling": {
+											"type": "string",
+											"enum": ["busy", "titles", "full"]
+										},
+										"createdAt": {
+											"type": "string",
+											"format": "date-time"
+										},
+										"revokedAt": {
+											"type": ["null", "string"]
+										},
+										"url": { "type": "string" }
+									},
+									"required": [
+										"id",
+										"calendarId",
+										"ceiling",
+										"createdAt",
+										"revokedAt",
+										"url"
+									]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/subscriptions/{id}": {
+			"delete": {
+				"operationId": "revokeSubscription",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 2048
+						}
+					}
+				],
+				"security": [{ "bearerAuth": [] }],
+				"responses": {
+					"204": { "description": "204" },
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}

@@ -1,133 +1,201 @@
 generator client {
-  provider = "prisma-client-js"
+	provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+	provider = "postgresql"
 }
 
 enum SharePermission {
-  busy
-  titles
-  full
+	busy
+	titles
+	full
 }
 
 enum FriendshipStatus {
-  pending
-  accepted
+	pending
+	accepted
 }
 
 enum CalendarType {
-  ics
-  caldav
-  google
-  icloud
-  outlook
-  fastmail
+	ics
+	caldav
+	google
+	icloud
+	outlook
+	fastmail
 }
 
 model User {
-  id           String        @id @default(uuid())
-  email        String        @unique
-  passwordHash String
-  salt         String        @default("")
-  name         String?
-  avatar       String?
-  createdAt    DateTime      @default(now())
+	id           String        @id @default(uuid())
+	email        String        @unique
+	passwordHash String
+	salt         String        @default("")
+	name         String?
+	avatar       String?
+	createdAt    DateTime      @default(now())
 
-  calendars      Calendar[]
-  friendships    Friendship[]    @relation("User1")
-  friendships2   Friendship[]    @relation("User2")
-  calendarShares CalendarShare[] @relation("SharedWith")
-  settings       UserSettings?
-  isAdmin  Boolean  @default(false)
+	connections    Connection[]
+	subscriptions  Subscription[]
+	oauthFlows     OAuthFlow[]
+	calendars      Calendar[]
+	friendships    Friendship[]    @relation("User1")
+	friendships2   Friendship[]    @relation("User2")
+	calendarShares CalendarShare[] @relation("SharedWith")
+	settings       UserSettings?
+	isAdmin  Boolean  @default(false)
 }
 
 model AppSettings {
-  id                String  @id @default("global")
-  registrationsOpen Boolean @default(true)
-  inviteOnly        Boolean @default(false)
-  updatedAt         DateTime @updatedAt
+	id                String  @id @default("global")
+	registrationsOpen Boolean @default(true)
+	inviteOnly        Boolean @default(false)
+	updatedAt         DateTime @updatedAt
 }
 
 model UserSettings {
-  id                     String @id @default(uuid())
-  userId                 String @unique
-  user                   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  firstDayOfWeek         String @default("monday")
-  timezone               String @default("Europe/Berlin")
-  defaultTab             String @default("dashboard")
+	id                     String @id @default(uuid())
+	userId                 String @unique
+	user                   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+	firstDayOfWeek         String @default("monday")
+	// Retained from the committed migration baseline.
+	defaultSharePermission SharePermission @default(full)
+	timezone               String @default("UTC")
+	defaultTab             String @default("dashboard")
 }
 
 model InviteCode {
-  id        String    @id @default(uuid())
-  code      String    @unique
-  createdBy String
-  usedBy    String?
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
+	id        String    @id @default(uuid())
+	code      String    @unique
+	createdBy String
+	usedBy    String?
+	usedAt    DateTime?
+	createdAt DateTime  @default(now())
 }
 
 model Calendar {
-  id           String    @id @default(cuid())
-  userId       String
-  name         String
-  type         CalendarType
-  url          String?
-  config       Json      @default("{}")
-  syncInterval Int       @default(60)   // minutes, 0 = manual only
-  lastSync     DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+	id           String    @id @default(cuid())
+	userId       String
+	name         String
+	type         CalendarType
+	url          String?
+	config       Json      @default("{}")
+	syncInterval Int       @default(60)   // minutes, 0 = manual only
+	lastSync     DateTime?
+	connectionId String?
+	remoteId     String?
+	lastAttempt  DateTime?
+	lastSuccess  DateTime?
+	lastError    String?
+	leaseUntil   DateTime?
+	leaseOwner   String?
+	connection   Connection? @relation(fields: [connectionId], references: [id])
+	syncRuns     SyncRun[]
+	subscriptions Subscription[]
+	createdAt    DateTime  @default(now())
+	updatedAt    DateTime  @updatedAt
 
-  user   User            @relation(fields: [userId], references: [id])
-  events Event[]
-  shares CalendarShare[]
+	user   User            @relation(fields: [userId], references: [id])
+	events Event[]
+	shares CalendarShare[]
+
+	@@unique([connectionId, remoteId])
 }
 
 model CalendarShare {
-  id           String   @id @default(uuid())
-  calendarId   String
-  calendar     Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
-  sharedWithId String
-  sharedWith   User     @relation("SharedWith", fields: [sharedWithId], references: [id], onDelete: Cascade)
-  permission   SharePermission @default(full)
-  createdAt    DateTime @default(now())
+	id           String   @id @default(uuid())
+	calendarId   String
+	calendar     Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+	sharedWithId String
+	sharedWith   User     @relation("SharedWith", fields: [sharedWithId], references: [id], onDelete: Cascade)
+	permission   SharePermission @default(full)
+	createdAt    DateTime @default(now())
 
-  @@unique([calendarId, sharedWithId])
-  @@index([sharedWithId])
+	@@unique([calendarId, sharedWithId])
+	@@index([sharedWithId])
 }
 
 model Event {
-  id          String   @id @default(cuid())
-  calendarId  String
-  externalId  String?
-  title       String
-  description String?
-  location    String?
-  startTime   DateTime
-  endTime     DateTime
-  allDay      Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+	id          String   @id @default(cuid())
+	calendarId  String
+	externalId  String?
+	title       String
+	description String?
+	location    String?
+	startTime   DateTime
+	endTime     DateTime
+	allDay      Boolean  @default(false)
+	createdAt   DateTime @default(now())
+	updatedAt   DateTime @updatedAt
 
-  calendar Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+	calendar Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
 
-  @@unique([calendarId, externalId])
+	@@unique([calendarId, externalId])
 }
 
 model Friendship {
-  id        String   @id @default(uuid())
-  user1Id   String
-  user1     User     @relation("User1", fields: [user1Id], references: [id], onDelete: Cascade)
-  user2Id   String
-  user2     User     @relation("User2", fields: [user2Id], references: [id], onDelete: Cascade)
-  status FriendshipStatus @default(pending)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  sharedCalendars Boolean @default(false)
-  
-  @@unique([user1Id, user2Id])
-  @@index([user1Id])
-  @@index([user2Id])
+	id        String   @id @default(uuid())
+	user1Id   String
+	user1     User     @relation("User1", fields: [user1Id], references: [id], onDelete: Cascade)
+	user2Id   String
+	user2     User     @relation("User2", fields: [user2Id], references: [id], onDelete: Cascade)
+	status FriendshipStatus @default(pending)
+	createdAt DateTime @default(now())
+	updatedAt DateTime @updatedAt
+	sharedCalendars Boolean @default(false)
+
+	@@unique([user1Id, user2Id])
+	@@index([user1Id])
+	@@index([user2Id])
+}
+
+model Connection {
+	id String @id @default(uuid())
+	userId String
+	user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+	type CalendarType
+	name String
+	credentials String
+	createdAt DateTime @default(now())
+	updatedAt DateTime @updatedAt
+	calendars Calendar[]
+	flows OAuthFlow[]
+	@@index([userId])
+}
+
+model SyncRun {
+	id String @id @default(uuid())
+	calendarId String
+	calendar Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+	status String @default("queued")
+	createdAt DateTime @default(now())
+	startedAt DateTime?
+	finishedAt DateTime?
+	error String?
+	eventsSynced Int?
+	@@index([status, createdAt])
+}
+
+model Subscription {
+	id String @id @default(uuid())
+	tokenHash String @unique
+	calendarId String
+	calendar Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+	issuerId String
+	issuer User @relation(fields: [issuerId], references: [id], onDelete: Cascade)
+	ceiling SharePermission
+	revokedAt DateTime?
+	createdAt DateTime @default(now())
+	@@index([calendarId, issuerId])
+}
+
+model OAuthFlow {
+	id String @id @default(uuid())
+	stateHash String @unique
+	userId String
+	user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+	expiresAt DateTime
+	consumedAt DateTime?
+	connectionId String?
+	connection Connection? @relation(fields: [connectionId], references: [id], onDelete: Cascade)
 }

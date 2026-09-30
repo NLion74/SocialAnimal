@@ -1,130 +1,87 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Calendar, Users, Home, User, LogOut } from "lucide-react";
-import { apiClient } from "../../lib/api";
+import { useSession } from "../../features/account/SessionProvider";
 import s from "./layout.module.css";
 
 const TABS = [
-    { id: "/dashboard", label: "Dashboard", icon: Home },
-    { id: "/calendar", label: "Calendar", icon: Calendar },
-    { id: "/friends", label: "Friends", icon: Users },
-    { id: "/profile", label: "Profile", icon: User },
+	{ id: "/dashboard", label: "Dashboard", icon: Home },
+	{ id: "/calendar", label: "Calendar", icon: Calendar },
+	{ id: "/friends", label: "Friends", icon: Users },
+	{ id: "/profile", label: "Profile", icon: User },
 ];
 
 export default function ProtectedLayout({
-    children,
+	children,
 }: {
-    children: React.ReactNode;
+	children: React.ReactNode;
 }) {
-    const router = useRouter();
-    const pathname = usePathname();
-    const [user, setUser] = useState<any>(null);
+	const router = useRouter();
+	const pathname = usePathname();
+	const { user, loading, error, logout, refresh } = useSession();
 
-    useEffect(() => {
-        let cancelled = false;
+	useEffect(() => {
+		if (!loading && !user && !error) router.replace("/login");
+	}, [user, loading, error, router]);
 
-        const withTimeout = async <T,>(
-            promise: Promise<T>,
-            timeoutMs = 12000,
-        ): Promise<T> => {
-            return await new Promise<T>((resolve, reject) => {
-                const timeout = setTimeout(
-                    () => reject(new Error("Request timed out")),
-                    timeoutMs,
-                );
+	const handleLogout = () => {
+		logout();
+		router.push("/");
+	};
 
-                promise
-                    .then((value) => {
-                        clearTimeout(timeout);
-                        resolve(value);
-                    })
-                    .catch((error) => {
-                        clearTimeout(timeout);
-                        reject(error);
-                    });
-            });
-        };
+	if (error)
+		return (
+			<div role="alert">
+				{error}
+				<button onClick={refresh}>Retry</button>
+			</div>
+		);
 
-        const loadUser = async (retries = 5) => {
-            const token = localStorage.getItem("token");
-            if (!token) {
-                router.push("/");
-                return;
-            }
+	if (!user)
+		return (
+			<div className={s.loading}>
+				<div className={s.spinner} />
+				<span>Loading...</span>
+			</div>
+		);
 
-            try {
-                const res = await withTimeout(apiClient.get("/api/users/me"));
+	return (
+		<div className={s.page}>
+			<header className={s.header}>
+				<Link href="/" className={s.brand}>
+					<div className={s.brandIcon}>
+						<Image
+							src="/favicon.svg"
+							alt="SocialAnimal"
+							width={15}
+							height={15}
+						/>
+					</div>
+					<span className={s.brandName}>SocialAnimal</span>
+				</Link>
+				<button className={s.logoutBtn} onClick={handleLogout}>
+					<LogOut size={13} /> Sign out
+				</button>
+			</header>
 
-                if (!cancelled) {
-                    setUser(res);
-                }
-            } catch (err) {
-                console.error("Failed to load user:", err);
-                if (retries > 0) {
-                    setTimeout(() => loadUser(retries - 1), 1000);
-                } else {
-                    router.push("/");
-                }
-            }
-        };
+			<div className={s.tabBar}>
+				{TABS.map(({ id, label, icon: Icon }) => (
+					<Link
+						key={id}
+						href={id}
+						className={`${s.tabBtn} ${pathname === id ? s.active : ""}`}
+					>
+						<Icon size={14} />
+						{label}
+					</Link>
+				))}
+			</div>
 
-        loadUser();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [router]);
-
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        router.push("/");
-    };
-
-    if (!user)
-        return (
-            <div className={s.loading}>
-                <div className={s.spinner} />
-                <span>Loading...</span>
-            </div>
-        );
-
-    return (
-        <div className={s.page}>
-            <header className={s.header}>
-                <Link href="/" className={s.brand}>
-                    <div className={s.brandIcon}>
-                        <Image
-                            src="/favicon.svg"
-                            alt="SocialAnimal"
-                            width={15}
-                            height={15}
-                        />
-                    </div>
-                    <span className={s.brandName}>SocialAnimal</span>
-                </Link>
-                <button className={s.logoutBtn} onClick={handleLogout}>
-                    <LogOut size={13} /> Sign out
-                </button>
-            </header>
-
-            <div className={s.tabBar}>
-                {TABS.map(({ id, label, icon: Icon }) => (
-                    <Link
-                        key={id}
-                        href={id}
-                        className={`${s.tabBtn} ${pathname === id ? s.active : ""}`}
-                    >
-                        <Icon size={14} />
-                        {label}
-                    </Link>
-                ))}
-            </div>
-
-            <main className={s.main}>{children}</main>
-        </div>
-    );
+			<main className={s.main}>{children}</main>
+		</div>
+	);
 }
