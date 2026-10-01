@@ -797,7 +797,7 @@ export function subscriptions(
 
 export type createSubscriptionInput = {
 	id: string;
-	body: { ceiling: "busy" | "titles" | "full" };
+	body: { ceiling: "busy" | "titles" | "full"; replaceId?: string };
 };
 
 export type createSubscriptionResponse = {
@@ -807,6 +807,7 @@ export type createSubscriptionResponse = {
 	createdAt: string;
 	revokedAt: null | string;
 	url: string;
+	previewUrl: string;
 };
 
 export function createSubscription(
@@ -833,5 +834,41 @@ export function revokeSubscription(
 	const query = new URLSearchParams();
 	return apiClient.request(path + (query.size ? "?" + query : ""), {
 		method: "DELETE",
+	});
+}
+
+export type sharedCalendarPreviewInput = {
+	body: {
+		token: string;
+		start: string;
+		end: string;
+		limit?: number;
+		cursor?: string;
+	};
+};
+
+export type sharedCalendarPreviewResponse = {
+	name: string;
+	permission: "busy" | "titles" | "full";
+	items: Array<{
+		id: string;
+		title: string;
+		description: null | string;
+		location: null | string;
+		startTime: string;
+		endTime: string;
+		allDay: boolean;
+	}>;
+	nextCursor: null | string;
+};
+
+export function sharedCalendarPreview(
+	input: sharedCalendarPreviewInput,
+): Promise<sharedCalendarPreviewResponse> {
+	let path = "/api/v1/shared-calendar-previews";
+	const query = new URLSearchParams();
+	return apiClient.request(path + (query.size ? "?" + query : ""), {
+		method: "POST",
+		body: input.body,
 	});
 }

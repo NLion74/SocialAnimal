@@ -10,6 +10,7 @@ x-backend-environment: &backend-environment
     GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
     GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
     MIN_SYNC_INTERVAL_MINUTES: ${MIN_SYNC_INTERVAL_MINUTES:-15}
+    PRIVATE_PROVIDER_HOSTS: ${PRIVATE_PROVIDER_HOSTS:-}
     SYNC_CONCURRENCY: ${SYNC_CONCURRENCY:-3}
 
 services:
@@ -33,11 +34,11 @@ services:
             retries: 20
             start_period: 5s
 
-    migrate:
+    setup:
         image: nlion/socialanimal-backend:${SOCIALANIMAL_VERSION:?Set SOCIALANIMAL_VERSION to a release tag}
         restart: "no"
         environment: *backend-environment
-        command: ["node", "dist/migrate.js"]
+        command: ["node", "dist/setup-database.js"]
         depends_on:
             db:
                 condition: service_healthy
@@ -49,7 +50,7 @@ services:
         depends_on:
             db:
                 condition: service_healthy
-            migrate:
+            setup:
                 condition: service_completed_successfully
         healthcheck:
             test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/ready"]

@@ -84,6 +84,23 @@ if (process.env.SMOKE_ALLOW_WRITES === "1") {
 			new URL(base).origin,
 			"Feed URLs must use the configured public origin",
 		);
+		const previewPage = await request("/shared");
+		assert.equal(previewPage.status, 200);
+		assert.equal(previewPage.headers.get("referrer-policy"), "no-referrer");
+		const preview = () =>
+			request("/api/v1/shared-calendar-previews", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					token: new URL(feed.previewUrl).hash.slice(1),
+					start: "2026-09-01T00:00:00Z",
+					end: "2026-10-01T00:00:00Z",
+				}),
+			});
+		const publicCalendar = await preview();
+		assert.equal(publicCalendar.status, 200);
+		assert.equal(publicCalendar.headers.get("cache-control"), "no-store");
+		assert.equal((await publicCalendar.json()).name, "Compose smoke");
 		const delivered = await fetch(feed.url);
 		assert.equal(delivered.status, 200);
 		assert.match(await delivered.text(), /BEGIN:VCALENDAR/);
@@ -97,6 +114,7 @@ if (process.env.SMOKE_ALLOW_WRITES === "1") {
 			204,
 		);
 		assert.equal((await fetch(feed.url)).status, 404);
+		assert.equal((await preview()).status, 404);
 	} finally {
 		assert.equal(
 			(

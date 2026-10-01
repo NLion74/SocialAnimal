@@ -52,9 +52,9 @@ jobs:
               working-directory: ./backend
               run: npm run lint -- --max-warnings=0
 
-            - name: Validate populated baseline upgrade
+            - name: Initialize an empty database
               working-directory: ./backend
-              run: node tests/database/baseline.mjs && node tests/database/upgrade.mjs
+              run: npm run build && node tests/database/fresh.mjs
 
             - name: Run tests
               working-directory: ./backend

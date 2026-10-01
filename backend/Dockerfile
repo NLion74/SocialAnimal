@@ -14,8 +14,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=4000
 RUN addgroup -S app && adduser -S app -G app
-# Include the exact lockfile-installed migration CLI and generated client in the
-# same release image used by both the one-shot migrator and API.
+# Use the same generated client and schema tools for database setup and API.
 COPY --from=builder --chown=app:app /app/node_modules ./node_modules
 COPY --from=builder --chown=app:app /app/dist ./dist
 COPY --from=builder --chown=app:app /app/prisma ./prisma

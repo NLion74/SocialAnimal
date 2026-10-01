@@ -1,3 +1,4 @@
+import { providerFetch } from "../../../core/http/provider-fetch";
 import { createDAVClient } from "tsdav";
 import type { DAVCalendar, DAVCalendarObject } from "tsdav";
 import ical from "node-ical";
@@ -57,7 +58,7 @@ export class CaldavAdapter {
 			authMethod: "Basic",
 			defaultAccountType: "caldav",
 			fetch: async (url: string, init: RequestInit = {}) => {
-				const response = await fetch(url, {
+				const response = await providerFetch(url, {
 					...init,
 					signal: AbortSignal.timeout(60000),
 				});

@@ -7414,7 +7414,8 @@
 									"ceiling": {
 										"type": "string",
 										"enum": ["busy", "titles", "full"]
-									}
+									},
+									"replaceId": { "type": "string" }
 								},
 								"required": ["ceiling"]
 							}
@@ -7443,7 +7444,8 @@
 										"revokedAt": {
 											"type": ["null", "string"]
 										},
-										"url": { "type": "string" }
+										"url": { "type": "string" },
+										"previewUrl": { "type": "string" }
 									},
 									"required": [
 										"id",
@@ -7451,7 +7453,8 @@
 										"ceiling",
 										"createdAt",
 										"revokedAt",
-										"url"
+										"url",
+										"previewUrl"
 									]
 								}
 							}
@@ -7631,6 +7634,273 @@
 				"security": [{ "bearerAuth": [] }],
 				"responses": {
 					"204": { "description": "204" },
+					"400": {
+						"description": "400",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "401",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "403",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "404",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "409",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "422",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "500",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "502",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "503",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"code": { "type": "string" },
+										"message": { "type": "string" },
+										"requestId": { "type": "string" }
+									},
+									"required": ["code", "message", "requestId"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/shared-calendar-previews": {
+			"post": {
+				"operationId": "sharedCalendarPreview",
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"additionalProperties": false,
+								"properties": {
+									"token": {
+										"type": "string",
+										"minLength": 1,
+										"maxLength": 128
+									},
+									"start": {
+										"type": "string",
+										"format": "date-time"
+									},
+									"end": {
+										"type": "string",
+										"format": "date-time"
+									},
+									"limit": {
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 500,
+										"default": 100
+									},
+									"cursor": { "type": "string" }
+								},
+								"required": ["token", "start", "end"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "200",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"name": { "type": "string" },
+										"permission": {
+											"type": "string",
+											"enum": ["busy", "titles", "full"]
+										},
+										"items": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"additionalProperties": false,
+												"properties": {
+													"id": { "type": "string" },
+													"title": {
+														"type": "string"
+													},
+													"description": {
+														"type": [
+															"null",
+															"string"
+														]
+													},
+													"location": {
+														"type": [
+															"null",
+															"string"
+														]
+													},
+													"startTime": {
+														"type": "string",
+														"format": "date-time"
+													},
+													"endTime": {
+														"type": "string",
+														"format": "date-time"
+													},
+													"allDay": {
+														"type": "boolean"
+													}
+												},
+												"required": [
+													"id",
+													"title",
+													"description",
+													"location",
+													"startTime",
+													"endTime",
+													"allDay"
+												]
+											}
+										},
+										"nextCursor": {
+											"type": ["null", "string"]
+										}
+									},
+									"required": [
+										"name",
+										"permission",
+										"items",
+										"nextCursor"
+									]
+								}
+							}
+						}
+					},
 					"400": {
 						"description": "400",
 						"content": {

@@ -4,7 +4,7 @@ const databaseUrl = process.env.TEST_DATABASE_URL;
 
 if (!databaseUrl || !new URL(databaseUrl).pathname.endsWith("_test"))
 	throw new Error(
-		"TEST_DATABASE_URL must point to the upgraded disposable database",
+		"TEST_DATABASE_URL must point to the initialized disposable database",
 	);
 
 export default defineConfig({
@@ -22,6 +22,7 @@ export default defineConfig({
 				JWT_SECRET: "browser-test-secret",
 				CREDENTIAL_ENCRYPTION_KEY: "ab".repeat(32),
 				PORT: "4400",
+				PRIVATE_PROVIDER_HOSTS: "127.0.0.1",
 				PUBLIC_URL: "http://127.0.0.1:3300",
 			},
 		},

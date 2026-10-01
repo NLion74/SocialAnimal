@@ -38,6 +38,11 @@ describe.skipIf(!enabled)("REST v1 with PostgreSQL", () => {
 			throw new Error("Disposable test database required");
 
 		app = await buildApp();
+		await prisma.appSettings.upsert({
+			where: { id: "global" },
+			create: { id: "global" },
+			update: { inviteOnly: false, registrationsOpen: true },
+		});
 
 		await prisma.user.createMany({
 			data: [
@@ -53,6 +58,10 @@ describe.skipIf(!enabled)("REST v1 with PostgreSQL", () => {
 					passwordHash: "hash",
 				},
 			],
+		});
+
+		await prisma.userSettings.create({
+			data: { userId: owner, defaultSharePermission: "busy" },
 		});
 	});
 
@@ -72,7 +81,10 @@ describe.skipIf(!enabled)("REST v1 with PostgreSQL", () => {
 				type: "ics",
 				name: "Backfill restart",
 				syncInterval: 0,
-				config: { url: "https://example.test/legacy" },
+				config: {
+					url: "https://example.test/legacy",
+					password: "secret-preserved",
+				},
 			},
 		});
 
@@ -96,7 +108,7 @@ describe.skipIf(!enabled)("REST v1 with PostgreSQL", () => {
 		expect(await backfillConnections(1)).toBe(0);
 
 		const cal = await prisma.calendar.findUniqueOrThrow({
-			where: { id: "baseline-calendar" },
+			where: { id: legacyId },
 			include: { connection: true },
 		});
 
@@ -105,14 +117,14 @@ describe.skipIf(!enabled)("REST v1 with PostgreSQL", () => {
 		);
 
 		expect(cal.config).toEqual({
-			url: "https://example.test/private.ics",
+			url: "https://example.test/legacy",
 			password: "secret-preserved",
 		});
 
 		expect(
 			(
 				await prisma.userSettings.findUniqueOrThrow({
-					where: { userId: "baseline-owner" },
+					where: { userId: owner },
 				})
 			).defaultSharePermission,
 		).toBe("busy");

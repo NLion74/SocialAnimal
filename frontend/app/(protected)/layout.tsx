@@ -35,9 +35,11 @@ export default function ProtectedLayout({
 
 	if (error)
 		return (
-			<div role="alert">
+			<div className={s.errorState} role="alert">
 				{error}
-				<button onClick={refresh}>Retry</button>
+				<button className={s.logoutBtn} onClick={refresh}>
+					Retry
+				</button>
 			</div>
 		);
 

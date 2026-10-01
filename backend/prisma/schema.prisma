@@ -58,7 +58,6 @@ model UserSettings {
 	userId                 String @unique
 	user                   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 	firstDayOfWeek         String @default("monday")
-	// Retained from the committed migration baseline.
 	defaultSharePermission SharePermission @default(full)
 	timezone               String @default("UTC")
 	defaultTab             String @default("dashboard")

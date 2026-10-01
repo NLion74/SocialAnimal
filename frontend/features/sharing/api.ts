@@ -20,7 +20,12 @@ export const sharingApi = {
 				}),
 	list: (id: string) =>
 		allPages((cursor) => client.subscriptions({ id, cursor })),
-	create: (id: string) =>
-		client.createSubscription({ id, body: { ceiling: "full" } }),
+	create: (
+		id: string,
+		ceiling: "busy" | "titles" | "full" = "full",
+		replaceId?: string,
+	) => client.createSubscription({ id, body: { ceiling, replaceId } }),
+	preview: (body: client.sharedCalendarPreviewInput["body"]) =>
+		client.sharedCalendarPreview({ body }),
 	revoke: (id: string) => client.revokeSubscription({ id }),
 };

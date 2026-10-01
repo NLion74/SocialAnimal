@@ -162,7 +162,7 @@ export async function executeSync(runId: string) {
 		});
 
 		if (!calendar.connection || !calendar.remoteId)
-			throw new Error("Connection migration required");
+			throw new Error("Calendar connection is missing");
 
 		const credentials = decrypt(calendar.connection.credentials);
 

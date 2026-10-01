@@ -77,6 +77,7 @@ export function documentApi(app: FastifyInstance) {
 					"/api/v1/auth/registrations",
 					"/api/v1/auth/sessions",
 					"/api/v1/settings/public",
+					"/api/v1/shared-calendar-previews",
 					"/api/v1/connections/google/callback",
 				].includes(route.url)
 					? { security: [{ bearerAuth: [] }] }

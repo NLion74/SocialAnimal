@@ -1,3 +1,4 @@
+import { providerFetch } from "../../../core/http/provider-fetch";
 import ical from "node-ical";
 
 export interface IcsConfig {
@@ -291,7 +292,7 @@ export class IcsAdapter {
 			headers.Authorization = `Basic ${Buffer.from(`${config.username}:${config.password}`).toString("base64")}`;
 		}
 
-		const response = await fetch(this.normalizeUrl(config.url), {
+		const response = await providerFetch(this.normalizeUrl(config.url), {
 			headers,
 			signal: AbortSignal.timeout(timeoutMs),
 		});

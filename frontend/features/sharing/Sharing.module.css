@@ -1,0 +1,175 @@
+.dialog {
+	display: grid;
+	gap: 1.25rem;
+}
+
+.description,
+.hint {
+	color: var(--text-secondary);
+	line-height: 1.6;
+}
+
+.hint {
+	font-size: 0.8125rem;
+}
+
+.permission,
+.linkField {
+	display: grid;
+	gap: 0.625rem;
+}
+
+.permission label,
+.links h3 {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-weight: 600;
+}
+
+.input {
+	width: 100%;
+	min-width: 0;
+	padding: 0.75rem;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--bg-base);
+	color: var(--text-primary);
+	font: inherit;
+	font-size: 0.875rem;
+}
+
+.primary,
+.secondary,
+.danger {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	padding: 0.625rem 0.875rem;
+	min-height: 40px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	font: inherit;
+	font-size: 0.875rem;
+	font-weight: 600;
+	text-decoration: none;
+	cursor: pointer;
+	transition: background var(--transition);
+}
+
+.primary {
+	background: var(--purple-500);
+	color: white;
+}
+
+.primary:hover {
+	background: var(--purple-600);
+}
+.secondary {
+	background: var(--bg-elevated);
+	color: var(--text-primary);
+}
+.secondary:hover {
+	background: var(--bg-hover);
+}
+.danger {
+	background: var(--danger-dim);
+	color: #fca5a5;
+}
+.danger:hover {
+	background: rgba(239, 68, 68, 0.22);
+}
+.primary:disabled,
+.secondary:disabled,
+.danger:disabled {
+	opacity: 0.5;
+	cursor: wait;
+}
+.input:focus-visible,
+.primary:focus-visible,
+.secondary:focus-visible,
+.danger:focus-visible {
+	outline: 2px solid var(--purple-400);
+	outline-offset: 3px;
+}
+.error {
+	padding: 0.75rem;
+	background: var(--danger-dim);
+	border-radius: var(--radius-md);
+	color: #fca5a5;
+	line-height: 1.5;
+}
+.notice {
+	color: #6ee7b7;
+	font-size: 0.875rem;
+}
+.notice:empty {
+	display: none;
+}
+.links {
+	display: grid;
+	gap: 1rem;
+	padding: 1rem;
+	background: var(--bg-surface);
+	border: 1px solid var(--border-focus);
+	border-radius: var(--radius-lg);
+}
+.links h3,
+.subscriptions h3 {
+	font-size: 1rem;
+}
+.linkField label {
+	font-size: 0.8125rem;
+	font-weight: 600;
+}
+.linkRow {
+	display: flex;
+	gap: 0.5rem;
+	min-width: 0;
+}
+.subscriptions {
+	display: grid;
+	gap: 0.75rem;
+}
+.list {
+	list-style: none;
+}
+.subscription {
+	display: grid;
+	gap: 0.5rem;
+	padding: 1rem 0;
+	border-top: 1px solid var(--border);
+}
+.rowTitle {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 1rem;
+	font-size: 0.875rem;
+}
+.active,
+.revoked {
+	font-size: 0.75rem;
+	border-radius: var(--radius-full);
+	padding: 0.2rem 0.5rem;
+}
+.active {
+	color: #6ee7b7;
+	background: var(--success-dim);
+}
+.revoked {
+	color: var(--text-secondary);
+	background: var(--bg-hover);
+}
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+.empty {
+	padding: 1rem 0;
+	color: var(--text-secondary);
+	font-size: 0.875rem;
+	line-height: 1.6;
+}

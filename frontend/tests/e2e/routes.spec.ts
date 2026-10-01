@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test";
 test("anonymous and authenticated routes, login, subscriptions, credential masking and session errors", async ({
 	page,
 	request,
+	browser,
 }) => {
 	const errors: string[] = [];
 	page.on("pageerror", (error) => errors.push(error.message));
@@ -134,28 +135,76 @@ test("anonymous and authenticated routes, login, subscriptions, credential maski
 		{ timeout: 45000 },
 	);
 
-	await page.getByTitle("Export ICS link").click();
+	await page.getByTitle("Share calendar").click();
 	await page.getByRole("button", { name: "Create subscription" }).click();
 
-	await expect(page.getByLabel("Subscription URL")).toHaveValue(
-		/\/feeds\/.+\.ics$/,
-	);
+	await expect(
+		page.getByLabel("Subscription URL", { exact: true }),
+	).toHaveValue(/\/feeds\/.+\.ics$/);
 
-	const url = await page.getByLabel("Subscription URL").inputValue();
+	await expect(page.getByRole("dialog")).toBeVisible();
+	await expect(
+		page.getByRole("dialog").getByRole("heading", { level: 2 }),
+	).toHaveCount(1);
+	await page.screenshot({
+		path: "/tmp/socialanimal-sharing-desktop.png",
+		fullPage: true,
+	});
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.screenshot({
+		path: "/tmp/socialanimal-sharing-mobile.png",
+		fullPage: true,
+	});
+	expect(
+		await page.evaluate(
+			() => document.documentElement.scrollWidth <= window.innerWidth,
+		),
+	).toBe(true);
+	const previewUrl = await page
+		.getByLabel("Preview URL", { exact: true })
+		.inputValue();
+	const guest = await browser.newContext();
+	const guestPage = await guest.newPage();
+	await guestPage.goto(previewUrl);
+	await expect(
+		guestPage.getByRole("heading", { name: "Browser Calendar" }),
+	).toBeVisible();
+	expect(
+		await guestPage.evaluate(() => localStorage.getItem("token")),
+	).toBeNull();
+	await guestPage.screenshot({
+		path: "/tmp/socialanimal-preview.png",
+		fullPage: true,
+	});
+	const url = await page
+		.getByLabel("Subscription URL", { exact: true })
+		.inputValue();
 	expect((await request.get(url)).status()).toBe(200);
 
 	await page
 		.getByRole("button", { name: "Replace URL", exact: true })
 		.click();
 
-	await expect(page.getByLabel("Subscription URL")).not.toHaveValue(url);
+	await expect(
+		page.getByLabel("Subscription URL", { exact: true }),
+	).not.toHaveValue(url);
 	await expect.poll(async () => (await request.get(url)).status()).toBe(404);
+	await guestPage.reload();
+	await expect(
+		guestPage
+			.getByRole("region", { name: "Shared calendar preview" })
+			.getByRole("alert"),
+	).toContainText("no longer available");
+	await guest.close();
 	await page.getByRole("button", { name: "Revoke", exact: true }).click();
 
 	await expect(
 		page.getByRole("button", { name: "Revoke", exact: true }),
 	).toHaveCount(0);
 
+	await page.keyboard.press("Escape");
+	await expect(page.getByRole("dialog")).toHaveCount(0);
+	await page.setViewportSize({ width: 1280, height: 720 });
 	await page.goto("/profile");
 
 	await page.route("**/api/v1/me", (route) =>

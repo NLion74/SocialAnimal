@@ -73,6 +73,7 @@ SocialAnimal takes a different approach: it connects to your existing calendars 
 - CalDAV / iCloud support
 - ICS / iCal feed import
 - ICS export for external calendar clients
+- Revocable web preview links for people without an account
 
 **Calendar Experience**
 
@@ -167,7 +168,7 @@ To enable Google Calendar integration:
 7. Add authorized redirect URI: `https://your-public-url/api/v1/connections/google/callback`
 8. Copy the Client ID and Client Secret to your .env file
 
-Without Google credentials, users can still connect Apple Calendar (iCloud), CalDAV, or an ICS/iCal URL.
+Without Google credentials, users can still connect Apple Calendar (iCloud), CalDAV, or an ICS/iCal URL. For a calendar server on your private network, add its exact hostname or IP to `PRIVATE_PROVIDER_HOSTS` in your environment file. Other private network addresses are blocked.
 
 ## Development
 

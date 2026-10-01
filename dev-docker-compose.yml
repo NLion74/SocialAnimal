@@ -31,7 +31,7 @@ services:
             sh -c "npm ci --fetch-retries=5 --fetch-retry-mintimeout=2000
             --fetch-retry-maxtimeout=30000 &&
             npx prisma generate &&
-            npm run build && node dist/migrate.js &&
+            npm run build && node dist/setup-database.js &&
             npm run dev"
         ports:
             - "127.0.0.1:${BACKEND_PORT:-4000}:4000"
@@ -46,6 +46,7 @@ services:
             PUBLIC_URL: "${PUBLIC_URL:-http://localhost:3000}"
             CREDENTIAL_ENCRYPTION_KEY: "${CREDENTIAL_ENCRYPTION_KEY:?Set CREDENTIAL_ENCRYPTION_KEY}"
             MIN_SYNC_INTERVAL_MINUTES: "${MIN_SYNC_INTERVAL_MINUTES:-15}"
+            PRIVATE_PROVIDER_HOSTS: "${PRIVATE_PROVIDER_HOSTS:-}"
             SYNC_CONCURRENCY: "${SYNC_CONCURRENCY:-3}"
         healthcheck:
             test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/ready"]

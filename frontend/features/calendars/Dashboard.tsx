@@ -925,7 +925,7 @@ export default function DashboardPage() {
 												c.id,
 											)
 										}
-										title="Export ICS link"
+										title="Share calendar"
 									>
 										<Link size={12} />
 									</button>
@@ -1037,7 +1037,7 @@ export default function DashboardPage() {
 												share.calendarId,
 											)
 										}
-										title="Export ICS link"
+										title="Share calendar"
 									>
 										<Link size={12} />
 									</button>

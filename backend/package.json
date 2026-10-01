@@ -19,9 +19,9 @@
 		"prisma:push": "prisma db push && prisma generate",
 		"prisma:reset": "prisma migrate reset",
 		"client:generate": "npm run build && node scripts/generate-client.cjs",
-		"test:database": "node tests/database/baseline.mjs && node tests/database/upgrade.mjs && vitest run tests/database/v1.test.ts",
-		"migrate:release": "node dist/migrate.js",
-		"format": "node scripts/format.cjs"
+		"test:database": "npm run build && node tests/database/fresh.mjs && vitest run tests/database/v1.test.ts tests/modules/sharing/preview.test.ts",
+		"format": "node scripts/format.cjs",
+		"database:setup": "node dist/setup-database.js"
 	},
 	"dependencies": {
 		"@fastify/cors": "^11.2.0",
@@ -33,10 +33,12 @@
 		"fastify": "^5.0.0",
 		"googleapis": "^171.4.0",
 		"ical-generator": "^10.0.0",
+		"ipaddr.js": "^2.5.0",
 		"jsonwebtoken": "^9.0.0",
 		"node-ical": "^0.25.4",
 		"pg": "^8.19.0",
-		"tsdav": "^2.1.8"
+		"tsdav": "^2.1.8",
+		"undici": "^7.30.0"
 	},
 	"devDependencies": {
 		"@eslint/eslintrc": "^3.3.4",

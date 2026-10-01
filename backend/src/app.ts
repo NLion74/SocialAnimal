@@ -19,6 +19,11 @@ export async function buildApp(): Promise<FastifyInstance> {
 		ajv: { customOptions: { removeAdditional: false } },
 	});
 
+	app.addHook("onRequest", async (_req, reply) => {
+		reply.header("Cache-Control", "no-store");
+		reply.header("X-Content-Type-Options", "nosniff");
+	});
+
 	errors(app);
 	documentApi(app);
 	await app.register(cors);

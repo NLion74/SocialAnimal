@@ -29,7 +29,7 @@ async function start() {
 
 start().catch(async () => {
 	console.error(
-		"Startup failed: check database migrations, connection backfill, JWT_SECRET, and CREDENTIAL_ENCRYPTION_KEY",
+		"Startup failed: check database schema, calendar connections, JWT_SECRET, and CREDENTIAL_ENCRYPTION_KEY",
 	);
 
 	await prisma.$disconnect();

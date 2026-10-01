@@ -23,8 +23,10 @@ Sharing is checked on every API read and feed request. Subscriptions store only 
 
 Frontend route pages compose feature screens. Feature API methods wrap generated endpoint types; `SessionProvider` owns session state, and 403 errors remain local. Calendar date and layout helpers remain unchanged. The generated OpenAPI document uses the same schemas as runtime validation and serialization.
 
-The API is served under `/api/v1`; known retired API roots return `410 API_VERSION_RETIRED`, while unknown routes return 404. Old JWT export URLs must be replaced using the calendar subscription dialog. Google OAuth uses `/api/v1/connections/google/callback`, which must also be configured in Google Cloud. Connections require a persistent `CREDENTIAL_ENCRYPTION_KEY`; losing that key prevents credential decryption. See [database operations](database-operations.md) for the deployment and recovery procedure.
-
 Future availability computation belongs in a separate module consuming authorized, masked event intervals through public interfaces; it must not read provider credentials or bypass sharing. Future identity challenges (verification, reset, TOTP) belong behind identity's public interface with purpose-specific, expiring, single-use credentials. Neither module is implemented in this release. Native event CRUD, roles/demo users and additional providers are also deferred.
 
 Tests live under `backend/tests` and `frontend/tests`, including Firefox browser tests in `frontend/tests/e2e`. Source directories contain application code only.
+
+New databases are initialized directly from the Prisma schema. Existing databases must match the application version and are never reset automatically. Provider credentials require a persistent `CREDENTIAL_ENCRYPTION_KEY`.
+
+Sharing links also open an account-free web preview. The token stays in the URL fragment and is sent in the preview request body. Responses are not cached, indexed, or allowed in frames. Preview requests re-check the current permission and subscription ceiling, and expose no account or provider fields.
