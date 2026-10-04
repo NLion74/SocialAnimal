@@ -1,8 +1,12 @@
+import { providerFailure } from "../../core/http/provider-errors";
+import type { JobLogger } from "../../core/jobs";
+import { effectiveMinimumInterval, registrationSettings } from "../settings";
 import { randomUUID } from "node:crypto";
 import { prisma } from "../../core/database";
 import { decrypt, encrypt } from "../../core/secrets";
 import { fail } from "../../core/http";
 import { provider, capability } from "./operations";
+import { type SyncWindow, maxSnapshotEvents } from "./adapters/window";
 import type { FetchResult } from "./adapters";
 
 export const minimumInterval = () =>
@@ -32,9 +36,73 @@ export async function commitSnapshot(
 	runId: string,
 	leaseOwner: string,
 	result: FetchResult,
+	window?: SyncWindow,
 ) {
+	if (result.events.length > maxSnapshotEvents)
+		throw new Error("Snapshot too large");
+
+	if (
+		window &&
+		result.kind === "snapshot" &&
+		(!result.complete ||
+			!result.coverage ||
+			+result.coverage.start !== +window.start ||
+			+result.coverage.end !== +window.end)
+	)
+		throw new Error("Incomplete provider coverage");
+
+	if (
+		result.events.some(
+			(event) =>
+				!event.externalId ||
+				!Number.isFinite(+event.startTime) ||
+				!Number.isFinite(+event.endTime) ||
+				+event.endTime < +event.startTime,
+		)
+	)
+		throw new Error("Invalid provider snapshot");
+
+	if (window)
+		result = {
+			...result,
+			events: result.events.filter(
+				(event) =>
+					event.startTime < window.end &&
+					event.endTime > window.start,
+			),
+		};
+
 	await prisma.$transaction(
 		async (tx) => {
+			if (window) {
+				await tx.$executeRaw`SELECT pg_advisory_xact_lock(742903)`;
+				const current = await registrationSettings(tx);
+
+				if (
+					current.syncPastDays !== window.pastDays ||
+					current.syncFutureDays !== window.futureDays
+				) {
+					const released = await tx.calendar.updateMany({
+						where: {
+							id: calendarId,
+							leaseOwner,
+							leaseUntil: { gt: new Date() },
+						},
+						data: { leaseOwner: null, leaseUntil: null },
+					});
+
+					if (!released.count)
+						fail(409, "LEASE_EXPIRED", "Sync lease expired");
+
+					await tx.syncRun.update({
+						where: { id: runId },
+						data: { status: "queued", startedAt: null },
+					});
+
+					return;
+				}
+			}
+
 			const locked = await tx.calendar.updateMany({
 				where: {
 					id: calendarId,
@@ -109,7 +177,7 @@ export async function commitSnapshot(
 	);
 }
 
-export async function executeSync(runId: string) {
+export async function executeSync(runId: string, logger?: JobLogger) {
 	const owner = randomUUID();
 	const now = new Date();
 	const leaseMs = 120000;
@@ -143,6 +211,11 @@ export async function executeSync(runId: string) {
 
 	if (!run) return;
 
+	logger?.info(
+		{ job: "calendar-sync", runId },
+		"Calendar synchronization started",
+	);
+
 	const heartbeat = setInterval(() => {
 		void prisma.calendar
 			.updateMany({
@@ -164,12 +237,22 @@ export async function executeSync(runId: string) {
 		if (!calendar.connection || !calendar.remoteId)
 			throw new Error("Calendar connection is missing");
 
+		const settings = await registrationSettings();
+
+		const window: SyncWindow = {
+			start: new Date(+now - settings.syncPastDays * 86400000),
+			end: new Date(+now + settings.syncFutureDays * 86400000),
+			pastDays: settings.syncPastDays,
+			futureDays: settings.syncFutureDays,
+		};
+
 		const credentials = decrypt(calendar.connection.credentials);
 
 		const result = await capability(provider(calendar.type), "fetch")(
 			credentials,
 			calendar.remoteId,
 			calendar.user.settings?.timezone,
+			window,
 		);
 
 		if (
@@ -184,16 +267,29 @@ export async function executeSync(runId: string) {
 				data: { credentials: encrypt(credentials) },
 			});
 
-		await commitSnapshot(calendar.id, run.id, owner, result);
-	} catch {
+		await commitSnapshot(calendar.id, run.id, owner, result, window);
+
+		logger?.info(
+			{ job: "calendar-sync", runId },
+			"Calendar snapshot processed",
+		);
+	} catch (error) {
+		const failure = providerFailure(error);
+
+		logger?.warn(
+			{ job: "calendar-sync", runId, code: failure.code },
+			failure.message,
+		);
+
 		await prisma.$transaction(async (tx) => {
+			await tx.$executeRaw`SELECT pg_advisory_xact_lock(742904)`;
+
 			const held = await tx.calendar.updateMany({
 				where: { id: run.calendarId, leaseOwner: owner },
 				data: {
 					leaseOwner: null,
 					leaseUntil: null,
-					lastError:
-						"Provider synchronization failed. Check the connection.",
+					lastError: failure.message,
 				},
 			});
 
@@ -203,7 +299,7 @@ export async function executeSync(runId: string) {
 					data: {
 						status: "failed",
 						finishedAt: new Date(),
-						error: "Provider synchronization failed. Check the connection.",
+						error: failure.message,
 					},
 				});
 		});
@@ -238,12 +334,12 @@ export async function recoverLeases() {
 	});
 }
 
-export async function runSyncTick() {
+export async function runSyncTick(logger?: JobLogger) {
 	await recoverLeases();
 
 	const due = await prisma.$queryRaw<
 		Array<{ id: string }>
-	>`SELECT "id" FROM "Calendar" WHERE "syncInterval" > 0 AND "connectionId" IS NOT NULL AND ("lastAttempt" IS NULL OR "lastAttempt" <= NOW() - (GREATEST("syncInterval", ${minimumInterval()}) * INTERVAL '1 minute')) ORDER BY "lastAttempt" ASC NULLS FIRST LIMIT 100`;
+	>`SELECT "id" FROM "Calendar" WHERE "syncInterval" > 0 AND "connectionId" IS NOT NULL AND ("lastAttempt" IS NULL OR "lastAttempt" <= NOW() - (GREATEST("syncInterval", ${await effectiveMinimumInterval()}) * INTERVAL '1 minute')) ORDER BY "lastAttempt" ASC NULLS FIRST LIMIT 100`;
 
 	for (const calendar of due) await submitSync(calendar.id);
 
@@ -258,5 +354,14 @@ export async function runSyncTick() {
 		orderBy: { createdAt: "asc" },
 	});
 
-	await Promise.allSettled(jobs.map((job) => executeSync(job.id)));
+	const results = await Promise.allSettled(
+		jobs.map((job) => executeSync(job.id, logger)),
+	);
+
+	for (const [index, result] of results.entries())
+		if (result.status === "rejected")
+			logger?.error(
+				{ job: "calendar-sync", runId: jobs[index].id },
+				"Calendar synchronization could not complete",
+			);
 }

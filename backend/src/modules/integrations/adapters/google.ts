@@ -1,3 +1,4 @@
+import { type SyncWindow, maxSnapshotEvents } from "./window";
 import { env, isGoogleConfigured } from "../../../core/config";
 import type { Credentials } from "../../../core/secrets";
 
@@ -107,6 +108,10 @@ async function pages(
 
 		const result = await get(config, `${path}?${params}`);
 		items.push(...(result.items || []));
+
+		if (items.length > maxSnapshotEvents)
+			throw new Error("Snapshot too large");
+
 		token = result.nextPageToken;
 	} while (token);
 
@@ -120,17 +125,31 @@ export const googleDiscover = async (config: Credentials) =>
 		color: c.backgroundColor as string | undefined,
 	}));
 
-export const googleFetch = async (config: Credentials, remoteId: string) =>
+export const googleFetch = async (
+	config: Credentials,
+	remoteId: string,
+	window?: SyncWindow,
+) =>
 	(
 		await pages(
 			config,
 			`/calendars/${encodeURIComponent(remoteId)}/events`,
-			{ singleEvents: "true", maxResults: "2500" },
+			{
+				singleEvents: "true",
+				maxResults: "2500",
+				...(window
+					? {
+							timeMin: window.start.toISOString(),
+							timeMax: window.end.toISOString(),
+						}
+					: {}),
+			},
 		)
 	)
 		.filter((e) => e.status !== "cancelled")
 		.map((e) => ({
 			externalId: String(e.id),
+			isRecurring: !!(e.recurringEventId || e.recurrence?.length),
 			title: String(e.summary || "Untitled"),
 			description: e.description || null,
 			location: e.location || null,

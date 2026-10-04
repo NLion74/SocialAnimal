@@ -25,11 +25,18 @@ const friendship = obj(
 		user2: user,
 		status: str,
 		sharedCalendarIds: array(str),
+		sharedCalendarExpirations: {
+			type: "object",
+			additionalProperties: { type: ["string", "null"] },
+		},
+		sharedCalendarRulesets: { type: "object", additionalProperties: str },
 		sharedCalendarPermissions: {
 			type: "object",
 			additionalProperties: permission,
 		},
-		sharedWithMe: array(obj({ id: str, name: str, permission })),
+		sharedWithMe: array(
+			obj({ id: str, name: str, permission, accessLabel: str }),
+		),
 	},
 	["id", "status", "user1", "user2"],
 );

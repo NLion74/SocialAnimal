@@ -1,7 +1,8 @@
+import { visiblePage } from "../../core/http/visible-page";
 import type { FastifyPluginAsync } from "fastify";
 import type { SharePermission } from "@prisma/client";
 import ical from "ical-generator";
-import { prisma } from "../../core/database";
+import { prisma, type Prisma } from "../../core/database";
 import { opaqueToken, tokenHash } from "../../core/secrets";
 import {
 	contract,
@@ -17,17 +18,25 @@ import {
 	bool,
 	fail,
 } from "../../core/http";
+import ruleRoutes from "./rule-routes";
+import { eventAccess } from "./event-access";
 import { subscriptionAccess } from "./subscriptions";
 import { authenticateToken } from "../identity";
-import {
-	access,
-	ceiling,
-	maskEvent,
-	permissionSchema,
-	setGrant,
-} from "./authorization";
+import { access, ceiling, permissionSchema, setGrant } from "./authorization";
+
+const expirySchema = { type: ["string", "null"], format: "date-time" };
+
+function expiration(value?: string | null) {
+	if (value && new Date(value) <= new Date())
+		fail(400, "INVALID_EXPIRATION", "Choose a future expiration");
+
+	return value === undefined ? undefined : value ? new Date(value) : null;
+}
 
 const subscription = obj({
+	expiresAt: nullableString,
+	name: str,
+	rulesetId: nullableString,
 	id: str,
 	calendarId: str,
 	ceiling: permissionSchema,
@@ -36,9 +45,11 @@ const subscription = obj({
 });
 
 const routes: FastifyPluginAsync = async (app) => {
+	await app.register(ruleRoutes);
+
 	app.put<{
 		Params: { id: string; userId: string };
-		Body: { permission: SharePermission };
+		Body: { rulesetId: string; expiresAt?: string | null };
 	}>(
 		"/api/v1/calendars/:id/grants/:userId",
 		{
@@ -46,7 +57,11 @@ const routes: FastifyPluginAsync = async (app) => {
 			schema: contract(
 				"setGrant",
 				{ type: "null" },
-				{ body: obj({ permission: permissionSchema }) },
+				{
+					body: obj({ rulesetId: str, expiresAt: expirySchema }, [
+						"rulesetId",
+					]),
+				},
 				204,
 			),
 		},
@@ -55,7 +70,8 @@ const routes: FastifyPluginAsync = async (app) => {
 				req.user.id,
 				req.params.userId,
 				req.params.id,
-				req.body.permission,
+				req.body.rulesetId,
+				req.body.expiresAt,
 			);
 
 			return reply.code(204).send();
@@ -97,7 +113,13 @@ const routes: FastifyPluginAsync = async (app) => {
 
 	app.post<{
 		Params: { id: string };
-		Body: { ceiling: SharePermission; replaceId?: string };
+		Body: {
+			ceiling?: SharePermission;
+			replaceId?: string;
+			name?: string;
+			rulesetId?: string;
+			expiresAt?: string | null;
+		};
 	}>(
 		"/api/v1/calendars/:id/subscriptions",
 		{
@@ -106,9 +128,22 @@ const routes: FastifyPluginAsync = async (app) => {
 				"createSubscription",
 				obj({ ...subscription.properties, url: str, previewUrl: str }),
 				{
-					body: obj({ ceiling: permissionSchema, replaceId: str }, [
-						"ceiling",
-					]),
+					body: {
+						...obj(
+							{
+								ceiling: permissionSchema,
+								replaceId: str,
+								name: { ...str, minLength: 1, maxLength: 100 },
+								rulesetId: str,
+								expiresAt: expirySchema,
+							},
+							[],
+						),
+						anyOf: [
+							{ required: ["ceiling"] },
+							{ required: ["rulesetId"] },
+						],
+					},
 				},
 				201,
 			),
@@ -119,6 +154,9 @@ const routes: FastifyPluginAsync = async (app) => {
 			const row = await prisma.$transaction(async (tx) => {
 				const permission = await access(req.params.id, req.user.id, tx);
 
+				if (req.body.rulesetId)
+					await ownedRuleset(tx, req.body.rulesetId, req.user.id);
+
 				if (req.body.replaceId) {
 					const replaced = await tx.subscription.updateMany({
 						where: {
@@ -127,7 +165,7 @@ const routes: FastifyPluginAsync = async (app) => {
 							issuerId: req.user.id,
 							revokedAt: null,
 						},
-						data: { revokedAt: new Date() },
+						data: { revokedAt: new Date(), rulesetId: null },
 					});
 
 					if (!replaced.count)
@@ -139,7 +177,12 @@ const routes: FastifyPluginAsync = async (app) => {
 						calendarId: req.params.id,
 						issuerId: req.user.id,
 						tokenHash: tokenHash(token),
-						ceiling: ceiling(permission, req.body.ceiling),
+						ceiling: req.body.rulesetId
+							? "full"
+							: ceiling(permission, req.body.ceiling || "full"),
+						name: req.body.name?.trim() || "Sharing link",
+						rulesetId: req.body.rulesetId,
+						expiresAt: expiration(req.body.expiresAt),
 					},
 				});
 			});
@@ -154,16 +197,104 @@ const routes: FastifyPluginAsync = async (app) => {
 		},
 	);
 
-	app.delete<{ Params: { id: string } }>(
+	app.patch<{
+		Params: { id: string };
+		Body: { name?: string; rulesetId?: string; expiresAt?: string | null };
+	}>(
 		"/api/v1/subscriptions/:id",
 		{
 			preHandler: authenticateToken,
-			schema: contract("revokeSubscription", { type: "null" }, {}, 204),
+			schema: contract("updateSubscription", subscription, {
+				body: obj(
+					{
+						name: { ...str, minLength: 1, maxLength: 100 },
+						rulesetId: str,
+						expiresAt: expirySchema,
+					},
+					[],
+				),
+			}),
+		},
+		async (req) =>
+			prisma.$transaction(async (tx) => {
+				const row = await tx.subscription.findFirst({
+					where: {
+						id: req.params.id,
+						issuerId: req.user.id,
+						revokedAt: null,
+					},
+				});
+
+				if (!row)
+					return fail(
+						404,
+						"NOT_FOUND",
+						"Active subscription not found",
+					);
+
+				await access(row.calendarId, req.user.id, tx);
+
+				if (req.body.rulesetId)
+					await ownedRuleset(tx, req.body.rulesetId, req.user.id);
+
+				return tx.subscription.update({
+					where: { id: row.id },
+					data: {
+						name: req.body.name?.trim() || undefined,
+						rulesetId: req.body.rulesetId,
+						expiresAt: expiration(req.body.expiresAt),
+						...(req.body.rulesetId ? { ceiling: "full" } : {}),
+						version: { increment: 1 },
+					},
+				});
+			}),
+	);
+
+	app.delete<{
+		Params: { id: string };
+		Querystring: { permanent?: boolean };
+	}>(
+		"/api/v1/subscriptions/:id",
+		{
+			preHandler: authenticateToken,
+			schema: contract(
+				"revokeSubscription",
+				{ type: "null" },
+				{ querystring: obj({ permanent: { type: "boolean" } }, []) },
+				204,
+			),
 		},
 		async (req, reply) => {
+			if (req.query.permanent) {
+				const deleted = await prisma.subscription.deleteMany({
+					where: {
+						id: req.params.id,
+						issuerId: req.user.id,
+						revokedAt: { not: null },
+					},
+				});
+
+				if (!deleted.count) {
+					const own = await prisma.subscription.findFirst({
+						where: { id: req.params.id, issuerId: req.user.id },
+					});
+
+					if (own)
+						fail(
+							409,
+							"SHARE_ACTIVE",
+							"Revoke this sharing link before deleting it.",
+						);
+
+					fail(404, "NOT_FOUND", "Subscription not found");
+				}
+
+				return reply.code(204).send();
+			}
+
 			const result = await prisma.subscription.updateMany({
 				where: { id: req.params.id, issuerId: req.user.id },
-				data: { revokedAt: new Date() },
+				data: { revokedAt: new Date(), rulesetId: null },
 			});
 
 			if (!result.count) fail(404, "NOT_FOUND", "Subscription not found");
@@ -180,6 +311,12 @@ const routes: FastifyPluginAsync = async (app) => {
 				"sharedCalendarPreview",
 				obj({
 					name: str,
+					timezone: str,
+					firstDayOfWeek: {
+						type: "string",
+						enum: ["monday", "sunday"],
+					},
+					accessRevision: str,
 					permission: permissionSchema,
 					...list(
 						obj({
@@ -190,6 +327,10 @@ const routes: FastifyPluginAsync = async (app) => {
 							startTime: date,
 							endTime: date,
 							allDay: bool,
+							visibility: {
+								type: "string",
+								enum: ["full", "titles", "busy"],
+							},
 						}),
 					).properties,
 				}),
@@ -214,6 +355,7 @@ const routes: FastifyPluginAsync = async (app) => {
 			reply.header("Cache-Control", "no-store");
 			reply.header("Referrer-Policy", "no-referrer");
 			reply.header("X-Robots-Tag", "noindex, nofollow");
+
 			const from = new Date(req.body.start),
 				to = new Date(req.body.end);
 
@@ -224,30 +366,65 @@ const routes: FastifyPluginAsync = async (app) => {
 					"Event interval must be positive and at most 366 days",
 				);
 
-			const { calendarId, permission } = await subscriptionAccess(
-				req.body.token,
-			);
+			const { calendarId, permission, issuerId, ruleset, version } =
+				await subscriptionAccess(req.body.token);
+
 			const calendar = await prisma.calendar.findUniqueOrThrow({
 				where: { id: calendarId },
-				select: { name: true },
+				select: {
+					name: true,
+					user: {
+						select: {
+							settings: {
+								select: {
+									timezone: true,
+									firstDayOfWeek: true,
+								},
+							},
+						},
+					},
+				},
 			});
 
-			const events = await prisma.event.findMany({
-				where: {
-					calendarId,
-					startTime: { lt: to },
-					endTime: { gt: from },
-				},
-				...pageArgs(req.body),
-			});
+			const mask = await eventAccess(
+				calendarId,
+				issuerId,
+				permission,
+				undefined,
+				ruleset,
+			);
+
+			const result = await visiblePage(
+				req.body,
+				(after, take) =>
+					prisma.event.findMany({
+						where: {
+							calendarId,
+							id: after ? { gt: after } : undefined,
+							startTime: { lt: to },
+							endTime: { gt: from },
+						},
+						take,
+						orderBy: { id: "asc" },
+					}),
+				async (rows) =>
+					rows.flatMap((event) => {
+						const visible = mask(event);
+						return visible ? [visible] : [];
+					}),
+			);
 
 			return {
-				name: permission === "busy" ? "Shared calendar" : calendar.name,
+				name:
+					ruleset || permission === "busy"
+						? "Shared calendar"
+						: calendar.name,
+				timezone: calendar.user.settings?.timezone || "UTC",
+				firstDayOfWeek:
+					calendar.user.settings?.firstDayOfWeek || "monday",
+				accessRevision: `${version}:${mask.revision}`,
 				permission,
-				...page(
-					events.map((event) => maskEvent(event, permission)),
-					req.body,
-				),
+				...result,
 			};
 		},
 	);
@@ -257,19 +434,35 @@ const routes: FastifyPluginAsync = async (app) => {
 		async (req, reply) => {
 			reply.header("Cache-Control", "no-store");
 
-			const { calendarId, permission } = await subscriptionAccess(
-				req.params.token,
-			);
+			const { calendarId, permission, issuerId, ruleset } =
+				await subscriptionAccess(req.params.token);
 
 			const events = await prisma.event.findMany({
 				where: { calendarId },
 				orderBy: { startTime: "asc" },
+				take: 50001,
 			});
+
+			if (events.length > 50000)
+				fail(
+					422,
+					"FEED_TOO_LARGE",
+					"Calendar contains too many events to export.",
+				);
 
 			const feed = ical({ name: "SocialAnimal" });
 
+			const mask = await eventAccess(
+				calendarId,
+				issuerId,
+				permission,
+				undefined,
+				ruleset,
+			);
+
 			for (const raw of events) {
-				const event = maskEvent(raw, permission);
+				const event = mask(raw);
+				if (!event) continue;
 
 				feed.createEvent({
 					id: event.id,
@@ -290,3 +483,17 @@ const routes: FastifyPluginAsync = async (app) => {
 };
 
 export default routes;
+
+async function ownedRuleset(
+	tx: Prisma.TransactionClient,
+	id: string,
+	userId: string,
+) {
+	if (
+		!(await tx.permissionRuleset.findFirst({
+			where: { id, userId },
+			select: { id: true },
+		}))
+	)
+		fail(404, "NOT_FOUND", "Ruleset not found");
+}

@@ -28,7 +28,11 @@ const boundaryRule = {
 					)
 					.split(path.sep);
 
-				if (current[0] === "core" && target[0] === "modules")
+				if (
+					(current[0] === "core" && target[0] === "modules") ||
+					(current[0] === "services" &&
+						["core", "modules"].includes(target[0]))
+				)
 					context.report({ node, messageId: "boundary" });
 
 				if (

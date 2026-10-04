@@ -1,4 +1,5 @@
 import { providerFetch } from "../../../core/http/provider-fetch";
+import { parseWindow, type SyncWindow } from "./window";
 import ical from "node-ical";
 
 export interface IcsConfig {
@@ -37,14 +38,18 @@ export class IcsAdapter {
 		return typeof config.url === "string";
 	}
 
-	public async fetchEvents(calendar: {
-		id: string;
-		config: IcsConfig;
-		user?: { settings?: { timezone?: string } };
-	}): Promise<any[]> {
+	public async fetchEvents(
+		calendar: {
+			id: string;
+			config: IcsConfig;
+			user?: { settings?: { timezone?: string } };
+		},
+		window?: SyncWindow,
+	): Promise<any[]> {
 		const config = this.getConfig(calendar.config);
 		const userTimezone = (calendar as any)?.user?.settings?.timezone;
 		const icsText = await this.fetchIcs(config);
+		if (window) return parseWindow([icsText], window, userTimezone);
 		const hints = this.extractFloatingHints(icsText);
 		const events = this.extractEvents(ical.parseICS(icsText));
 
@@ -264,7 +269,8 @@ export class IcsAdapter {
 	}
 
 	private normalizeUrl(raw: string): string {
-		if (raw.startsWith("webcal://")) return "https://" + raw.slice(9);
+		raw = raw.trim();
+		if (/^webcal:\/\//i.test(raw)) return "https://" + raw.slice(9);
 		if (!raw.includes("://")) return "https://" + raw;
 		return raw;
 	}
@@ -300,6 +306,9 @@ export class IcsAdapter {
 		if (response.status === 401 || response.status === 403)
 			throw new Error("PROVIDER_AUTH_FAILED");
 
+		if (response.status === 404 || response.status === 410)
+			throw new Error("PROVIDER_NOT_FOUND");
+
 		if (!response.ok) throw new Error("PROVIDER_UNAVAILABLE");
 
 		const text = await response.text();
@@ -308,7 +317,7 @@ export class IcsAdapter {
 			!text.includes("BEGIN:VCALENDAR") ||
 			!text.includes("END:VCALENDAR")
 		)
-			throw new Error("Invalid ICS data");
+			throw new Error("PROVIDER_INVALID_CALENDAR");
 
 		return text;
 	}

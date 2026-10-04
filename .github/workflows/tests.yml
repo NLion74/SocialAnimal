@@ -56,6 +56,10 @@ jobs:
               working-directory: ./backend
               run: npm run build && node tests/database/fresh.mjs
 
+            - name: Verify populated database setup
+              working-directory: ./backend
+              run: node tests/database/permissions-setup.mjs
+
             - name: Run tests
               working-directory: ./backend
               run: npm test

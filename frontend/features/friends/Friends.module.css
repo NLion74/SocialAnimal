@@ -43,7 +43,6 @@
 }
 .btnPrimary:hover:not(:disabled) {
 	background: var(--purple-600);
-	box-shadow: 0 0 16px var(--purple-glow);
 }
 
 .btnSecondary {
@@ -93,7 +92,7 @@
 	font-size: 0.78rem;
 	font-weight: 600;
 	color: var(--text-muted);
-	text-transform: uppercase;
+	text-transform: none;
 	letter-spacing: 0.08em;
 	margin-bottom: 1rem;
 }
@@ -158,7 +157,7 @@
 	border-radius: var(--radius-full);
 	font-size: 0.69rem;
 	font-weight: 600;
-	text-transform: uppercase;
+	text-transform: none;
 	letter-spacing: 0.04em;
 }
 
@@ -204,7 +203,7 @@
 	font-size: 0.73rem;
 	font-weight: 600;
 	color: var(--text-secondary);
-	text-transform: uppercase;
+	text-transform: none;
 	letter-spacing: 0.06em;
 	margin-bottom: 0.4rem;
 }
@@ -228,7 +227,7 @@
 }
 .input:focus {
 	border-color: var(--border-focus);
-	box-shadow: 0 0 0 3px var(--purple-glow);
+	box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .error {
@@ -270,7 +269,7 @@
 
 .searchResultSelected {
 	border-color: var(--purple-500);
-	box-shadow: 0 0 0 2px var(--purple-glow);
+	box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 .searchResultName {
@@ -407,4 +406,12 @@
 		width: 100%;
 		justify-content: center;
 	}
+}
+
+.row:has(> [role="alert"]) {
+	flex-wrap: wrap;
+}
+
+.row > [role="alert"] {
+	flex-basis: 100%;
 }

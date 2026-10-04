@@ -22,7 +22,9 @@ pnpm-debug.log*
 .vscode/
 *.swp
 
-.agents
+.agents/
+.codex/
+AGENTS.md
 skills-lock.json
 AGENT.md
 
@@ -31,3 +33,7 @@ playwright-report/
 test-results/
 
 .next-e2e/
+
+# Local tooling instructions and working notes
+CLAUDE.md
+/docs/*.md

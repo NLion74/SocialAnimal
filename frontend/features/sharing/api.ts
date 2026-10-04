@@ -6,13 +6,17 @@ export const sharingApi = {
 		calendarId: string;
 		friendId: string;
 		share: boolean;
-		permission?: "busy" | "titles" | "full";
+		rulesetId: string;
+		expiresAt?: string | null;
 	}) =>
 		body.share
 			? client.setGrant({
 					id: body.calendarId,
 					userId: body.friendId,
-					body: { permission: body.permission || "full" },
+					body: {
+						rulesetId: body.rulesetId,
+						expiresAt: body.expiresAt,
+					},
 				})
 			: client.removeGrant({
 					id: body.calendarId,
@@ -20,12 +24,12 @@ export const sharingApi = {
 				}),
 	list: (id: string) =>
 		allPages((cursor) => client.subscriptions({ id, cursor })),
-	create: (
-		id: string,
-		ceiling: "busy" | "titles" | "full" = "full",
-		replaceId?: string,
-	) => client.createSubscription({ id, body: { ceiling, replaceId } }),
+	create: (id: string, body: client.createSubscriptionInput["body"]) =>
+		client.createSubscription({ id, body }),
+	update: (id: string, body: client.updateSubscriptionInput["body"]) =>
+		client.updateSubscription({ id, body }),
 	preview: (body: client.sharedCalendarPreviewInput["body"]) =>
 		client.sharedCalendarPreview({ body }),
+	remove: (id: string) => client.revokeSubscription({ id, permanent: true }),
 	revoke: (id: string) => client.revokeSubscription({ id }),
 };

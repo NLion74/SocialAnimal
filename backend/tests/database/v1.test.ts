@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { buildApp } from "../../src/app";
 import { prisma } from "../../src/core/database";
-import { decrypt, encrypt } from "../../src/core/secrets";
+import { decrypt, encrypt, tokenHash } from "../../src/core/secrets";
 import { generateToken } from "../../src/modules/identity";
 import {
 	backfillConnections,
@@ -16,6 +16,7 @@ import {
 	runSyncTick,
 	commitSnapshot,
 } from "../../src/modules/integrations/sync";
+import { seedRulesets } from "../../src/modules/sharing";
 import { env } from "../../src/core/config";
 
 const enabled = !!process.env.TEST_DATABASE_URL;
@@ -38,6 +39,7 @@ describe.skipIf(!enabled)("REST v1 with PostgreSQL", () => {
 			throw new Error("Disposable test database required");
 
 		app = await buildApp();
+
 		await prisma.appSettings.upsert({
 			where: { id: "global" },
 			create: { id: "global" },
@@ -59,6 +61,8 @@ describe.skipIf(!enabled)("REST v1 with PostgreSQL", () => {
 				},
 			],
 		});
+
+		await prisma.$transaction((tx) => seedRulesets(tx, owner));
 
 		await prisma.userSettings.create({
 			data: { userId: owner, defaultSharePermission: "busy" },
@@ -353,13 +357,20 @@ describe.skipIf(!enabled)("REST v1 with PostgreSQL", () => {
 
 		const fetch = vi
 			.spyOn(registry.ics, "fetch")
-			.mockImplementation(async () => {
-				await new Promise<void>((r) => {
-					release = r;
-				});
+			.mockImplementation(
+				async (_credentials, _id, _timezone, coverage) => {
+					await new Promise<void>((r) => {
+						release = r;
+					});
 
-				return { kind: "snapshot", complete: true, events: [] };
-			});
+					return {
+						kind: "snapshot",
+						complete: true,
+						events: [],
+						coverage,
+					};
+				},
+			);
 
 		const r = await app.inject({
 			method: "POST",
@@ -413,7 +424,18 @@ describe.skipIf(!enabled)("REST v1 with PostgreSQL", () => {
 			method: "PUT",
 			url: `/api/v1/calendars/${calendarId}/grants/${friend}`,
 			headers: auth(),
-			payload: { permission: "titles" },
+			payload: {
+				rulesetId: (
+					await prisma.permissionRuleset.findUniqueOrThrow({
+						where: {
+							userId_seedKey: {
+								userId: owner,
+								seedKey: "titles",
+							},
+						},
+					})
+				).id,
+			},
 		});
 
 		expect(grant.statusCode, grant.body).toBe(204);
@@ -457,7 +479,15 @@ describe.skipIf(!enabled)("REST v1 with PostgreSQL", () => {
 			method: "PUT",
 			url: `/api/v1/calendars/${calendarId}/grants/${friend}`,
 			headers: auth(),
-			payload: { permission: "busy" },
+			payload: {
+				rulesetId: (
+					await prisma.permissionRuleset.findUniqueOrThrow({
+						where: {
+							userId_seedKey: { userId: owner, seedKey: "busy" },
+						},
+					})
+				).id,
+			},
 		});
 
 		expect(grant.statusCode).toBe(204);
@@ -543,11 +573,14 @@ describe.skipIf(!enabled)("REST v1 with PostgreSQL", () => {
 		await executeSync(partial.id);
 		expect(await prisma.event.count({ where: { calendarId } })).toBe(1);
 
-		fetch.mockResolvedValue({
-			kind: "snapshot",
-			complete: true,
-			events: [],
-		});
+		fetch.mockImplementation(
+			async (_credentials, _id, _timezone, coverage) => ({
+				kind: "snapshot",
+				complete: true,
+				events: [],
+				coverage,
+			}),
+		);
 
 		const complete = await submitSync(calendarId);
 		await executeSync(complete.id);
@@ -741,7 +774,15 @@ describe.skipIf(!enabled)("REST v1 with PostgreSQL", () => {
 		);
 
 		const callback = await app.inject(
-			`/api/v1/connections/google/callback?state=${state}&code=code`,
+			`/api/v1/connections/google/callback?${new URLSearchParams({
+				state,
+				code: "code",
+				iss: "https://accounts.google.com",
+				scope: "https://www.googleapis.com/auth/calendar.readonly",
+				authuser: "0",
+				prompt: "consent",
+				hd: "example.test",
+			})}`,
 		);
 
 		expect(callback.statusCode, callback.body).toBe(302);
@@ -779,5 +820,72 @@ describe.skipIf(!enabled)("REST v1 with PostgreSQL", () => {
 
 		expect(fetch).toHaveBeenCalledTimes(1);
 		fetch.mockRestore();
+	});
+
+	it("validates Google callback metadata and consumes cancelled flows without exchanging credentials", async () => {
+		const state = `cancelled-google-${suffix}`;
+
+		const flow = await prisma.oAuthFlow.create({
+			data: {
+				userId: owner,
+				stateHash: tokenHash(state),
+				expiresAt: new Date(Date.now() + 600000),
+			},
+		});
+
+		const fetch = vi.spyOn(globalThis, "fetch");
+
+		try {
+			for (const params of [
+				{ code: "code", iss: "https://untrusted.example" },
+				{ code: "code", unexpected: "value" },
+				{ code: "code", error: "access_denied" },
+				{},
+			]) {
+				const query = new URLSearchParams({ state, ...params });
+
+				const response = await app.inject(
+					`/api/v1/connections/google/callback?${query}`,
+				);
+
+				expect(response.statusCode).toBe(400);
+				expect(response.json().code).toBe("INVALID_REQUEST");
+			}
+
+			expect(
+				(
+					await prisma.oAuthFlow.findUniqueOrThrow({
+						where: { id: flow.id },
+					})
+				).consumedAt,
+			).toBeNull();
+
+			const cancelled = await app.inject(
+				`/api/v1/connections/google/callback?${new URLSearchParams({
+					state,
+					error: "access_denied",
+					error_description: "untrusted-provider-description",
+				})}`,
+			);
+
+			expect(cancelled.statusCode).toBe(400);
+			expect(cancelled.json().code).toBe("PROVIDER_AUTH_CANCELLED");
+
+			expect(cancelled.body).not.toContain(
+				"untrusted-provider-description",
+			);
+
+			expect(cancelled.headers["cache-control"]).toBe("no-store");
+			expect(cancelled.headers["referrer-policy"]).toBe("no-referrer");
+
+			const replay = await app.inject(
+				`/api/v1/connections/google/callback?state=${state}&code=code`,
+			);
+
+			expect(replay.json().code).toBe("INVALID_STATE");
+			expect(fetch).not.toHaveBeenCalled();
+		} finally {
+			fetch.mockRestore();
+		}
 	});
 });

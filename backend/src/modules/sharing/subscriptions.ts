@@ -9,9 +9,10 @@ export async function subscriptionAccess(token: string) {
 
 	const row = await prisma.subscription.findUnique({
 		where: { tokenHash: tokenHash(token) },
+		include: { ruleset: true },
 	});
 
-	if (!row || row.revokedAt)
+	if (!row || row.revokedAt || (row.expiresAt && row.expiresAt <= new Date()))
 		return fail(
 			404,
 			"LINK_UNAVAILABLE",
@@ -20,6 +21,9 @@ export async function subscriptionAccess(token: string) {
 
 	return {
 		calendarId: row.calendarId,
+		ruleset: row.ruleset,
+		version: row.version,
+		issuerId: row.issuerId,
 		permission: ceiling(
 			await access(row.calendarId, row.issuerId),
 			row.ceiling,

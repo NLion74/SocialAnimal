@@ -1,6 +1,12 @@
+import { providerFailure } from "../../core/http/provider-errors";
 import { prisma } from "../../core/database";
 import { decrypt, encrypt, type Credentials } from "../../core/secrets";
 import { fail, HttpError } from "../../core/http";
+import {
+	registrationSettings,
+	checkSyncInterval,
+	effectiveMinimumInterval,
+} from "../settings";
 import { registry, type Provider } from "./adapters";
 
 export function capability<K extends Exclude<keyof Provider, "name">>(
@@ -73,16 +79,8 @@ export async function withProvider<T>(
 	} catch (error) {
 		if (error instanceof HttpError) throw error;
 
-		const auth =
-			error instanceof Error && error.message === "PROVIDER_AUTH_FAILED";
-
-		return fail(
-			502,
-			auth ? "PROVIDER_AUTH_FAILED" : "PROVIDER_UNAVAILABLE",
-			auth
-				? "Provider rejected the credentials. Reconnect this account."
-				: "Provider request failed. Check the connection and try again.",
-		);
+		const failure = providerFailure(error);
+		return fail(502, failure.code, failure.message);
 	}
 }
 
@@ -99,17 +97,41 @@ export async function importCalendar(
 	capability(provider(connection.type), "fetch");
 	// Serialize the identity lookup/create so concurrent requests return the same row.
 	return prisma.$transaction(async (tx) => {
-		await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.connectionId + ":" + input.remoteId}))`;
+		await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"calendar-limit:" + userId}))`;
 
-		return tx.calendar.upsert({
+		const existing = await tx.calendar.findUnique({
 			where: {
 				connectionId_remoteId: {
 					connectionId: input.connectionId,
 					remoteId: input.remoteId,
 				},
 			},
-			create: { ...input, userId, type: connection.type },
-			update: {},
+		});
+
+		if (existing) return existing;
+		const settings = await registrationSettings(tx);
+
+		if (
+			(await tx.calendar.count({ where: { userId } })) >=
+			settings.maxCalendarsPerUser
+		)
+			fail(
+				409,
+				"CALENDAR_LIMIT",
+				`This instance allows ${settings.maxCalendarsPerUser} calendars per user`,
+			);
+
+		await checkSyncInterval(input.syncInterval, tx);
+
+		return tx.calendar.create({
+			data: {
+				...input,
+				syncInterval:
+					input.syncInterval ??
+					Math.max(60, await effectiveMinimumInterval(tx)),
+				userId,
+				type: connection.type,
+			},
 		});
 	});
 }

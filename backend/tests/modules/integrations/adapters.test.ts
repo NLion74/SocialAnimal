@@ -87,6 +87,36 @@ for (const provider of ["ics", "caldav"])
 	});
 
 describe("snapshot safety", () => {
+	it.each([
+		"example.test/timetable/person",
+		"  https://example.test/timetable/person  ",
+		"WEBCAL://example.test/timetable/person",
+	])(
+		"accepts subscription addresses without an .ics suffix: %s",
+		async (url) => {
+			const request = vi
+				.fn()
+				.mockResolvedValue(
+					new Response(
+						make(":20260715T100000Z", ":20260715T110000Z"),
+					),
+				);
+
+			vi.stubGlobal("fetch", request);
+
+			const events = await new IcsAdapter().fetchEvents({
+				id: "feed",
+				config: { url },
+			});
+
+			expect(events).toHaveLength(1);
+
+			expect(request.mock.calls[0][0]).toBe(
+				"https://example.test/timetable/person",
+			);
+		},
+	);
+
 	it("does not downgrade an authenticated HTTPS request after a provider failure", async () => {
 		const request = vi
 			.fn()
@@ -124,6 +154,6 @@ describe("snapshot safety", () => {
 				id: "feed",
 				config: { url: "https://example.test/feed" },
 			}),
-		).rejects.toThrow("Invalid ICS data");
+		).rejects.toThrow("PROVIDER_INVALID_CALENDAR");
 	});
 });

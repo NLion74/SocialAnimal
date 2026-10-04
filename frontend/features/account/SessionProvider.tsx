@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+	createContext,
+	useContext,
+	useEffect,
+	useState,
+	useRef,
+	useCallback,
+} from "react";
 import { apiClient } from "../../lib/api";
 import { accountApi } from "./api";
 
@@ -10,13 +17,13 @@ const SessionContext = createContext<{
 	user: User | null;
 	loading: boolean;
 	error: string;
-	refresh: () => void;
+	refresh: (background?: boolean) => Promise<User | null>;
 	logout: () => void;
 }>({
 	user: null,
 	loading: true,
 	error: "",
-	refresh: () => {},
+	refresh: async () => null,
 	logout: () => {},
 });
 
@@ -27,39 +34,73 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
 
-	const refresh = () => {
-		setError("");
+	const revision = useRef(0);
 
-		if (!apiClient.getToken()) {
-			setUser(null);
-			setLoading(false);
-			return;
-		}
+	const refresh = useCallback(
+		async (background = true): Promise<User | null> => {
+			const current = ++revision.current;
+			const token = apiClient.getToken();
 
-		setLoading(true);
+			if (!background) {
+				setLoading(true);
+				setError("");
+			}
 
-		accountApi
-			.me()
-			.then(setUser)
-			.catch((e) => {
-				if (!apiClient.getToken()) setUser(null);
-				else setError(e.message);
-			})
-			.finally(() => setLoading(false));
-	};
+			if (!token) {
+				setUser(null);
+				setLoading(false);
+				return null;
+			}
+
+			try {
+				const next = await accountApi.me();
+
+				if (
+					current !== revision.current ||
+					token !== apiClient.getToken()
+				)
+					return null;
+
+				setUser(next);
+				setError("");
+				return next;
+			} catch (e) {
+				if (current === revision.current) {
+					if (!apiClient.getToken()) setUser(null);
+					else if (!background) setError((e as Error).message);
+				}
+
+				throw e;
+			} finally {
+				if (current === revision.current) setLoading(false);
+			}
+		},
+		[],
+	);
 
 	useEffect(() => {
-		refresh();
-		window.addEventListener("session:changed", refresh);
-		window.addEventListener("api:logout", refresh);
-		window.addEventListener("storage", refresh);
+		const reload = () => {
+			void refresh(false).catch(() => {});
+		};
+
+		const background = () => {
+			void refresh(true).catch(() => {});
+		};
+
+		reload();
+		window.addEventListener("session:changed", reload);
+		window.addEventListener("api:logout", reload);
+		window.addEventListener("storage", reload);
+		window.addEventListener("focus", background);
 
 		return () => {
-			window.removeEventListener("session:changed", refresh);
-			window.removeEventListener("api:logout", refresh);
-			window.removeEventListener("storage", refresh);
+			++revision.current;
+			window.removeEventListener("session:changed", reload);
+			window.removeEventListener("api:logout", reload);
+			window.removeEventListener("storage", reload);
+			window.removeEventListener("focus", background);
 		};
-	}, []);
+	}, [refresh]);
 
 	return (
 		<SessionContext

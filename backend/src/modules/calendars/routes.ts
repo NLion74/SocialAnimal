@@ -1,7 +1,10 @@
+import { publicProviderMessage } from "../../core/http/provider-errors";
+import { visiblePage } from "../../core/http/visible-page";
 import type { FastifyPluginAsync } from "fastify";
 import { prisma } from "../../core/database";
 import { authenticateToken } from "../identity";
-import { maskEvent, visibility, permissionFor } from "../sharing";
+import { eventAccess, visibility } from "../sharing";
+import { checkSyncInterval } from "../settings";
 import { submitSync } from "../integrations";
 import {
 	contract,
@@ -47,6 +50,7 @@ const routes: FastifyPluginAsync = async (app) => {
 					})
 				).map(({ _count, ...calendar }) => ({
 					...calendar,
+					lastError: publicProviderMessage(calendar.lastError),
 					eventCount: _count.events,
 				})),
 				req.query,
@@ -75,11 +79,17 @@ const routes: FastifyPluginAsync = async (app) => {
 		},
 		async (req) => {
 			await owned(req.params.id, req.user.id);
+			await checkSyncInterval(req.body.syncInterval);
 
-			return prisma.calendar.update({
+			const calendar = await prisma.calendar.update({
 				where: { id: req.params.id },
 				data: req.body,
 			});
+
+			return {
+				...calendar,
+				lastError: publicProviderMessage(calendar.lastError),
+			};
 		},
 	);
 
@@ -135,33 +145,62 @@ const routes: FastifyPluginAsync = async (app) => {
 
 			const userId = req.user.id;
 
-			const rows = await prisma.event.findMany({
-				where: {
-					calendarId,
-					calendar: visibility(userId, scope),
-					startTime: { lt: to },
-					endTime: { gt: from },
-				},
-				include: {
-					calendar: {
+			return visiblePage(
+				req.query,
+				(after, take) =>
+					prisma.event.findMany({
+						where: {
+							calendarId,
+							id: after ? { gt: after } : undefined,
+							calendar: visibility(userId, scope),
+							startTime: { lt: to },
+							endTime: { gt: from },
+						},
 						include: {
-							shares: { where: { sharedWithId: userId } },
-							user: {
-								select: { id: true, name: true, email: true },
+							calendar: {
+								include: {
+									shares: { where: { sharedWithId: userId } },
+									user: {
+										select: {
+											id: true,
+											name: true,
+											email: true,
+										},
+									},
+								},
 							},
 						},
-					},
-				},
-				...pageArgs(req.query),
-			});
+						take,
+						orderBy: { id: "asc" },
+					}),
+				async (rows) => {
+					const masks = new Map(
+						await Promise.all(
+							[...new Set(rows.map((e) => e.calendarId))].map(
+								async (id) =>
+									[
+										id,
+										await eventAccess(id, userId),
+									] as const,
+							),
+						),
+					);
 
-			return page(
-				rows.map((e) => ({
-					...maskEvent(e, permissionFor(e.calendar, userId)),
-					isFriend: e.calendar.userId !== userId,
-					owner: e.calendar.user,
-				})),
-				req.query,
+					return rows.flatMap((event) => {
+						const masked = masks.get(event.calendarId)!(event);
+
+						return masked
+							? [
+									{
+										...masked,
+										isFriend:
+											event.calendar.userId !== userId,
+										owner: event.calendar.user,
+									},
+								]
+							: [];
+					});
+				},
 			);
 		},
 	);
@@ -190,7 +229,7 @@ const routes: FastifyPluginAsync = async (app) => {
 			});
 
 			if (!run) return fail(404, "NOT_FOUND", "Sync run not found");
-			return run;
+			return { ...run, error: publicProviderMessage(run.error) };
 		},
 	);
 };

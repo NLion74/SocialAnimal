@@ -33,7 +33,7 @@ export default [
 				{ argsIgnorePattern: "^_" },
 			],
 			semi: ["error", "always"],
-			quotes: ["error", "double"],
+			quotes: ["error", "double", { avoidEscape: true }],
 		},
 	},
 ];

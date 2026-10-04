@@ -1,3 +1,4 @@
+import { runRecoveryTick } from "./modules/identity";
 import { buildApp } from "./app";
 import { prisma } from "./core/database";
 import { encryptionKey } from "./core/secrets";
@@ -15,12 +16,34 @@ async function start() {
 		host: "0.0.0.0",
 	});
 
-	const stop = startRunner(runSyncTick);
+	app.log.info("Backend ready; database and provider credentials validated");
+
+	const stop = startRunner(() => runSyncTick(app.log), 15000, {
+		name: "calendar-sync",
+		logger: app.log,
+	});
+
+	const stopMail = startRunner(() => runRecoveryTick(app.log), 5000, {
+		name: "email-delivery",
+		logger: app.log,
+	});
+
+	let stopping = false;
 
 	const shutdown = async () => {
-		await app.close();
-		await stop();
-		await prisma.$disconnect();
+		if (stopping) return;
+		stopping = true;
+		app.log.info("Backend shutting down");
+
+		try {
+			await Promise.all([app.close(), stop(), stopMail()]);
+			await prisma.$disconnect();
+			// The development watcher keeps an IPC channel open after cleanup.
+			process.exit(0);
+		} catch {
+			console.error("Server shutdown failed");
+			process.exit(1);
+		}
 	};
 
 	process.once("SIGTERM", () => void shutdown());

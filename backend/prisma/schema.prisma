@@ -27,10 +27,19 @@ enum CalendarType {
 }
 
 model User {
+	twoFactorMethod String @default("none")
+	totpSecret String?
+	totpLastStep BigInt?
+	recoveryCodes String[] @default([])
+	securitySetupRequired Boolean @default(false)
+	authChallenges AuthChallenge[]
 	id           String        @id @default(uuid())
 	email        String        @unique
 	passwordHash String
 	salt         String        @default("")
+	authVersion Int @default(0)
+	passwordChangedAt DateTime?
+	passwordResets PasswordReset[]
 	name         String?
 	avatar       String?
 	createdAt    DateTime      @default(now())
@@ -43,13 +52,27 @@ model User {
 	friendships2   Friendship[]    @relation("User2")
 	calendarShares CalendarShare[] @relation("SharedWith")
 	settings       UserSettings?
-	isAdmin  Boolean  @default(false)
+	isAdmin Boolean @default(false)
+	accountRole String @default("normal")
+	disabled Boolean @default(false)
+	emailVerifiedAt DateTime?
+	permissionsInitialized Boolean @default(false)
+	rulesets PermissionRuleset[]
+	emailVerification EmailVerification?
 }
 
 model AppSettings {
+	requireTwoFactor Boolean @default(false)
 	id                String  @id @default("global")
 	registrationsOpen Boolean @default(true)
-	inviteOnly        Boolean @default(false)
+	inviteOnly Boolean @default(false)
+	requireEmailVerification Boolean @default(false)
+	maxCalendarsPerUser Int @default(25)
+	minSyncIntervalMinutes Int @default(15)
+	syncPastDays Int @default(90)
+	syncFutureDays Int @default(365)
+	defaultTimezone String @default("UTC")
+	defaultFirstDayOfWeek String @default("monday")
 	updatedAt         DateTime @updatedAt
 }
 
@@ -64,6 +87,9 @@ model UserSettings {
 }
 
 model InviteCode {
+	label String?
+	expiresAt DateTime?
+	revokedAt DateTime?
 	id        String    @id @default(uuid())
 	code      String    @unique
 	createdBy String
@@ -102,12 +128,15 @@ model Calendar {
 }
 
 model CalendarShare {
+	expiresAt DateTime?
 	id           String   @id @default(uuid())
 	calendarId   String
 	calendar     Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
 	sharedWithId String
 	sharedWith   User     @relation("SharedWith", fields: [sharedWithId], references: [id], onDelete: Cascade)
-	permission   SharePermission @default(full)
+	permission SharePermission @default(full)
+	rulesetId String?
+	ruleset PermissionRuleset? @relation(fields: [rulesetId], references: [id], onDelete: Restrict)
 	createdAt    DateTime @default(now())
 
 	@@unique([calendarId, sharedWithId])
@@ -115,6 +144,7 @@ model CalendarShare {
 }
 
 model Event {
+	isRecurring Boolean?
 	id          String   @id @default(cuid())
 	calendarId  String
 	externalId  String?
@@ -176,6 +206,11 @@ model SyncRun {
 }
 
 model Subscription {
+	expiresAt DateTime?
+	name String @default("Sharing link")
+	rulesetId String?
+	ruleset PermissionRuleset? @relation(fields: [rulesetId], references: [id], onDelete: Restrict)
+	version Int @default(1)
 	id String @id @default(uuid())
 	tokenHash String @unique
 	calendarId String
@@ -197,4 +232,84 @@ model OAuthFlow {
 	consumedAt DateTime?
 	connectionId String?
 	connection Connection? @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+}
+
+model PermissionRuleset {
+	id String @id @default(uuid())
+	userId String
+	user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+	name String
+	seedKey String?
+	fallback String
+	rules Json @default("[]")
+	version Int @default(1)
+	createdAt DateTime @default(now())
+	updatedAt DateTime @updatedAt
+	shares CalendarShare[]
+	subscriptions Subscription[]
+
+	@@unique([userId, seedKey])
+	@@index([userId])
+}
+
+model EmailVerification {
+	id String @id @default(uuid())
+	userId String @unique
+	user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+	email String
+	tokenHash String @unique
+	expiresAt DateTime
+	consumedAt DateTime?
+	lastSentAt DateTime @default(now())
+	windowStartedAt DateTime @default(now())
+	requestCount Int @default(1)
+}
+
+model PasswordReset {
+	id String @id @default(uuid())
+	userId String
+	user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+	email String
+	tokenHash String @unique
+	authVersion Int
+	expiresAt DateTime
+	@@index([userId])
+}
+
+model RecoveryMail {
+	recipientHash String?
+	status String @default("queued")
+	userId String?
+	finishedAt DateTime?
+	lastError String?
+	id String @id @default(uuid())
+	kind String
+	payload String
+	createdAt DateTime @default(now())
+	expiresAt DateTime
+	availableAt DateTime @default(now())
+	leaseUntil DateTime?
+	attempts Int @default(0)
+	@@index([availableAt])
+}
+
+model RecoveryThrottle {
+	key String @id
+	count Int @default(1)
+	expiresAt DateTime
+}
+
+model AuthChallenge {
+	id String @id
+	userId String
+	user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+	purpose String
+	method String
+	authVersion Int
+	verifier String?
+	secret String?
+	attempts Int @default(0)
+	createdAt DateTime @default(now())
+	expiresAt DateTime
+	@@index([userId, purpose])
 }

@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import { describe, it, expect } from "vitest";
 import {
 	hashPassword,
@@ -16,11 +17,12 @@ describe("hashPassword", () => {
 		expect(typeof salt).toBe("string");
 	});
 
-	it("returns different salt each time", async () => {
+	it("embeds a fresh salt in each Argon2id hash", async () => {
 		const first = await hashPassword("password123");
 		const second = await hashPassword("password123");
 
-		expect(first.salt).not.toBe(second.salt);
+		expect(first.hash.startsWith("$argon2id$")).toBe(true);
+		expect(first.hash.split("$")[4]).not.toBe(second.hash.split("$")[4]);
 		expect(first.hash).not.toBe(second.hash);
 	});
 
@@ -43,17 +45,27 @@ describe("verifyPassword", () => {
 		expect(result).toBe(false);
 	});
 
-	it("returns false for correct password but wrong salt", async () => {
-		const { hash } = await hashPassword("correct-password");
-		const { salt: wrongSalt } = await hashPassword("correct-password");
+	it("continues to verify legacy bcrypt hashes and their external salt", async () => {
+		const hash = await bcrypt.hash("correct-password" + "legacy-salt", 10);
 
-		const result = await verifyPassword(
-			"correct-password",
-			hash,
-			wrongSalt,
+		expect(
+			await verifyPassword("correct-password", hash, "legacy-salt"),
+		).toBe(true);
+
+		expect(
+			await verifyPassword("correct-password", hash, "wrong-salt"),
+		).toBe(false);
+	});
+
+	it("does not truncate multi-byte passwords at bcrypt's old byte boundary", async () => {
+		const password = "🔐".repeat(24);
+		const { hash, salt } = await hashPassword(password);
+
+		expect(await verifyPassword(password + "different", hash, salt)).toBe(
+			false,
 		);
 
-		expect(result).toBe(false);
+		expect(await verifyPassword(password, hash, salt)).toBe(true);
 	});
 
 	it("returns false for empty string password", async () => {

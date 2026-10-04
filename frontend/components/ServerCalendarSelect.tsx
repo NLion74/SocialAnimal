@@ -1,3 +1,4 @@
+import Feedback from "./Feedback";
 import { Check, Loader2 } from "lucide-react";
 import Modal from "./Modal";
 import s from "./ServerCalendarSelect.module.css";
@@ -56,7 +57,7 @@ export default function ServerCalendarSelect({
 				</div>
 			) : (
 				<>
-					{error && <div className={s.error}>{error}</div>}
+					{error && <Feedback focusOnMount>{error}</Feedback>}
 					<div className={s.selectActions}>
 						<div className={s.selectInfo}>
 							{selectedUrls.length} of {availableCount} selected

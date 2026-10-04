@@ -75,6 +75,7 @@ export function documentApi(app: FastifyInstance) {
 				parameters: [...params, ...query],
 				...(![
 					"/api/v1/auth/registrations",
+					"/api/v1/auth/email-verifications",
 					"/api/v1/auth/sessions",
 					"/api/v1/settings/public",
 					"/api/v1/shared-calendar-previews",
@@ -97,6 +98,18 @@ export function documentApi(app: FastifyInstance) {
 		}
 	});
 
-	app.get("/api/v1/openapi.json", async () => doc);
+	app.get("/api/v1/openapi.json", async () => {
+		const full = {
+			...doc,
+			components: { ...doc.components, schemas: app.getSchemas() },
+		};
+
+		return JSON.parse(JSON.stringify(full), (key, value) =>
+			key === "$ref" && typeof value === "string" && value.endsWith("#")
+				? "#/components/schemas/" + value.slice(0, -1)
+				: value,
+		);
+	});
+
 	return doc;
 }

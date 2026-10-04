@@ -6,6 +6,8 @@ const { buildApp } = require("../dist/app");
 
 function type(s) {
 	if (!s) return "void";
+	if (s.$ref) return s.$ref.split("/").pop();
+	if (s.anyOf && !s.type) return s.anyOf.map(type).join(" | ");
 	if (s.enum) return s.enum.map((x) => JSON.stringify(x)).join(" | ");
 
 	if (Array.isArray(s.type))
@@ -49,6 +51,9 @@ function type(s) {
 
 	let out =
 		'// Generated from backend runtime schemas. Run npm run client:generate in backend.\nimport { apiClient } from "../api";\n';
+
+	for (const [name, schema] of Object.entries(doc.components.schemas || {}))
+		out += `export type ${name} = ${type(schema)};\n`;
 
 	for (const [path, methods] of Object.entries(doc.paths))
 		for (const [method, op] of Object.entries(methods)) {

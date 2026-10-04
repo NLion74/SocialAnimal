@@ -36,6 +36,7 @@ export interface SharedCalendar {
 	id: string;
 	name: string;
 	permission: Permission;
+	accessLabel?: string;
 }
 
 export interface Friend {
@@ -45,6 +46,8 @@ export interface Friend {
 	status: string;
 	createdAt?: string;
 	sharedCalendarIds?: string[];
+	sharedCalendarExpirations?: Record<string, string | null>;
+	sharedCalendarRulesets?: Record<string, string>;
 	sharedCalendarPermissions?: Record<string, Permission>;
 	sharedWithMe?: SharedCalendar[];
 }

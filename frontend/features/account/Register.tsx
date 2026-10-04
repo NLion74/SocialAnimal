@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Feedback from "../../components/Feedback";
+
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Share2 } from "lucide-react";
 import { apiClient } from "../../lib/api";
@@ -15,6 +17,40 @@ export default function RegisterPage() {
 	const [password, setPassword] = useState("");
 	const [name, setName] = useState("");
 	const [inviteCode, setInviteCode] = useState("");
+	const [supplied, setSupplied] = useState(false);
+	const captured = useRef(false);
+
+	useEffect(() => {
+		if (captured.current) return;
+		captured.current = true;
+
+		const code = new URLSearchParams(window.location.hash.slice(1)).get(
+			"invite",
+		);
+
+		if (code !== null)
+			window.history.replaceState(
+				null,
+				"",
+				window.location.pathname + window.location.search,
+			);
+
+		try {
+			const value = code || sessionStorage.getItem("registration:invite");
+
+			if (value) {
+				setInviteCode(value);
+				setSupplied(true);
+				sessionStorage.setItem("registration:invite", value);
+			}
+		} catch {
+			if (code) {
+				setInviteCode(code);
+				setSupplied(true);
+			}
+		}
+	}, []);
+
 	const [loading, setLoading] = useState(false);
 	const [settingsLoading, setSettingsLoading] = useState(true);
 	const [error, setError] = useState("");
@@ -47,11 +83,15 @@ export default function RegisterPage() {
 				email,
 				password,
 				name,
-				...(inviteOnly && inviteCode ? { inviteCode } : {}),
+				...(inviteCode ? { inviteCode } : {}),
 			});
 
+			try {
+				sessionStorage.removeItem("registration:invite");
+			} catch {}
+
 			const login = await accountApi.login({ email, password });
-			apiClient.setToken(login.token);
+			apiClient.setToken(login.token || null);
 			setSuccess("Account created! Logged in successfully.");
 			router.push("/dashboard");
 		} catch (err: any) {
@@ -80,8 +120,11 @@ export default function RegisterPage() {
 				) : (
 					<form className={s.form} onSubmit={submit}>
 						<div className={s.field}>
-							<label className={s.label}>Name</label>
+							<label className={s.label} htmlFor="register-name">
+								Name
+							</label>
 							<input
+								id="register-name"
 								className={s.input}
 								type="text"
 								value={name}
@@ -91,8 +134,11 @@ export default function RegisterPage() {
 							/>
 						</div>
 						<div className={s.field}>
-							<label className={s.label}>Email</label>
+							<label className={s.label} htmlFor="register-email">
+								Email
+							</label>
 							<input
+								id="register-email"
 								className={s.input}
 								type="email"
 								value={email}
@@ -102,8 +148,14 @@ export default function RegisterPage() {
 							/>
 						</div>
 						<div className={s.field}>
-							<label className={s.label}>Password</label>
+							<label
+								className={s.label}
+								htmlFor="register-password"
+							>
+								Password
+							</label>
 							<PasswordInput
+								id="register-password"
 								className={s.input}
 								value={password}
 								required
@@ -111,10 +163,37 @@ export default function RegisterPage() {
 								placeholder="••••••••"
 							/>
 						</div>
-						{inviteOnly && (
+						{supplied && (
+							<div className={s.successMsg} role="status">
+								Invitation supplied.{" "}
+								<button
+									type="button"
+									className={s.switchBtn}
+									onClick={() => {
+										setSupplied(false);
+										setInviteCode("");
+
+										try {
+											sessionStorage.removeItem(
+												"registration:invite",
+											);
+										} catch {}
+									}}
+								>
+									Replace invitation
+								</button>
+							</div>
+						)}
+						{!supplied && (inviteOnly || inviteCode) && (
 							<div className={s.field}>
-								<label className={s.label}>Invite Code</label>
+								<label
+									className={s.label}
+									htmlFor="register-invite-code"
+								>
+									Invite Code
+								</label>
 								<input
+									id="register-invite-code"
 									className={s.input}
 									type="text"
 									value={inviteCode}
@@ -126,7 +205,7 @@ export default function RegisterPage() {
 							</div>
 						)}
 
-						{error && <div className={s.error}>{error}</div>}
+						{error && <Feedback focusOnMount>{error}</Feedback>}
 						{success && (
 							<div className={s.successMsg}>{success}</div>
 						)}

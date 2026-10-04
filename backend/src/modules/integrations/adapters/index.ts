@@ -1,3 +1,4 @@
+import { type SyncWindow } from "./window";
 import type { Credentials } from "../../../core/secrets";
 import { IcsAdapter } from "./ics";
 import { CaldavAdapter } from "./caldav";
@@ -11,6 +12,7 @@ import {
 export type RemoteCalendar = { remoteId: string; name: string; color?: string };
 
 export type RemoteEvent = {
+	isRecurring?: boolean | null;
 	externalId: string;
 	title: string;
 	description: string | null;
@@ -21,7 +23,12 @@ export type RemoteEvent = {
 };
 
 export type FetchResult =
-	| { kind: "snapshot"; complete: boolean; events: RemoteEvent[] }
+	| {
+			kind: "snapshot";
+			complete: boolean;
+			events: RemoteEvent[];
+			coverage?: SyncWindow;
+	  }
 	| { kind: "delta"; events: RemoteEvent[]; deletedIds: string[] };
 
 export interface Discoverable {
@@ -33,6 +40,7 @@ export interface Syncable {
 		credentials: Credentials,
 		remoteId: string,
 		timezone?: string,
+		window?: SyncWindow,
 	): Promise<FetchResult>;
 }
 
@@ -56,14 +64,19 @@ export interface Provider
 	name: string;
 }
 
-const snapshot = (events: RemoteEvent[]): FetchResult => ({
+const snapshot = (
+	events: RemoteEvent[],
+	coverage?: SyncWindow,
+): FetchResult => ({
 	kind: "snapshot",
 	complete: true,
+	coverage,
 	events,
 });
 
 const normalize = (e: any): RemoteEvent => ({
 	externalId: e.externalId,
+	isRecurring: e.isRecurring ?? null,
 	title: e.summary,
 	description: e.description,
 	location: e.location,
@@ -86,14 +99,16 @@ function davProvider(icloud = false): Provider {
 		test: async (c) => {
 			await dav.discover(config(c));
 		},
-		fetch: async (c, remoteId, timezone) =>
+		fetch: async (c, remoteId, timezone, window) =>
 			snapshot(
 				(
 					await dav.fetchEvents(
 						{ ...config(c), calendarPath: remoteId },
 						timezone,
+						window,
 					)
 				).map(normalize),
+				window,
 			),
 	};
 }
@@ -102,20 +117,32 @@ export const registry: Record<string, Provider> = {
 	ics: {
 		name: "ICS / iCal Link",
 		test: async (c) => {
-			await new IcsAdapter().fetchEvents({
-				id: "feed",
-				config: { ...c, url: c.url },
-			});
+			await new IcsAdapter().fetchEvents(
+				{
+					id: "feed",
+					config: { ...c, url: c.url },
+				},
+				{
+					start: new Date(),
+					end: new Date(Date.now() + 86400000),
+					pastDays: 0,
+					futureDays: 1,
+				},
+			);
 		},
-		fetch: async (c, _id, timezone) =>
+		fetch: async (c, _id, timezone, window) =>
 			snapshot(
 				(
-					await new IcsAdapter().fetchEvents({
-						id: "feed",
-						config: { ...c, url: c.url },
-						user: { settings: { timezone } },
-					})
+					await new IcsAdapter().fetchEvents(
+						{
+							id: "feed",
+							config: { ...c, url: c.url },
+							user: { settings: { timezone } },
+						},
+						window,
+					)
 				).map(normalize),
+				window,
 			),
 	},
 	caldav: davProvider(),
@@ -126,7 +153,8 @@ export const registry: Record<string, Provider> = {
 		test: async (c) => {
 			await googleDiscover(c);
 		},
-		fetch: async (c, id) => snapshot(await googleFetch(c, id)),
+		fetch: async (c, id, _timezone, window) =>
+			snapshot(await googleFetch(c, id, window), window),
 		authorize: { url: googleAuthUrl, exchange: exchangeCode },
 	},
 };

@@ -66,7 +66,7 @@
 	text-align: center;
 	font-size: 1rem;
 }
-.page button {
+.page .state button {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -80,10 +80,10 @@
 	font: inherit;
 	cursor: pointer;
 }
-.page button:hover {
+.page .state button:hover {
 	background: var(--bg-hover);
 }
-.page button:focus-visible,
+.page .state button:focus-visible,
 .brand:focus-visible {
 	outline: 2px solid var(--purple-400);
 	outline-offset: 3px;
@@ -160,4 +160,8 @@
 	.footer {
 		padding: 1rem 1.25rem;
 	}
+}
+
+.view {
+	padding: 1rem;
 }

@@ -95,6 +95,11 @@ for (const table of [
 	"Subscription",
 	"OAuthFlow",
 	"SyncRun",
+	"PermissionRuleset",
+	"EmailVerification",
+	"PasswordReset",
+	"RecoveryMail",
+	"AuthChallenge",
 ]) {
 	const query = `SELECT * FROM "${table}" ORDER BY id`;
 
@@ -105,9 +110,37 @@ for (const table of [
 	);
 }
 
+assert.deepEqual(
+	(await restored.query('SELECT * FROM "RecoveryThrottle" ORDER BY key'))
+		.rows,
+	(await db.query('SELECT * FROM "RecoveryThrottle" ORDER BY key')).rows,
+	"RecoveryThrottle",
+);
+
 for (const row of (await restored.query('SELECT credentials FROM "Connection"'))
 	.rows)
 	secrets.decrypt(row.credentials);
+
+for (const row of (
+	await restored.query(
+		'SELECT "totpSecret" FROM "User" WHERE "totpSecret" IS NOT NULL',
+	)
+).rows)
+	secrets.decrypt(row.totpSecret);
+
+for (const row of (
+	await restored.query(
+		"SELECT payload FROM \"RecoveryMail\" WHERE payload <> ''",
+	)
+).rows)
+	secrets.decrypt(row.payload);
+
+for (const row of (
+	await restored.query(
+		'SELECT secret FROM "AuthChallenge" WHERE secret IS NOT NULL',
+	)
+).rows)
+	secrets.decrypt(row.secret);
 
 console.log(
 	`Restored ${name}; all table contents and encrypted credentials verified. Test backup: ${file}`,

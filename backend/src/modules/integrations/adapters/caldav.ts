@@ -1,6 +1,7 @@
 import { providerFetch } from "../../../core/http/provider-fetch";
 import { createDAVClient } from "tsdav";
 import type { DAVCalendar, DAVCalendarObject } from "tsdav";
+import { parseWindow, type SyncWindow } from "./window";
 import ical from "node-ical";
 
 export interface CaldavConfig {
@@ -341,6 +342,7 @@ export class CaldavAdapter {
 	public async fetchEvents(
 		config: CaldavConfig,
 		userTimezone?: string,
+		window?: SyncWindow,
 	): Promise<ParsedEvent[]> {
 		const client = await this.createClient(config);
 		const target = await this.resolveTargetCalendar(client, config);
@@ -348,10 +350,19 @@ export class CaldavAdapter {
 
 		const objects = await client.fetchCalendarObjects({
 			calendar: target,
+			...(window
+				? {
+						timeRange: {
+							start: window.start.toISOString(),
+							end: window.end.toISOString(),
+						},
+					}
+				: {}),
 			fetchOptions: { signal: AbortSignal.timeout(60000) },
 		});
 
 		const events: ParsedEvent[] = [];
+		const sources: string[] = [];
 
 		for (const obj of objects as DAVCalendarObject[]) {
 			if (
@@ -361,10 +372,11 @@ export class CaldavAdapter {
 			)
 				throw new Error("Incomplete provider snapshot");
 
-			events.push(...this.parseICalData(obj.data, userTimezone));
+			if (window) sources.push(obj.data);
+			else events.push(...this.parseICalData(obj.data, userTimezone));
 		}
 
-		return events;
+		return window ? parseWindow(sources, window, userTimezone) : events;
 	}
 
 	async discover(config: CaldavConfig) {

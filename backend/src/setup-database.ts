@@ -1,10 +1,13 @@
 import { execFileSync } from "node:child_process";
 import { prisma } from "./core/database";
+import { ensurePermissionsSchema } from "./core/database/permissions-schema";
+import { initializePermissions } from "./modules/sharing";
 import { encryptionKey } from "./core/secrets";
 import { validateConnections } from "./modules/integrations";
 
 async function main() {
 	encryptionKey();
+
 	const tables = await prisma.$queryRaw<
 		Array<{ table_name: string }>
 	>`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`;
@@ -16,6 +19,9 @@ async function main() {
 			{ stdio: "inherit" },
 		);
 	}
+
+	await ensurePermissionsSchema();
+	await initializePermissions();
 
 	// Prisma cannot express these queue invariants in its schema.
 	// Existing databases are never reset or automatically schema-pushed.
@@ -38,6 +44,7 @@ main()
 		console.error(
 			"Database setup failed. Check DATABASE_URL, CREDENTIAL_ENCRYPTION_KEY, and that the database schema matches this application version. Existing data has been preserved.",
 		);
+
 		process.exitCode = 1;
 	})
 	.finally(() => prisma.$disconnect());

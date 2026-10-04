@@ -325,10 +325,38 @@ const routes: FastifyPluginAsync = async (app) => {
 		},
 	);
 
-	app.get<{ Querystring: { state: string; code: string } }>(
+	app.get<{
+		Querystring: { state: string; code?: string; error?: string };
+	}>(
 		"/connections/google/callback",
-		{ schema: { querystring: obj({ state: str, code: str }) } },
+		{
+			schema: {
+				querystring: {
+					...obj(
+						{
+							state: { ...str, minLength: 1, maxLength: 512 },
+							code: { ...str, minLength: 1, maxLength: 4096 },
+							iss: {
+								...str,
+								const: "https://accounts.google.com",
+							},
+							scope: { ...str, maxLength: 8192 },
+							authuser: { ...str, maxLength: 64 },
+							prompt: { ...str, maxLength: 256 },
+							hd: { ...str, maxLength: 253 },
+							error: { ...str, minLength: 1, maxLength: 256 },
+							error_description: { ...str, maxLength: 2048 },
+							error_uri: { ...str, maxLength: 2048 },
+						},
+						["state"],
+					),
+					oneOf: [{ required: ["code"] }, { required: ["error"] }],
+				},
+			},
+		},
 		async (req, reply) => {
+			reply.header("Referrer-Policy", "no-referrer");
+
 			const flow = await prisma.oAuthFlow.findUnique({
 				where: { stateHash: tokenHash(req.query.state) },
 			});
@@ -339,6 +367,30 @@ const routes: FastifyPluginAsync = async (app) => {
 					"INVALID_STATE",
 					"Invalid authorization state",
 				);
+
+			const user = await prisma.user.findUnique({
+				where: { id: flow.userId },
+				select: {
+					disabled: true,
+					accountRole: true,
+					emailVerifiedAt: true,
+					isAdmin: true,
+				},
+			});
+
+			const settings = await prisma.appSettings.findUnique({
+				where: { id: "global" },
+			});
+
+			if (
+				!user ||
+				user.disabled ||
+				user.accountRole === "readonly" ||
+				(settings?.requireEmailVerification &&
+					!user.emailVerifiedAt &&
+					!user.isAdmin)
+			)
+				fail(403, "FORBIDDEN", "This account cannot connect providers");
 
 			const used = await prisma.oAuthFlow.updateMany({
 				where: {
@@ -356,11 +408,22 @@ const routes: FastifyPluginAsync = async (app) => {
 					"Authorization state expired or used",
 				);
 
+			if (req.query.error)
+				return fail(
+					400,
+					req.query.error === "access_denied"
+						? "PROVIDER_AUTH_CANCELLED"
+						: "PROVIDER_AUTH_FAILED",
+					req.query.error === "access_denied"
+						? "Google authorization was cancelled. Start again to connect your calendar."
+						: "Google authorization failed. Start again to connect your calendar.",
+				);
+
 			try {
 				const tokens = await capability(
 					provider("google"),
 					"authorize",
-				).exchange(req.query.code);
+				).exchange(req.query.code!);
 
 				await prisma.$transaction(async (tx) => {
 					const row = await tx.connection.create({

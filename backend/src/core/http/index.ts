@@ -76,6 +76,7 @@ export function contract(
 			404: errorSchema,
 			409: errorSchema,
 			422: errorSchema,
+			429: errorSchema,
 			500: errorSchema,
 			502: errorSchema,
 			503: errorSchema,
@@ -85,11 +86,30 @@ export function contract(
 
 export function errors(app: FastifyInstance) {
 	app.setErrorHandler((error, request, reply) => {
-		const e = error as HttpError & { validation?: unknown };
+		const e = error as Error & {
+			statusCode?: number;
+			code?: string;
+			validation?: unknown;
+		};
 
 		const status = e.validation
 			? 400
 			: e.statusCode || (e.code === "P2002" ? 409 : 500);
+
+		const code = e.validation
+			? "INVALID_REQUEST"
+			: status === 500
+				? "INTERNAL_ERROR"
+				: e instanceof HttpError
+					? e.code
+					: e.code === "P2002"
+						? "CONFLICT"
+						: "REQUEST_FAILED";
+
+		request.log[status >= 500 ? "error" : "warn"](
+			{ code },
+			"Request failed",
+		);
 
 		reply.status(status).send({
 			code: e.validation

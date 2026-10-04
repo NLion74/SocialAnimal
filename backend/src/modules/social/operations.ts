@@ -24,16 +24,26 @@ export async function listFriendshipsWithShares(
 						sharedWithId: friendId,
 						calendar: { userId },
 					},
-					select: { calendarId: true, permission: true },
+					select: {
+						calendarId: true,
+						permission: true,
+						rulesetId: true,
+						expiresAt: true,
+					},
 				}),
 				prisma.calendarShare.findMany({
 					where: {
 						sharedWithId: userId,
 						calendar: { userId: friendId },
+						OR: [
+							{ expiresAt: null },
+							{ expiresAt: { gt: new Date() } },
+						],
 					},
 					select: {
 						calendarId: true,
 						permission: true,
+						ruleset: { select: { fallback: true, rules: true } },
 						calendar: { select: { name: true } },
 					},
 				}),
@@ -42,6 +52,17 @@ export async function listFriendshipsWithShares(
 			return {
 				...f,
 				sharedCalendarIds: myShares.map((s: any) => s.calendarId),
+				sharedCalendarExpirations: Object.fromEntries(
+					myShares.map((s) => [
+						s.calendarId,
+						s.expiresAt?.toISOString() || null,
+					]),
+				),
+				sharedCalendarRulesets: Object.fromEntries(
+					myShares
+						.filter((s) => s.rulesetId)
+						.map((s) => [s.calendarId, s.rulesetId]),
+				),
 				sharedCalendarPermissions: Object.fromEntries(
 					myShares.map((s: any) => [s.calendarId, s.permission]),
 				),
@@ -49,6 +70,25 @@ export async function listFriendshipsWithShares(
 					id: s.calendarId,
 					name: s.calendar.name,
 					permission: s.permission,
+					accessLabel: s.ruleset
+						? Array.isArray(s.ruleset.rules) &&
+							s.ruleset.rules.length
+							? "Custom rules"
+							: (
+									{
+										full: "Full details",
+										titles: "Titles only",
+										busy: "Busy only",
+										hidden: "Hidden",
+									} as Record<string, string>
+								)[s.ruleset.fallback]
+						: (
+								{
+									full: "Full details",
+									titles: "Titles only",
+									busy: "Busy only",
+								} as Record<string, string>
+							)[s.permission],
 				})),
 			};
 		}),

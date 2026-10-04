@@ -1,12 +1,14 @@
 "use client";
 
+import TwoFactorSettings from "./TwoFactorSettings";
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Ticket, Save } from "lucide-react";
+import Feedback from "../../components/Feedback";
+import { Save } from "lucide-react";
 import s from "./Profile.module.css";
 import { apiClient } from "../../lib/api";
 import { accountApi } from "../account/api";
-import { settingsApi } from "../settings/api";
 import PasswordInput from "../../components/PasswordInput";
 
 const DEFAULT_TAB_OPTIONS = [
@@ -48,14 +50,12 @@ export default function ProfilePage() {
 		"dashboard" | "calendar" | "friends" | "profile"
 	>("dashboard");
 
-	const [showAdminSettings, setShowAdminSettings] = useState(false);
-	const [regOpen, setRegOpen] = useState(true);
-	const [inviteOnly, setInviteOnly] = useState(false);
-	const [inviteCode, setInviteCode] = useState("");
 	const [saving, setSaving] = useState(false);
 	const [deleting, setDeleting] = useState(false);
 	const [msg, setMsg] = useState("");
 	const [err, setErr] = useState("");
+	const [deleteError, setDeleteError] = useState("");
+	const [loadAttempt, setLoadAttempt] = useState(0);
 
 	const timezoneSelectOptions = timezoneOptions.includes(timezone)
 		? timezoneOptions
@@ -65,6 +65,8 @@ export default function ProfilePage() {
 		let mounted = true;
 
 		const loadProfile = async () => {
+			setErr("");
+
 			try {
 				const token = localStorage.getItem("token");
 				if (!token) return;
@@ -82,15 +84,6 @@ export default function ProfilePage() {
 
 				setTimezone(u.settings?.timezone ?? browserTimezone);
 				setDefaultTab(u.settings?.defaultTab ?? "dashboard");
-				let adminAccess = !!u.isAdmin;
-				setShowAdminSettings(adminAccess);
-
-				if (adminAccess) {
-					const s = await settingsApi.admin();
-					if (!mounted) return;
-					setRegOpen(s.registrationsOpen ?? true);
-					setInviteOnly(s.inviteOnly ?? false);
-				}
 			} catch (err: any) {
 				console.error("Failed to load profile", err);
 
@@ -111,7 +104,7 @@ export default function ProfilePage() {
 		return () => {
 			mounted = false;
 		};
-	}, []);
+	}, [loadAttempt]);
 
 	const saveProfile = async () => {
 		if (newPw && !confirmNewPw) {
@@ -144,6 +137,13 @@ export default function ProfilePage() {
 			}
 
 			await accountApi.save(body);
+
+			if (body.newPassword) {
+				apiClient.setToken(null);
+				router.push("/login");
+				return;
+			}
+
 			setMsg("Profile saved!");
 			setCurPw("");
 			setNewPw("");
@@ -157,7 +157,10 @@ export default function ProfilePage() {
 
 	const deleteAccount = async () => {
 		if (!deletePw) {
-			setErr("Please enter your password to delete your account.");
+			setDeleteError(
+				"Please enter your password to delete your account.",
+			);
+
 			setMsg("");
 			return;
 		}
@@ -170,46 +173,31 @@ export default function ProfilePage() {
 
 		setDeleting(true);
 		setMsg("");
-		setErr("");
+		setDeleteError("");
 
 		try {
 			await accountApi.remove(deletePw);
 			apiClient.setToken(null);
 			router.push("/");
 		} catch (e: any) {
-			setErr(e.message);
+			setDeleteError(e.message);
 		} finally {
 			setDeleting(false);
 		}
 	};
 
-	const saveAdmin = async () => {
-		setSaving(true);
-		setMsg("");
-		setErr("");
-
-		try {
-			await settingsApi.save({
-				registrationsOpen: regOpen,
-				inviteOnly,
-			});
-
-			setMsg("Admin settings saved!");
-		} catch (e: any) {
-			setErr(e.message);
-		} finally {
-			setSaving(false);
-		}
-	};
-
-	const genInvite = async () => {
-		try {
-			const r = await settingsApi.invite();
-			setInviteCode(r.code);
-		} catch (e: any) {
-			setErr(e.message);
-		}
-	};
+	if (!user && err)
+		return (
+			<div className={s.page}>
+				<Feedback title="Could not load your profile">{err}</Feedback>
+				<button
+					className={`${s.btn} ${s.btnPrimary}`}
+					onClick={() => setLoadAttempt((value) => value + 1)}
+				>
+					Try again
+				</button>
+			</div>
+		);
 
 	if (!user)
 		return (
@@ -222,21 +210,7 @@ export default function ProfilePage() {
 	return (
 		<div className={s.page}>
 			<div className={s.pageHeader}>
-				<h1 className={s.pageTitle}>
-					Profile & Settings
-					{showAdminSettings && (
-						<span
-							className={s.badgePurple}
-							style={{
-								marginLeft: "0.75rem",
-								verticalAlign: "middle",
-							}}
-						>
-							<Shield size={11} style={{ marginRight: 3 }} />
-							Admin
-						</span>
-					)}
-				</h1>
+				<h1 className={s.pageTitle}>Profile & Settings</h1>
 			</div>
 
 			<div className={s.section}>
@@ -245,8 +219,11 @@ export default function ProfilePage() {
 				</div>
 				<div className={s.formStack}>
 					<div>
-						<label className={s.fieldLabel}>Email</label>
+						<label className={s.fieldLabel} htmlFor="profile-email">
+							Email
+						</label>
 						<input
+							id="profile-email"
 							className={s.input}
 							value={user.email}
 							readOnly
@@ -281,8 +258,14 @@ export default function ProfilePage() {
 						</div>
 					</div>
 					<div>
-						<label className={s.fieldLabel}>Display Name</label>
+						<label
+							className={s.fieldLabel}
+							htmlFor="profile-display-name"
+						>
+							Display Name
+						</label>
 						<input
+							id="profile-display-name"
 							className={s.input}
 							value={name}
 							onChange={(e) => setName(e.target.value)}
@@ -290,8 +273,14 @@ export default function ProfilePage() {
 						/>
 					</div>
 					<div>
-						<label className={s.fieldLabel}>Timezone</label>
+						<label
+							className={s.fieldLabel}
+							htmlFor="profile-timezone"
+						>
+							Timezone
+						</label>
 						<select
+							id="profile-timezone"
 							className={s.input}
 							value={timezone}
 							onChange={(e) => setTimezone(e.target.value)}
@@ -304,8 +293,14 @@ export default function ProfilePage() {
 						</select>
 					</div>
 					<div>
-						<label className={s.fieldLabel}>Default Tab</label>
+						<label
+							className={s.fieldLabel}
+							htmlFor="profile-default-tab"
+						>
+							Default Tab
+						</label>
 						<select
+							id="profile-default-tab"
 							className={s.input}
 							value={defaultTab}
 							onChange={(e) =>
@@ -334,8 +329,14 @@ export default function ProfilePage() {
 				</div>
 				<div className={s.formStack}>
 					<div>
-						<label className={s.fieldLabel}>Current Password</label>
+						<label
+							className={s.fieldLabel}
+							htmlFor="profile-current-password"
+						>
+							Current Password
+						</label>
 						<PasswordInput
+							id="profile-current-password"
 							className={s.input}
 							value={curPw}
 							onChange={(e) => setCurPw(e.target.value)}
@@ -343,8 +344,14 @@ export default function ProfilePage() {
 						/>
 					</div>
 					<div>
-						<label className={s.fieldLabel}>New Password</label>
+						<label
+							className={s.fieldLabel}
+							htmlFor="profile-new-password"
+						>
+							New Password
+						</label>
 						<PasswordInput
+							id="profile-new-password"
 							className={s.input}
 							value={newPw}
 							onChange={(e) => setNewPw(e.target.value)}
@@ -352,10 +359,14 @@ export default function ProfilePage() {
 						/>
 					</div>
 					<div>
-						<label className={s.fieldLabel}>
+						<label
+							className={s.fieldLabel}
+							htmlFor="profile-confirm-new-password"
+						>
 							Confirm New Password
 						</label>
 						<PasswordInput
+							id="profile-confirm-new-password"
 							className={s.input}
 							value={confirmNewPw}
 							onChange={(e) => setConfirmNewPw(e.target.value)}
@@ -365,8 +376,15 @@ export default function ProfilePage() {
 				</div>
 			</div>
 
-			{msg && <div className={s.success}>{msg}</div>}
-			{err && <div className={s.error}>{err}</div>}
+			{msg && <Feedback tone="success">{msg}</Feedback>}
+			{err && (
+				<Feedback
+					focusOnMount
+					title="Profile changes could not be saved"
+				>
+					{err}
+				</Feedback>
+			)}
 
 			<button
 				className={`${s.btn} ${s.btnPrimary}`}
@@ -377,6 +395,12 @@ export default function ProfilePage() {
 			</button>
 
 			<div className={s.section}>
+				<div className={s.formStack}>
+					<TwoFactorSettings />
+				</div>
+			</div>
+
+			<div className={s.section}>
 				<div className={s.sectionHeader}>
 					<span className={s.sectionTitle}>Delete Account</span>
 				</div>
@@ -385,14 +409,25 @@ export default function ProfilePage() {
 						Permanently delete your account and all associated data.
 					</p>
 					<div>
-						<label className={s.fieldLabel}>Confirm Password</label>
+						<label
+							className={s.fieldLabel}
+							htmlFor="profile-confirm-password"
+						>
+							Confirm Password
+						</label>
 						<PasswordInput
+							id="profile-confirm-password"
 							className={s.input}
 							value={deletePw}
 							onChange={(e) => setDeletePw(e.target.value)}
 							placeholder="Enter your password"
 						/>
 					</div>
+					{deleteError && (
+						<Feedback focusOnMount title="Account was not deleted">
+							{deleteError}
+						</Feedback>
+					)}
 					<button
 						className={`${s.btn} ${s.btnDanger}`}
 						onClick={deleteAccount}
@@ -402,61 +437,6 @@ export default function ProfilePage() {
 					</button>
 				</div>
 			</div>
-
-			{showAdminSettings && (
-				<div className={s.section}>
-					<div className={s.sectionHeader}>
-						<span className={s.sectionTitle}>
-							<Shield size={13} style={{ marginRight: 4 }} />
-							Admin - Registration
-						</span>
-					</div>
-					<div className={s.formStack}>
-						<label className={s.checkboxLabel}>
-							<input
-								type="checkbox"
-								checked={regOpen}
-								onChange={(e) => setRegOpen(e.target.checked)}
-							/>
-							<span className={s.checkboxText}>
-								Allow new registrations
-							</span>
-						</label>
-						<label className={s.checkboxLabel}>
-							<input
-								type="checkbox"
-								checked={inviteOnly}
-								onChange={(e) =>
-									setInviteOnly(e.target.checked)
-								}
-							/>
-							<span className={s.checkboxText}>
-								Require invite code to register
-							</span>
-						</label>
-
-						<div className={s.formRow}>
-							<button
-								className={`${s.btn} ${s.btnSecondary}`}
-								onClick={saveAdmin}
-								disabled={saving}
-							>
-								Save Admin Settings
-							</button>
-							<button
-								className={`${s.btn} ${s.btnSecondary}`}
-								onClick={genInvite}
-							>
-								<Ticket size={14} /> Generate Invite Code
-							</button>
-						</div>
-
-						{inviteCode && (
-							<div className={s.inviteCode}>{inviteCode}</div>
-						)}
-					</div>
-				</div>
-			)}
 		</div>
 	);
 }

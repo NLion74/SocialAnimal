@@ -11,7 +11,15 @@ export function visibility(
 	userId: string,
 	scope: "mine" | "shared" | "all" = "all",
 ): Prisma.CalendarWhereInput {
-	const shared = { shares: { some: { sharedWithId: userId } } };
+	const shared = {
+		shares: {
+			some: {
+				sharedWithId: userId,
+				OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+			},
+		},
+	};
+
 	if (scope === "mine") return { userId };
 	if (scope === "shared") return shared;
 	return { OR: [{ userId }, shared] };
@@ -20,16 +28,42 @@ export function visibility(
 export function permissionFor(
 	calendar: {
 		userId: string;
-		shares: Array<{ permission: SharePermission }>;
+		shares: Array<{
+			permission: SharePermission;
+			rulesetId?: string | null;
+			expiresAt?: Date | null;
+			ruleset?: { fallback: string; rules: unknown } | null;
+		}>;
 	},
 	userId: string,
 ): SharePermission {
 	if (calendar.userId === userId) return "full";
 
-	if (!calendar.shares[0])
+	if (
+		!calendar.shares[0] ||
+		(calendar.shares[0].expiresAt &&
+			calendar.shares[0].expiresAt <= new Date())
+	)
 		return fail(403, "FORBIDDEN", "Calendar is not shared with you");
 
-	return calendar.shares[0].permission;
+	const share = calendar.shares[0];
+
+	if (share.ruleset) {
+		const outcomes = [
+			share.ruleset.fallback,
+			...(share.ruleset.rules as Array<{ visibility: string }>).map(
+				(rule) => rule.visibility,
+			),
+		];
+
+		return outcomes.includes("full")
+			? "full"
+			: outcomes.includes("titles")
+				? "titles"
+				: "busy";
+	}
+
+	return share.permission;
 }
 
 export async function access(
@@ -43,7 +77,12 @@ export async function access(
 			userId: true,
 			shares: {
 				where: { sharedWithId: userId },
-				select: { permission: true },
+				select: {
+					expiresAt: true,
+					permission: true,
+					rulesetId: true,
+					ruleset: { select: { fallback: true, rules: true } },
+				},
 			},
 		},
 	});
@@ -79,9 +118,13 @@ export async function setGrant(
 	ownerId: string,
 	userId: string,
 	calendarId: string,
-	permission?: SharePermission,
+	rulesetId?: string,
+	expiresAt?: string | null,
 ) {
 	return prisma.$transaction(async (tx) => {
+		if (expiresAt && new Date(expiresAt) <= new Date())
+			fail(400, "INVALID_EXPIRATION", "Choose a future expiration");
+
 		// Shared lock order with friendship deletion prevents a grant surviving removal.
 		await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${[ownerId, userId].sort().join(":")}))`;
 
@@ -91,7 +134,20 @@ export async function setGrant(
 
 		if (!calendar) fail(403, "FORBIDDEN", "Calendar ownership required");
 
-		if (permission) {
+		if (rulesetId) {
+			const ruleset = await tx.permissionRuleset.findFirst({
+				where: { id: rulesetId, userId: ownerId },
+			});
+
+			if (!ruleset) return fail(404, "NOT_FOUND", "Ruleset not found");
+
+			const permission: SharePermission =
+				ruleset.fallback === "titles"
+					? "titles"
+					: ruleset.fallback === "full"
+						? "full"
+						: "busy";
+
 			const friendship = await tx.friendship.findFirst({
 				where: {
 					status: "accepted",
@@ -112,8 +168,23 @@ export async function setGrant(
 						sharedWithId: userId,
 					},
 				},
-				create: { calendarId, sharedWithId: userId, permission },
-				update: { permission },
+				create: {
+					calendarId,
+					sharedWithId: userId,
+					permission,
+					expiresAt: expiresAt ? new Date(expiresAt) : null,
+					rulesetId,
+				},
+				update: {
+					permission,
+					rulesetId,
+					expiresAt:
+						expiresAt === undefined
+							? undefined
+							: expiresAt
+								? new Date(expiresAt)
+								: null,
+				},
 			});
 		} else
 			await tx.calendarShare.deleteMany({

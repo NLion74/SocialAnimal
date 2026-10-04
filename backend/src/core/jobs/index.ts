@@ -1,5 +1,16 @@
+import type { FastifyBaseLogger } from "fastify";
+
+export type JobLogger = Pick<
+	FastifyBaseLogger,
+	"info" | "warn" | "error" | "debug"
+>;
+
 // Infrastructure runner knows only the injected work function.
-export function startRunner(tick: () => Promise<void>, intervalMs = 15000) {
+export function startRunner(
+	tick: () => Promise<void>,
+	intervalMs = 15000,
+	options?: { name: string; logger: JobLogger },
+) {
 	let running = false;
 	let stopped = false;
 	let current = Promise.resolve();
@@ -10,7 +21,12 @@ export function startRunner(tick: () => Promise<void>, intervalMs = 15000) {
 
 		current = tick()
 			.catch(() => {
-				console.error("Background job tick failed");
+				if (options)
+					options.logger.error(
+						{ job: options.name },
+						"Background job tick failed",
+					);
+				else console.error("Background job tick failed");
 			})
 			.finally(() => {
 				running = false;
@@ -18,6 +34,12 @@ export function startRunner(tick: () => Promise<void>, intervalMs = 15000) {
 	};
 
 	const timer = setInterval(run, intervalMs);
+
+	options?.logger.info(
+		{ job: options.name, intervalMs },
+		"Background runner started",
+	);
+
 	run();
 
 	return async () => {

@@ -4,8 +4,9 @@ import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Calendar, Users, Home, User, LogOut } from "lucide-react";
+import { Calendar, Users, Home, User, LogOut, Shield } from "lucide-react";
 import { useSession } from "../../features/account/SessionProvider";
+import VerificationNotice from "../../features/account/VerificationNotice";
 import s from "./layout.module.css";
 
 const TABS = [
@@ -30,14 +31,18 @@ export default function ProtectedLayout({
 
 	const handleLogout = () => {
 		logout();
-		router.push("/");
 	};
 
 	if (error)
 		return (
 			<div className={s.errorState} role="alert">
 				{error}
-				<button className={s.logoutBtn} onClick={refresh}>
+				<button
+					className={s.logoutBtn}
+					onClick={() => {
+						void refresh(false).catch(() => {});
+					}}
+				>
 					Retry
 				</button>
 			</div>
@@ -49,6 +54,25 @@ export default function ProtectedLayout({
 				<div className={s.spinner} />
 				<span>Loading...</span>
 			</div>
+		);
+
+	if (
+		user.securitySetupRequired ||
+		(user.twoFactorRequired && !user.emailVerifiedAt)
+	)
+		return (
+			<main className={s.main}>
+				<h1>Complete account security</h1>
+				<p>
+					{user.emailVerifiedAt
+						? "Sign in again to confirm your second factor and continue."
+						: "Verify your email to finish setup. Then sign in again to confirm your second factor."}
+				</p>
+				<VerificationNotice />
+				<button className={s.logoutBtn} onClick={handleLogout}>
+					Sign out and sign in again
+				</button>
+			</main>
 		);
 
 	return (
@@ -71,7 +95,12 @@ export default function ProtectedLayout({
 			</header>
 
 			<div className={s.tabBar}>
-				{TABS.map(({ id, label, icon: Icon }) => (
+				{[
+					...TABS,
+					...(user.isAdmin || user.accountRole === "moderator"
+						? [{ id: "/admin", label: "Admin", icon: Shield }]
+						: []),
+				].map(({ id, label, icon: Icon }) => (
 					<Link
 						key={id}
 						href={id}
@@ -83,7 +112,26 @@ export default function ProtectedLayout({
 				))}
 			</div>
 
-			<main className={s.main}>{children}</main>
+			<main className={s.main}>
+				{user.accountRole === "readonly" && (
+					<p role="status" className={s.accountNotice}>
+						Demo account · browsing only. Changes are disabled.
+					</p>
+				)}
+				{user.verificationRequired &&
+				!user.emailVerifiedAt &&
+				!user.isAdmin &&
+				pathname !== "/profile" ? (
+					<VerificationNotice />
+				) : (
+					<>
+						{pathname === "/profile" && !user.emailVerifiedAt && (
+							<VerificationNotice />
+						)}
+						{children}
+					</>
+				)}
+			</main>
 		</div>
 	);
 }

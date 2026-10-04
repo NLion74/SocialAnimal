@@ -1,5 +1,7 @@
 "use client";
 
+import Feedback from "../../components/Feedback";
+
 import { useState, useEffect } from "react";
 import {
 	Plus,
@@ -14,6 +16,8 @@ import {
 	CircleHelp,
 } from "lucide-react";
 import { apiClient } from "../../lib/api";
+import { settingsApi } from "../settings/api";
+import { useSession } from "../account/SessionProvider";
 import { accountApi } from "../account/api";
 import { calendarsApi } from "../calendars/api";
 import { friendsApi } from "../friends/api";
@@ -163,6 +167,7 @@ interface IncomingShare {
 	ownerName: string;
 	ownerEmail: string;
 	permission: Permission;
+	accessLabel?: string;
 	ownerId: string;
 }
 
@@ -201,8 +206,52 @@ export default function DashboardPage() {
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
 	const [sync, setSync] = useState(60);
+	const { user: sessionUser } = useSession();
+
+	const [instanceLimits, setInstanceLimits] = useState({
+		minSyncIntervalMinutes: 15,
+		maxCalendarsPerUser: 25,
+	});
+
+	useEffect(() => {
+		settingsApi
+			.public()
+			.then((settings) => {
+				setInstanceLimits(settings);
+
+				setSync((value) =>
+					value === 60
+						? Math.max(value, settings.minSyncIntervalMinutes)
+						: value,
+				);
+			})
+			.catch(() => {});
+	}, []);
+
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState("");
+
+	const [calendarFeedback, setCalendarFeedback] = useState<
+		Record<
+			string,
+			{
+				tone: "success" | "error" | "info";
+				title: string;
+				message?: string;
+			}
+		>
+	>({});
+
+	const reportCalendar = (
+		id: string,
+		tone: "success" | "error" | "info",
+		title: string,
+		message?: string,
+	) =>
+		setCalendarFeedback((previous) => ({
+			...previous,
+			[id]: { tone, title, message },
+		}));
 
 	const [googleLoading, setGoogleLoading] = useState(false);
 	const [showGoogleSelect, setShowGoogleSelect] = useState(false);
@@ -292,7 +341,7 @@ export default function DashboardPage() {
 		setUrl("");
 		setUsername("");
 		setPassword("");
-		setSync(60);
+		setSync(Math.max(60, instanceLimits.minSyncIntervalMinutes));
 		setError("");
 		setImportType("ics");
 	};
@@ -380,6 +429,7 @@ export default function DashboardPage() {
 					ownerName: owner.name ?? "",
 					ownerEmail: owner.email,
 					permission: cal.permission ?? "full",
+					accessLabel: cal.accessLabel,
 					ownerId: owner.id,
 				});
 			}
@@ -413,7 +463,12 @@ export default function DashboardPage() {
 			await calendarsApi.remove(id);
 			setCalendars((prev) => prev.filter((c) => c.id !== id));
 		} catch (err: any) {
-			alert(err.message || "Failed to delete calendar");
+			reportCalendar(
+				id,
+				"error",
+				"Calendar was not deleted",
+				err.message || "Try again.",
+			);
 		}
 	};
 
@@ -728,9 +783,17 @@ export default function DashboardPage() {
 
 	const doSync = async (c: CalendarData) => {
 		setSyncingId(c.id);
+		reportCalendar(c.id, "info", "Syncing calendar…");
 
 		try {
 			const res = await calendarsApi.sync(c.id);
+
+			reportCalendar(
+				c.id,
+				"success",
+				"Calendar synchronized",
+				`${res.eventsSynced ?? 0} events synchronized.`,
+			);
 
 			setCalendars((prev) =>
 				prev.map((cal) =>
@@ -747,6 +810,13 @@ export default function DashboardPage() {
 				),
 			);
 		} catch (err: any) {
+			reportCalendar(
+				c.id,
+				"error",
+				"Synchronization failed",
+				err.message || "Check your connection and try again.",
+			);
+
 			setCalendars((prev) =>
 				prev.map((cal) =>
 					cal.id === c.id
@@ -766,9 +836,16 @@ export default function DashboardPage() {
 
 	const doTest = async (c: CalendarData) => {
 		setTestingId(c.id);
+		reportCalendar(c.id, "info", "Testing connection…");
 
 		try {
 			const res = await integrationsApi.test(c.connectionId!);
+
+			reportCalendar(
+				c.id,
+				res.success ? "success" : "error",
+				res.success ? "Connection works" : "Connection test failed",
+			);
 
 			setCalendars((prev) =>
 				prev.map((cal) =>
@@ -782,6 +859,13 @@ export default function DashboardPage() {
 				),
 			);
 		} catch (err: any) {
+			reportCalendar(
+				c.id,
+				"error",
+				"Connection test failed",
+				err.message || "Check the provider settings and try again.",
+			);
+
 			setCalendars((prev) =>
 				prev.map((cal) =>
 					cal.id === c.id
@@ -832,6 +916,11 @@ export default function DashboardPage() {
 					<button
 						className={`${s.btn} ${s.btnPrimary}`}
 						onClick={openCreate}
+						disabled={
+							sessionUser?.accountRole === "readonly" ||
+							calendars.length >=
+								instanceLimits.maxCalendarsPerUser
+						}
 					>
 						<Plus size={14} /> Import Calendar
 					</button>
@@ -866,6 +955,11 @@ export default function DashboardPage() {
 					<button
 						className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`}
 						onClick={openCreate}
+						disabled={
+							sessionUser?.accountRole === "readonly" ||
+							calendars.length >=
+								instanceLimits.maxCalendarsPerUser
+						}
 					>
 						<Plus size={12} /> Add
 					</button>
@@ -880,6 +974,18 @@ export default function DashboardPage() {
 					<div className={s.list}>
 						{calendars.map((c) => (
 							<div key={c.id} className={s.row}>
+								{calendarFeedback[c.id] ? (
+									<Feedback
+										tone={calendarFeedback[c.id].tone}
+										title={calendarFeedback[c.id].title}
+									>
+										{calendarFeedback[c.id].message}
+									</Feedback>
+								) : c.lastError ? (
+									<Feedback title="Calendar needs attention">
+										{c.lastError}
+									</Feedback>
+								) : null}
 								<div className={s.rowInfo}>
 									<div className={s.rowName}>
 										{c.name}
@@ -1021,7 +1127,8 @@ export default function DashboardPage() {
 												share.ownerEmail}
 										</span>
 										<span className={s.permLabel}>
-											{PERM_LABELS[share.permission]}
+											{share.accessLabel ||
+												PERM_LABELS[share.permission]}
 										</span>
 									</div>
 								</div>
@@ -1120,6 +1227,12 @@ export default function DashboardPage() {
 					</div>
 				)}
 
+				<p className={s.hint}>
+					Auto-sync: 0 for manual only, or at least{" "}
+					{instanceLimits.minSyncIntervalMinutes} minutes. This
+					instance allows {instanceLimits.maxCalendarsPerUser}{" "}
+					calendars per user.
+				</p>
 				{editingCalendar && (
 					<p className={s.hint}>
 						Credentials are saved on the server ••••. Leave
@@ -1188,7 +1301,7 @@ export default function DashboardPage() {
 							/>
 						</div>
 
-						{error && <div className={s.error}>{error}</div>}
+						{error && <Feedback focusOnMount>{error}</Feedback>}
 
 						<div className={s.formRow}>
 							<button
@@ -1263,7 +1376,7 @@ export default function DashboardPage() {
 							needed.
 						</p>
 
-						{error && <div className={s.error}>{error}</div>}
+						{error && <Feedback focusOnMount>{error}</Feedback>}
 
 						<div className={s.formRow}>
 							<button
@@ -1333,7 +1446,7 @@ export default function DashboardPage() {
 							/>
 						</div>
 
-						{error && <div className={s.error}>{error}</div>}
+						{error && <Feedback focusOnMount>{error}</Feedback>}
 
 						<button
 							className={`${s.btn} ${s.btnSecondary}`}
@@ -1423,7 +1536,7 @@ export default function DashboardPage() {
 							/>
 						</div>
 
-						{error && <div className={s.error}>{error}</div>}
+						{error && <Feedback focusOnMount>{error}</Feedback>}
 
 						<div className={s.formRow}>
 							<button
@@ -1482,7 +1595,7 @@ export default function DashboardPage() {
 							under Sign-In and Security
 						</p>
 
-						{error && <div className={s.error}>{error}</div>}
+						{error && <Feedback focusOnMount>{error}</Feedback>}
 
 						<div className={s.formRow}>
 							<button
@@ -1518,7 +1631,7 @@ export default function DashboardPage() {
 							Google to authorize access.
 						</p>
 
-						{error && <div className={s.error}>{error}</div>}
+						{error && <Feedback focusOnMount>{error}</Feedback>}
 
 						<div className={s.formRow}>
 							<button
@@ -1572,7 +1685,7 @@ export default function DashboardPage() {
 							re-import if needed.
 						</p>
 
-						{error && <div className={s.error}>{error}</div>}
+						{error && <Feedback focusOnMount>{error}</Feedback>}
 
 						<div className={s.formRow}>
 							<button

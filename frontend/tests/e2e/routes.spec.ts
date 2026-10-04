@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 test("anonymous and authenticated routes, login, subscriptions, credential masking and session errors", async ({
 	page,
@@ -8,15 +8,38 @@ test("anonymous and authenticated routes, login, subscriptions, credential maski
 	const errors: string[] = [];
 	page.on("pageerror", (error) => errors.push(error.message));
 
-	for (const path of ["/", "/login", "/register"]) {
+	for (const path of ["/", "/login", "/register", "/verify-email"]) {
 		await page.goto(path);
 
 		await expect(page.locator("body")).not.toContainText(
 			"Application error",
 		);
+
+		for (const width of [1280, 390]) {
+			await page.setViewportSize({ width, height: 844 });
+
+			await page.screenshot({
+				path: `/tmp/socialanimal-route-${path.slice(1) || "home"}-${width}.png`,
+				fullPage: true,
+			});
+
+			expect(
+				await page.evaluate(
+					() => document.documentElement.scrollWidth <= innerWidth,
+				),
+			).toBe(true);
+		}
+
+		await page.setViewportSize({ width: 1280, height: 844 });
 	}
 
-	for (const path of ["/dashboard", "/calendar", "/friends", "/profile"]) {
+	for (const path of [
+		"/dashboard",
+		"/calendar",
+		"/friends",
+		"/profile",
+		"/admin",
+	]) {
 		await page.goto(path);
 		await expect(page).toHaveURL(/\/login$/);
 	}
@@ -35,7 +58,13 @@ test("anonymous and authenticated routes, login, subscriptions, credential maski
 	await page.getByRole("button", { name: "Sign In", exact: true }).click();
 	await expect(page).toHaveURL(/\/dashboard$/);
 
-	for (const path of ["/dashboard", "/calendar", "/friends", "/profile"]) {
+	for (const path of [
+		"/dashboard",
+		"/calendar",
+		"/friends",
+		"/profile",
+		"/admin",
+	]) {
 		await page.goto(path);
 
 		await expect(
@@ -45,6 +74,23 @@ test("anonymous and authenticated routes, login, subscriptions, credential maski
 		await expect(page.locator("body")).not.toContainText(
 			"Application error",
 		);
+
+		for (const width of [1280, 390]) {
+			await page.setViewportSize({ width, height: 844 });
+
+			await page.screenshot({
+				path: `/tmp/socialanimal-route-${path.slice(1) || "home"}-${width}.png`,
+				fullPage: true,
+			});
+
+			expect(
+				await page.evaluate(
+					() => document.documentElement.scrollWidth <= innerWidth,
+				),
+			).toBe(true);
+		}
+
+		await page.setViewportSize({ width: 1280, height: 844 });
 	}
 
 	await page.goto("/dashboard");
@@ -143,42 +189,57 @@ test("anonymous and authenticated routes, login, subscriptions, credential maski
 	).toHaveValue(/\/feeds\/.+\.ics$/);
 
 	await expect(page.getByRole("dialog")).toBeVisible();
+
 	await expect(
 		page.getByRole("dialog").getByRole("heading", { level: 2 }),
 	).toHaveCount(1);
+
 	await page.screenshot({
 		path: "/tmp/socialanimal-sharing-desktop.png",
 		fullPage: true,
 	});
+
 	await page.setViewportSize({ width: 390, height: 844 });
+
 	await page.screenshot({
 		path: "/tmp/socialanimal-sharing-mobile.png",
 		fullPage: true,
 	});
+
 	expect(
 		await page.evaluate(
 			() => document.documentElement.scrollWidth <= window.innerWidth,
 		),
 	).toBe(true);
+
 	const previewUrl = await page
 		.getByLabel("Preview URL", { exact: true })
 		.inputValue();
+
 	const guest = await browser.newContext();
 	const guestPage = await guest.newPage();
 	await guestPage.goto(previewUrl);
+
 	await expect(
-		guestPage.getByRole("heading", { name: "Browser Calendar" }),
+		guestPage.getByRole("heading", {
+			name: "Shared calendar",
+			exact: true,
+		}),
 	).toBeVisible();
+
 	expect(
 		await guestPage.evaluate(() => localStorage.getItem("token")),
 	).toBeNull();
+
 	await guestPage.screenshot({
 		path: "/tmp/socialanimal-preview.png",
 		fullPage: true,
 	});
+
 	const url = await page
 		.getByLabel("Subscription URL", { exact: true })
 		.inputValue();
+
 	expect((await request.get(url)).status()).toBe(200);
 
 	await page
@@ -188,19 +249,32 @@ test("anonymous and authenticated routes, login, subscriptions, credential maski
 	await expect(
 		page.getByLabel("Subscription URL", { exact: true }),
 	).not.toHaveValue(url);
+
 	await expect.poll(async () => (await request.get(url)).status()).toBe(404);
 	await guestPage.reload();
+
 	await expect(
 		guestPage
 			.getByRole("region", { name: "Shared calendar preview" })
 			.getByRole("alert"),
 	).toContainText("no longer available");
+
 	await guest.close();
 	await page.getByRole("button", { name: "Revoke", exact: true }).click();
 
 	await expect(
 		page.getByRole("button", { name: "Revoke", exact: true }),
 	).toHaveCount(0);
+
+	const deleteButtons = page.getByRole("button", {
+		name: "Delete permanently",
+		exact: true,
+	});
+
+	const revokedCount = await deleteButtons.count();
+	page.once("dialog", (dialog) => dialog.accept());
+	await deleteButtons.first().click();
+	await expect(deleteButtons).toHaveCount(revokedCount - 1);
 
 	await page.keyboard.press("Escape");
 	await expect(page.getByRole("dialog")).toHaveCount(0);

@@ -1,22 +1,20 @@
 "use client";
 
+import Feedback from "../../components/Feedback";
+
 import { useState, useEffect, useCallback } from "react";
 import { UserPlus, X, Check, Users, Share2 } from "lucide-react";
 import s from "./Friends.module.css";
 import { apiClient } from "../../lib/api";
 import { calendarsApi } from "../calendars/api";
 import { friendsApi } from "../friends/api";
-import { sharingApi } from "../sharing/api";
-import type { Friend, CalendarData, Permission } from "../../lib/types";
+import ShareRules from "../permissions/ShareRules";
+import { useSession } from "../account/SessionProvider";
+import type { Friend, CalendarData } from "../../lib/types";
 import Modal from "../../components/Modal";
 
-const PERM_LABELS: Record<Permission, string> = {
-	busy: "Busy Only",
-	titles: "Titles Only",
-	full: "Full Details",
-};
-
 export default function FriendsPage() {
+	const { user } = useSession();
 	const [friends, setFriends] = useState<Friend[]>([]);
 	const [calendars, setCalendars] = useState<CalendarData[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -25,25 +23,40 @@ export default function FriendsPage() {
 	const [emailInput, setEmailInput] = useState(""); // remove when uncommenting search
 	const [addErr, setAddErr] = useState("");
 	const [adding, setAdding] = useState(false);
+	const [loadError, setLoadError] = useState("");
+	const [notice, setNotice] = useState("");
+	const [pendingAction, setPendingAction] = useState<string | null>(null);
+
+	const [actionError, setActionError] = useState<{
+		id: string;
+		message: string;
+	} | null>(null);
+
 	const [shareTarget, setShareTarget] = useState<Friend | null>(null);
 
 	const uid = apiClient.getUid();
 
 	const load = useCallback(async () => {
 		setLoading(true);
+		setLoadError("");
 
-		const [fr, cr] = await Promise.all([
-			friendsApi.list().catch(() => []),
-			calendarsApi.list().catch(() => []),
-		]);
+		try {
+			const [fr, cr] = await Promise.all([
+				friendsApi.list(),
+				calendarsApi.list(),
+			]);
 
-		setFriends(fr);
-		setCalendars(cr);
-		setLoading(false);
+			setFriends(fr);
+			setCalendars(cr);
 
-		setShareTarget((prev) =>
-			prev ? (fr.find((f) => f.id === prev.id) ?? null) : null,
-		);
+			setShareTarget((prev) =>
+				prev ? (fr.find((f) => f.id === prev.id) ?? null) : null,
+			);
+		} catch (e) {
+			setLoadError((e as Error).message);
+		} finally {
+			setLoading(false);
+		}
 	}, []);
 
 	useEffect(() => {
@@ -73,7 +86,8 @@ export default function FriendsPage() {
 			});
 
 			closeAddModal();
-			load();
+			setNotice("Friend request sent.");
+			void load();
 		} catch (e: any) {
 			setAddErr(e.message);
 		} finally {
@@ -81,57 +95,33 @@ export default function FriendsPage() {
 		}
 	};
 
-	const accept = async (id: string) => {
-		await friendsApi.accept(id).catch(() => {});
-		load();
-	};
-
-	const remove = async (id: string) => {
-		if (!confirm("Remove this friend?")) return;
-		await friendsApi.remove(id).catch(() => {});
-		load();
-	};
-
-	const toggleShare = async (
-		friendId: string,
-		calendarId: string,
-		share: boolean,
-		permission: Permission,
+	const changeFriendship = async (
+		id: string,
+		operation: () => Promise<unknown>,
 	) => {
-		setShareTarget((prev) => {
-			if (!prev) return prev;
+		setPendingAction(id);
+		setActionError(null);
+		setNotice("");
 
-			const ids = share
-				? [...new Set([...(prev.sharedCalendarIds ?? []), calendarId])]
-				: (prev.sharedCalendarIds ?? []).filter(
-						(id) => id !== calendarId,
-					);
-
-			const perms = { ...prev.sharedCalendarPermissions };
-
-			if (share) perms[calendarId] = permission;
-			else delete perms[calendarId];
-
-			return {
-				...prev,
-				sharedCalendarIds: ids,
-				sharedCalendarPermissions: perms,
-			};
-		});
-
-		await sharingApi
-			.set({
-				friendId,
-				calendarId,
-				share,
-				permission,
-			})
-			.catch(() => {});
-
-		load();
+		try {
+			await operation();
+			await load();
+		} catch (e) {
+			setActionError({ id, message: (e as Error).message });
+		} finally {
+			setPendingAction(null);
+		}
 	};
 
-	if (loading)
+	const accept = (id: string) =>
+		changeFriendship(id, () => friendsApi.accept(id));
+
+	const remove = (id: string) => {
+		if (!confirm("Remove this friend or request?")) return;
+		return changeFriendship(id, () => friendsApi.remove(id));
+	};
+
+	if (loading && !shareTarget)
 		return (
 			<div className={s.loading}>
 				<div className={s.spinner} />
@@ -157,11 +147,22 @@ export default function FriendsPage() {
 				</button>
 			</div>
 
+			{loadError && (
+				<Feedback title="Could not load friends">
+					{loadError}
+					<button className={s.btn} onClick={() => void load()}>
+						Try again
+					</button>
+				</Feedback>
+			)}
+			{notice && <Feedback tone="success">{notice}</Feedback>}
 			<div className={s.section}>
 				<div className={s.sectionTitle}>
 					Friends ({accepted.length})
 				</div>
-				{accepted.length === 0 ? (
+				{loadError && !friends.length ? (
+					<p>Try again to load your friends.</p>
+				) : accepted.length === 0 ? (
 					<div className={s.empty}>
 						<Users size={36} className={s.emptyIcon} />
 						<span>No friends yet</span>
@@ -173,6 +174,14 @@ export default function FriendsPage() {
 
 							return (
 								<div key={f.id} className={s.row}>
+									{actionError?.id === f.id && (
+										<Feedback
+											focusOnMount
+											title="Friendship was not changed"
+										>
+											{actionError.message}
+										</Feedback>
+									)}
 									<div className={s.rowInfo}>
 										<div className={s.rowName}>
 											{friend.name || friend.email}
@@ -206,7 +215,8 @@ export default function FriendsPage() {
 										</button>
 										<button
 											className={`${s.btn} ${s.btnDanger} ${s.btnSm}`}
-											onClick={() => remove(f.id)}
+											disabled={pendingAction !== null}
+											onClick={() => void remove(f.id)}
 										>
 											Remove
 										</button>
@@ -227,6 +237,14 @@ export default function FriendsPage() {
 
 							return (
 								<div key={f.id} className={s.row}>
+									{actionError?.id === f.id && (
+										<Feedback
+											focusOnMount
+											title="Friendship was not changed"
+										>
+											{actionError.message}
+										</Feedback>
+									)}
 									<div className={s.rowInfo}>
 										<div className={s.rowName}>
 											{friend.name || friend.email}
@@ -240,13 +258,23 @@ export default function FriendsPage() {
 											<>
 												<button
 													className={`${s.btn} ${s.btnSuccess} ${s.btnSm}`}
-													onClick={() => accept(f.id)}
+													disabled={
+														pendingAction !== null
+													}
+													onClick={() =>
+														void accept(f.id)
+													}
 												>
 													<Check size={12} /> Accept
 												</button>
 												<button
 													className={`${s.btn} ${s.btnDanger} ${s.btnSm}`}
-													onClick={() => remove(f.id)}
+													disabled={
+														pendingAction !== null
+													}
+													onClick={() =>
+														void remove(f.id)
+													}
 												>
 													<X size={12} /> Decline
 												</button>
@@ -260,7 +288,12 @@ export default function FriendsPage() {
 												</span>
 												<button
 													className={`${s.btn} ${s.btnDanger} ${s.btnSm}`}
-													onClick={() => remove(f.id)}
+													disabled={
+														pendingAction !== null
+													}
+													onClick={() =>
+														void remove(f.id)
+													}
 												>
 													Remove
 												</button>
@@ -273,87 +306,6 @@ export default function FriendsPage() {
 					</div>
 				</div>
 			)}
-
-			{/* uncomment to restore search functionality instead of email input
-            <Modal isOpen={showAdd} onClose={closeAddModal} title="Add Friend">
-                <div className={s.formStack}>
-                    <div>
-                        <label
-                            className={s.fieldLabel}
-                            htmlFor="friend-search-input"
-                        >
-                            Search Username
-                        </label>
-                        <input
-                            id="friend-search-input"
-                            className={s.input}
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => {
-                                setSearchQuery(e.target.value);
-                                setSelectedUserId("");
-                            }}
-                            placeholder="Enter username"
-                            onKeyDown={(e) =>
-                                e.key === "Enter" &&
-                                selectedUserId &&
-                                sendRequest()
-                            }
-                            autoFocus
-                        />
-                    </div>
-
-                    {searching && <div className={s.hint}>Searching…</div>}
-
-                    {!searching && searchQuery.trim() && (
-                        <div className={s.searchResults}>
-                            {searchResults.length === 0 ? (
-                                <div className={s.emptySearch}>
-                                    No users found
-                                </div>
-                            ) : (
-                                searchResults.map((u) => (
-                                    <button
-                                        key={u.id}
-                                        type="button"
-                                        className={`${s.searchResult} ${selectedUserId === u.id ? s.searchResultSelected : ""}`}
-                                        onClick={() => {
-                                            setSelectedUserId(u.id);
-                                            setAddErr("");
-                                        }}
-                                    >
-                                        <div className={s.searchResultName}>
-                                            {u.name || "(No username)"}
-                                        </div>
-                                        <div className={s.searchResultEmail}>
-                                            {u.email}
-                                        </div>
-                                    </button>
-                                ))
-                            )}
-                        </div>
-                    )}
-
-                    {addErr && <div className={s.error}>{addErr}</div>}
-                    <div className={s.formRow}>
-                        <button
-                            className={`${s.btn} ${s.btnPrimary}`}
-                            style={{ flex: 1 }}
-                            onClick={sendRequest}
-                            disabled={adding || !selectedUserId}
-                        >
-                            {adding ? "Sending…" : "Send Request"}
-                        </button>
-                        <button
-                            className={`${s.btn} ${s.btnSecondary}`}
-                            onClick={closeAddModal}
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                </div>
-            </Modal>
-            */}
 
 			<Modal isOpen={showAdd} onClose={closeAddModal} title="Add Friend">
 				<div className={s.formStack}>
@@ -382,7 +334,7 @@ export default function FriendsPage() {
 							autoFocus
 						/>
 					</div>
-					{addErr && <div className={s.error}>{addErr}</div>}
+					{addErr && <Feedback focusOnMount>{addErr}</Feedback>}
 					<div className={s.formRow}>
 						<button
 							className={`${s.btn} ${s.btnPrimary}`}
@@ -403,92 +355,14 @@ export default function FriendsPage() {
 			</Modal>
 
 			{shareTarget && (
-				<Modal
-					isOpen={true}
+				<ShareRules
+					friend={shareTarget}
+					friendId={getFriend(shareTarget).id}
+					calendars={calendars}
+					readonly={user?.accountRole === "readonly"}
 					onClose={() => setShareTarget(null)}
-					title={`Share with ${getFriend(shareTarget).name || getFriend(shareTarget).email}`}
-				>
-					<p className={s.hint}>
-						Choose which calendars to share and what level of
-						detail.
-					</p>
-					<div className={s.shareList}>
-						{calendars.length === 0 ? (
-							<div className={s.empty}>No calendars to share</div>
-						) : (
-							calendars.map((cal) => {
-								const shared = (
-									shareTarget.sharedCalendarIds ?? []
-								).includes(cal.id);
-
-								const perm: Permission =
-									shareTarget.sharedCalendarPermissions?.[
-										cal.id
-									] ?? "full";
-
-								const friend = getFriend(shareTarget);
-
-								return (
-									<div key={cal.id} className={s.shareRow}>
-										<div className={s.shareRowName}>
-											{cal.name}
-										</div>
-										<div className={s.shareRowActions}>
-											{shared && (
-												<select
-													className={s.permSelect}
-													value={perm}
-													onChange={(e) =>
-														toggleShare(
-															friend.id,
-															cal.id,
-															true,
-															e.target
-																.value as Permission,
-														)
-													}
-													onClick={(e) =>
-														e.stopPropagation()
-													}
-												>
-													{(
-														Object.keys(
-															PERM_LABELS,
-														) as Permission[]
-													).map((p) => (
-														<option
-															key={p}
-															value={p}
-														>
-															{PERM_LABELS[p]}
-														</option>
-													))}
-												</select>
-											)}
-											<button
-												className={`${s.btn} ${
-													shared
-														? s.btnDanger
-														: s.btnSuccess
-												} ${s.btnSm}`}
-												onClick={() =>
-													toggleShare(
-														friend.id,
-														cal.id,
-														!shared,
-														perm,
-													)
-												}
-											>
-												{shared ? "Unshare" : "Share"}
-											</button>
-										</div>
-									</div>
-								);
-							})
-						)}
-					</div>
-				</Modal>
+					onChanged={() => void load()}
+				/>
 			)}
 		</div>
 	);
