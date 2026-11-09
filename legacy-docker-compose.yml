@@ -1,37 +1,7 @@
 # Use: docker compose -f legacy-docker-compose.yml up --wait
-x-logging: &service-logging
-    driver: local
-    options:
-        max-size: "10m"
-        max-file: "3"
-
 # Compatibility filename: runs the same prebuilt production services.
-x-backend-environment: &backend-environment
-    NODE_ENV: production
-    PORT: "4000"
-    LOG_MODE: "${LOG_MODE:-production}"
-    LOG_LEVEL: "${LOG_LEVEL:-}"
-    DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
-    JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
-    CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?Set CREDENTIAL_ENCRYPTION_KEY}
-    PUBLIC_URL: ${PUBLIC_URL:?Set PUBLIC_URL}
-    GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-    GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-    GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
-    MIN_SYNC_INTERVAL_MINUTES: ${MIN_SYNC_INTERVAL_MINUTES:-15}
-    PRIVATE_PROVIDER_HOSTS: ${PRIVATE_PROVIDER_HOSTS:-}
-    SYNC_CONCURRENCY: ${SYNC_CONCURRENCY:-3}
-    SMTP_HOST: "${SMTP_HOST:-}"
-    SMTP_PORT: "${SMTP_PORT:-587}"
-    SMTP_SECURE: "${SMTP_SECURE:-false}"
-    SMTP_REQUIRE_TLS: "${SMTP_REQUIRE_TLS:-true}"
-    SMTP_USER: "${SMTP_USER:-}"
-    SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
-    SMTP_FROM: "${SMTP_FROM:-}"
-
 services:
     db:
-        logging: *service-logging
         image: postgres:16
         restart: unless-stopped
         environment:
@@ -39,7 +9,7 @@ services:
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
             POSTGRES_DB: ${POSTGRES_DB:-socialanimal}
         volumes:
-            - ./docker_data/legacy/postgres:/var/lib/postgresql/data
+            - legacy_postgres_data:/var/lib/postgresql/data
         healthcheck:
             test:
                 [
@@ -50,22 +20,76 @@ services:
             timeout: 3s
             retries: 20
             start_period: 5s
+        networks:
+            - app-network
+        logging:
+            driver: local
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     setup:
-        logging: *service-logging
         image: nlion/socialanimal-backend:${SOCIALANIMAL_VERSION:?Set SOCIALANIMAL_VERSION to a release tag}
         restart: "no"
-        environment: *backend-environment
+        environment:
+            NODE_ENV: production
+            PORT: "4000"
+            LOG_MODE: "${LOG_MODE:-production}"
+            LOG_LEVEL: "${LOG_LEVEL:-}"
+            DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+            JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+            CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?Set CREDENTIAL_ENCRYPTION_KEY}
+            PUBLIC_URL: ${PUBLIC_URL:?Set PUBLIC_URL}
+            GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+            GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+            GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+            MIN_SYNC_INTERVAL_MINUTES: ${MIN_SYNC_INTERVAL_MINUTES:-15}
+            PRIVATE_PROVIDER_HOSTS: ${PRIVATE_PROVIDER_HOSTS:-}
+            SYNC_CONCURRENCY: ${SYNC_CONCURRENCY:-3}
+            SMTP_HOST: "${SMTP_HOST:-}"
+            SMTP_PORT: "${SMTP_PORT:-587}"
+            SMTP_SECURE: "${SMTP_SECURE:-false}"
+            SMTP_REQUIRE_TLS: "${SMTP_REQUIRE_TLS:-true}"
+            SMTP_USER: "${SMTP_USER:-}"
+            SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+            SMTP_FROM: "${SMTP_FROM:-}"
         command: ["node", "dist/setup-database.js"]
         depends_on:
             db:
                 condition: service_healthy
+        networks:
+            - app-network
+        logging:
+            driver: local
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     backend:
-        logging: *service-logging
         image: nlion/socialanimal-backend:${SOCIALANIMAL_VERSION:?Set SOCIALANIMAL_VERSION to a release tag}
         restart: unless-stopped
-        environment: *backend-environment
+        environment:
+            NODE_ENV: production
+            PORT: "4000"
+            LOG_MODE: "${LOG_MODE:-production}"
+            LOG_LEVEL: "${LOG_LEVEL:-}"
+            DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+            JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+            CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?Set CREDENTIAL_ENCRYPTION_KEY}
+            PUBLIC_URL: ${PUBLIC_URL:?Set PUBLIC_URL}
+            GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+            GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+            GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+            MIN_SYNC_INTERVAL_MINUTES: ${MIN_SYNC_INTERVAL_MINUTES:-15}
+            PRIVATE_PROVIDER_HOSTS: ${PRIVATE_PROVIDER_HOSTS:-}
+            SYNC_CONCURRENCY: ${SYNC_CONCURRENCY:-3}
+            SMTP_HOST: "${SMTP_HOST:-}"
+            SMTP_PORT: "${SMTP_PORT:-587}"
+            SMTP_SECURE: "${SMTP_SECURE:-false}"
+            SMTP_REQUIRE_TLS: "${SMTP_REQUIRE_TLS:-true}"
+            SMTP_USER: "${SMTP_USER:-}"
+            SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+            SMTP_FROM: "${SMTP_FROM:-}"
         depends_on:
             db:
                 condition: service_healthy
@@ -77,9 +101,15 @@ services:
             timeout: 3s
             retries: 20
             start_period: 10s
+        networks:
+            - app-network
+        logging:
+            driver: local
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     frontend:
-        logging: *service-logging
         image: nlion/socialanimal-frontend:${SOCIALANIMAL_VERSION:?Set SOCIALANIMAL_VERSION to a release tag}
         restart: unless-stopped
         ports:
@@ -98,3 +128,17 @@ services:
             timeout: 3s
             retries: 20
             start_period: 10s
+        networks:
+            - app-network
+        logging:
+            driver: local
+            options:
+                max-size: "10m"
+                max-file: "3"
+
+volumes:
+    legacy_postgres_data:
+
+networks:
+    app-network:
+        driver: bridge

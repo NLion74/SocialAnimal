@@ -323,7 +323,38 @@ cp example.env .env.dev
 docker compose --env-file .env.dev -f dev-docker-compose.yml up --wait
 ```
 
-This uses the development Compose configuration for editing the application with live reload.
+Development runs `node:22-alpine` with the backend and frontend source directories mounted into the containers. Setup installs backend dependencies, generates Prisma Client, and runs the database setup command before the API starts. The backend uses `tsx watch`; the frontend runs the Next.js development server, so source edits reload automatically.
+
+Dependencies and generated build output use separate Docker volumes to keep container files separate from local installs. After changing dependencies or database migrations, stop and start development again with `docker compose --env-file .env.dev -f dev-docker-compose.yml down` followed by the startup command above. This reruns installation and setup without deleting database data.
+
+All Compose files, including `legacy-docker-compose.yml`, declare an `app-network` bridge network. Container and volume names remain scoped to the Compose project. The legacy filename runs prebuilt production services with the same setup requirement, using environment variables supplied by the shell or `.env`.
+
+### Persistent Docker volumes
+
+Each mode uses its own PostgreSQL volume, even when the Compose project name is shared:
+
+| Compose file | Database volume key | Docker volume name |
+| --- | --- | --- |
+| `docker-compose.yml` | `release_postgres_data` | `<project>_release_postgres_data` |
+| `build-docker-compose.yml` | `build_postgres_data` | `<project>_build_postgres_data` |
+| `dev-docker-compose.yml` | `dev_postgres_data` | `<project>_dev_postgres_data` |
+| `legacy-docker-compose.yml` | `legacy_postgres_data` | `<project>_legacy_postgres_data` |
+
+Build mode defaults to project `socialanimal-build`; the other modes use the directory's project name unless you set `-p` or `COMPOSE_PROJECT_NAME`. Use distinct project names and host ports to run modes simultaneously. Development also uses project-scoped `dev_backend_modules`, `dev_backend_dist`, `dev_frontend_modules`, and `dev_frontend_next` volumes. Source directories remain mounted for live reload.
+
+`docker compose down` preserves these volumes. `down -v` deletes the volumes for that Compose file, including its database. Keep database backups and the matching environment file separately.
+
+**Moving from the previous directory mounts:** before starting the updated Compose file, copy each existing PostgreSQL 16 cluster into its new volume with the helper below. It stops that mode's stack, requires a cleanly shut-down database, refuses an existing destination volume, copies the data, verifies file contents, and leaves the original directory intact. Keep the same database credentials and encryption key.
+
+```bash
+# Choose the mode whose docker_data/<mode>/postgres directory contains your data.
+node scripts/migrate-compose-storage.mjs development
+# Other modes: production (docker_data/release), build, legacy.
+# If you used a custom Compose project, pass the same name:
+# node scripts/migrate-compose-storage.mjs development my-project
+```
+
+Then start that mode with its normal Compose command. Fresh installations need no copy. If copying fails or is interrupted, the helper leaves the stack stopped and retains the destination for inspection; it will not overwrite that volume on retry. The old directories are retained backups, not active database storage after migration.
 
 ### Test a production build locally
 

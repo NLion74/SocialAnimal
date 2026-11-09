@@ -87,6 +87,30 @@ const publicUrl = parseUrl(env.PUBLIC_URL);
 
 const development = mode === "development";
 
+const storagePrefix = {
+	production: "release",
+	development: "dev",
+	build: "build",
+	legacy: "legacy",
+}[mode];
+const databaseMount = db.volumes?.find(
+	(volume) => volume.target === "/var/lib/postgresql/data",
+);
+check(
+	databaseMount?.type === "volume" &&
+		databaseMount.source === `${storagePrefix}_postgres_data`,
+	"PostgreSQL must use the named volume assigned to this deployment mode.",
+);
+check(
+	Object.entries(config.volumes || {}).every(
+		([key, volume]) =>
+			key.startsWith(`${storagePrefix}_`) &&
+			volume.name === `${config.name}_${key}` &&
+			!volume.external,
+	),
+	"Volumes must be scoped by both deployment mode and Compose project.",
+);
+
 check(
 	!env.LOG_MODE || ["verbose", "production"].includes(env.LOG_MODE),
 	"LOG_MODE must be verbose or production.",
@@ -213,18 +237,47 @@ check(
 	"Container names must be scoped by the Compose project.",
 );
 
+check(
+	setup?.image === backend.image,
+	"Database setup and API must use the same backend image.",
+);
+
+check(
+	backend.depends_on?.setup?.condition === "service_completed_successfully",
+	"API startup must wait for database setup to complete.",
+);
+
+if (development) {
+	for (const [name, service] of Object.entries({
+		setup,
+		backend,
+		frontend,
+	})) {
+		check(
+			service?.image === "node:22-alpine" &&
+				service.volumes?.some(
+					(volume) =>
+						volume.type === "bind" && volume.target === "/app",
+				) &&
+				service.volumes?.some(
+					(volume) =>
+						volume.type === "volume" &&
+						volume.target === "/app/node_modules",
+				),
+			`Development ${name} must use Node with mounted source and isolated dependencies.`,
+		);
+	}
+	check(
+		setup?.volumes?.find((volume) => volume.target === "/app/node_modules")
+			?.source ===
+			backend.volumes?.find(
+				(volume) => volume.target === "/app/node_modules",
+			)?.source,
+		"Development setup and backend must share installed dependencies.",
+	);
+}
+
 if (!development) {
-	check(
-		setup?.image === backend.image,
-		"Database setup and API must use the same backend image.",
-	);
-
-	check(
-		backend.depends_on?.setup?.condition ===
-			"service_completed_successfully",
-		"API startup must wait for database setup to complete.",
-	);
-
 	check(
 		!backend.ports?.length && !db.ports?.length,
 		"Production modes must expose only the frontend.",

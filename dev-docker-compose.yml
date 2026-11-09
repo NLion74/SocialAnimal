@@ -1,13 +1,6 @@
 # Use: docker compose --env-file .env.dev -f dev-docker-compose.yml up --wait
-x-logging: &service-logging
-    driver: local
-    options:
-        max-size: "10m"
-        max-file: "3"
-
 services:
     db:
-        logging: *service-logging
         image: postgres:16
         restart: unless-stopped
         env_file:
@@ -18,7 +11,7 @@ services:
         ports:
             - "127.0.0.1:${DB_PORT:-5432}:5432"
         volumes:
-            - ./docker_data/dev/postgres:/var/lib/postgresql/data
+            - dev_postgres_data:/var/lib/postgresql/data
         healthcheck:
             test:
                 [
@@ -29,30 +22,53 @@ services:
             timeout: 2s
             retries: 20
             start_period: 5s
+        networks:
+            - app-network
+        logging:
+            driver: local
+            options:
+                max-size: "10m"
+                max-file: "3"
+
     setup:
-        logging: *service-logging
-        build:
-            context: ./backend
-        image: socialanimal-backend-dev
+        image: node:22-alpine
+        working_dir: /app
         restart: "no"
+        volumes:
+            - ./backend:/app
+            - dev_backend_modules:/app/node_modules
+            - dev_backend_dist:/app/dist
         env_file:
             - .env.dev
         environment:
             NODE_ENV: development
             PORT: "4000"
-        command: ["node", "dist/setup-database.js"]
+        command: >
+            sh -c "npm ci &&
+                   npx prisma generate &&
+                   npm run build &&
+                   npm run database:setup"
         depends_on:
             db:
                 condition: service_healthy
+        networks:
+            - app-network
+        logging:
+            driver: local
+            options:
+                max-size: "10m"
+                max-file: "3"
+
     backend:
-        logging: *service-logging
-        build:
-            context: ./backend
-        image: socialanimal-backend-dev
+        image: node:22-alpine
         working_dir: /app
+        volumes:
+            - ./backend:/app
+            - dev_backend_modules:/app/node_modules
+            - dev_backend_dist:/app/dist
         env_file:
             - .env.dev
-        command: ["node", "dist/index.js"]
+        command: ["npm", "run", "dev"]
         ports:
             - "127.0.0.1:${BACKEND_PORT:-4000}:4000"
         environment:
@@ -69,13 +85,24 @@ services:
                 condition: service_healthy
             setup:
                 condition: service_completed_successfully
+        networks:
+            - app-network
+        logging:
+            driver: local
+            options:
+                max-size: "10m"
+                max-file: "3"
+
     frontend:
-        logging: *service-logging
-        build:
-            context: ./frontend
-        image: socialanimal-frontend-dev
+        image: node:22-alpine
         working_dir: /app
-        command: ["node", "server.js"]
+        volumes:
+            - ./frontend:/app
+            - dev_frontend_modules:/app/node_modules
+            - dev_frontend_next:/app/.next
+        command: >
+            sh -c "npm ci &&
+                   npm run dev -- --hostname 0.0.0.0 --port 3000"
         ports:
             - "${FRONTEND_PORT:-3000}:3000"
         environment:
@@ -92,3 +119,21 @@ services:
         depends_on:
             backend:
                 condition: service_healthy
+        networks:
+            - app-network
+        logging:
+            driver: local
+            options:
+                max-size: "10m"
+                max-file: "3"
+
+volumes:
+    dev_postgres_data:
+    dev_backend_modules:
+    dev_backend_dist:
+    dev_frontend_modules:
+    dev_frontend_next:
+
+networks:
+    app-network:
+        driver: bridge

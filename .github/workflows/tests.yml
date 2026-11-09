@@ -131,8 +131,6 @@ jobs:
         needs: [backend, frontend]
         env:
             COMPOSE_PROJECT_NAME: socialanimal-ci
-            DATABASE_VOLUME: socialanimal-ci_db_data
-            DEV_DATABASE_VOLUME: socialanimal-ci-dev_db_data
             SMOKE_BASE_URL: http://127.0.0.1:3000
             SMOKE_ALLOW_WRITES: "1"
 
@@ -198,11 +196,12 @@ jobs:
 
             - name: Smoke-test legacy Compose filename
               run: |
+                  docker compose -f docker-compose.yml down
                   docker compose -f legacy-docker-compose.yml up --no-build --pull never --wait --wait-timeout 180
                   node tests/deployment/compose-smoke.mjs
 
             - name: Stop production services before testing development ports
-              run: docker compose -f docker-compose.yml down
+              run: docker compose -f legacy-docker-compose.yml down
 
             - name: Start development Compose
               run: docker compose --env-file .env.dev -f dev-docker-compose.yml -p socialanimal-ci-dev up --wait --wait-timeout 300
@@ -219,5 +218,7 @@ jobs:
             - name: Stop disposable test services
               if: always()
               run: |
+                  docker compose --env-file .env.build -f build-docker-compose.yml down -v
                   docker compose -f docker-compose.yml down -v
+                  docker compose -f legacy-docker-compose.yml down -v
                   docker compose --env-file .env.dev -f dev-docker-compose.yml -p socialanimal-ci-dev down -v

@@ -1,17 +1,6 @@
 # Use: docker compose -f docker-compose.yml up --wait
-x-logging: &service-logging
-    driver: local
-    options:
-        max-size: "10m"
-        max-file: "3"
-
-x-backend-environment: &backend-environment
-    NODE_ENV: production
-    PORT: "4000"
-
 services:
     db:
-        logging: *service-logging
         image: postgres:16
         restart: unless-stopped
         env_file:
@@ -21,7 +10,7 @@ services:
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
             POSTGRES_DB: ${POSTGRES_DB:-socialanimal}
         volumes:
-            - ./docker_data/release/postgres:/var/lib/postgresql/data
+            - release_postgres_data:/var/lib/postgresql/data
         healthcheck:
             test:
                 [
@@ -32,26 +21,42 @@ services:
             timeout: 3s
             retries: 20
             start_period: 5s
+        networks:
+            - app-network
+        logging:
+            driver: local
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     setup:
-        logging: *service-logging
         image: nlion/socialanimal-backend:${SOCIALANIMAL_VERSION:?Set SOCIALANIMAL_VERSION to a release tag}
         restart: "no"
         env_file:
             - .env
-        environment: *backend-environment
+        environment:
+            NODE_ENV: production
+            PORT: "4000"
         command: ["node", "dist/setup-database.js"]
         depends_on:
             db:
                 condition: service_healthy
+        networks:
+            - app-network
+        logging:
+            driver: local
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     backend:
-        logging: *service-logging
         image: nlion/socialanimal-backend:${SOCIALANIMAL_VERSION:?Set SOCIALANIMAL_VERSION to a release tag}
         restart: unless-stopped
         env_file:
             - .env
-        environment: *backend-environment
+        environment:
+            NODE_ENV: production
+            PORT: "4000"
         depends_on:
             db:
                 condition: service_healthy
@@ -63,9 +68,15 @@ services:
             timeout: 3s
             retries: 20
             start_period: 10s
+        networks:
+            - app-network
+        logging:
+            driver: local
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     frontend:
-        logging: *service-logging
         image: nlion/socialanimal-frontend:${SOCIALANIMAL_VERSION:?Set SOCIALANIMAL_VERSION to a release tag}
         restart: unless-stopped
         ports:
@@ -84,3 +95,17 @@ services:
             timeout: 3s
             retries: 20
             start_period: 10s
+        networks:
+            - app-network
+        logging:
+            driver: local
+            options:
+                max-size: "10m"
+                max-file: "3"
+
+volumes:
+    release_postgres_data:
+
+networks:
+    app-network:
+        driver: bridge
