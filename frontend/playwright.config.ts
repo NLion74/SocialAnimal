@@ -1,0 +1,48 @@
+import { defineConfig, devices } from "@playwright/test";
+
+const databaseUrl = process.env.TEST_DATABASE_URL;
+
+if (!databaseUrl || !new URL(databaseUrl).pathname.endsWith("_test"))
+	throw new Error(
+		"TEST_DATABASE_URL must point to the initialized disposable database",
+	);
+
+export default defineConfig({
+	testDir: "./tests/e2e",
+	workers: 1,
+	timeout: 60000,
+	use: { baseURL: "http://127.0.0.1:3300", trace: "retain-on-failure" },
+	projects: [{ name: "firefox", use: { ...devices["Desktop Firefox"] } }],
+	webServer: [
+		{
+			command: "node ../backend/dist/index.js",
+			url: "http://127.0.0.1:4400/ready",
+			env: {
+				DATABASE_URL: databaseUrl,
+				JWT_SECRET: "browser-test-secret",
+				CREDENTIAL_ENCRYPTION_KEY: "ab".repeat(32),
+				PORT: "4400",
+				TRUSTED_PROXY_CIDRS: "loopback",
+				SMTP_HOST: "127.0.0.1",
+				SMTP_PORT: "9",
+				SMTP_FROM: "browser@example.test",
+				SMTP_REQUIRE_TLS: "false",
+				PRIVATE_PROVIDER_HOSTS: "127.0.0.1",
+				PUBLIC_URL: "http://127.0.0.1:3300",
+			},
+		},
+		{ command: "node tests/e2e/feed.mjs", url: "http://127.0.0.1:4401" },
+		{
+			command:
+				process.env.PLAYWRIGHT_PRODUCTION === "1"
+					? "npm run build && node tests/e2e/start-production.mjs"
+					: "npm run dev -- --port 3300",
+			url: "http://127.0.0.1:3300",
+			env: {
+				BACKEND_URL: "http://127.0.0.1:4400",
+				NEXT_DIST_DIR: ".next-e2e",
+			},
+			timeout: 180000,
+		},
+	],
+});

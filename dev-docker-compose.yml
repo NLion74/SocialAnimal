@@ -1,69 +1,139 @@
+# Use: docker compose --env-file .env.dev -f dev-docker-compose.yml up --wait
 services:
     db:
         image: postgres:16
-        container_name: db
         restart: unless-stopped
+        env_file:
+            - .env.dev
         environment:
-            POSTGRES_USER: postgres
-            POSTGRES_PASSWORD: postgres
-            POSTGRES_DB: socialanimal
+            POSTGRES_USER: ${POSTGRES_USER:-postgres}
+            POSTGRES_DB: ${POSTGRES_DB:-socialanimal}
         ports:
-            - "5432:5432"
+            - "127.0.0.1:${DB_PORT:-5432}:5432"
         volumes:
-            - db-data:/var/lib/postgresql/data
+            - dev_postgres_data:/var/lib/postgresql/data
         healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U postgres || exit 1"]
+            test:
+                [
+                    "CMD-SHELL",
+                    "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB",
+                ]
             interval: 5s
             timeout: 2s
             retries: 20
             start_period: 5s
+        networks:
+            - app-network
+        logging:
+            driver: local
+            options:
+                max-size: "10m"
+                max-file: "3"
 
-    backend:
+    setup:
         image: node:22-alpine
-        container_name: backend
         working_dir: /app
+        restart: "no"
         volumes:
             - ./backend:/app
-            - backend-modules:/app/node_modules
-        command: >
-            sh -c "npm install &&
-                   npx prisma generate &&
-                   npx prisma migrate deploy &&
-                   npm run dev"
-        ports:
-            - "${BACKEND_PORT:-4000}:4000"
+            - dev_backend_modules:/app/node_modules
+            - dev_backend_dist:/app/dist
+        env_file:
+            - .env.dev
         environment:
-            NODE_ENV: "${NODE_ENV:-development}"
-            PORT: "${BACKEND_PORT:-4000}"
-            DATABASE_URL: "${DATABASE_URL:-postgresql://postgres:postgres@db:5432/socialanimal}"
-            JWT_SECRET: "${JWT_SECRET}"
-            GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
-            GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET}"
-            GOOGLE_REDIRECT_URI: "${GOOGLE_REDIRECT_URI}"
-            PUBLIC_URL: "${PUBLIC_URL:-http://localhost:3000}"
+            NODE_ENV: development
+            PORT: "4000"
+        command: >
+            sh -c "npm ci &&
+                   npx prisma generate &&
+                   npm run build &&
+                   npm run database:setup"
         depends_on:
             db:
                 condition: service_healthy
+        networks:
+            - app-network
+        logging:
+            driver: local
+            options:
+                max-size: "10m"
+                max-file: "3"
+
+    backend:
+        image: node:22-alpine
+        working_dir: /app
+        volumes:
+            - ./backend:/app
+            - dev_backend_modules:/app/node_modules
+            - dev_backend_dist:/app/dist
+        env_file:
+            - .env.dev
+        command: ["npm", "run", "dev"]
+        ports:
+            - "127.0.0.1:${BACKEND_PORT:-4000}:4000"
+        environment:
+            NODE_ENV: development
+            PORT: "4000"
+        healthcheck:
+            test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/ready"]
+            interval: 5s
+            timeout: 3s
+            retries: 30
+            start_period: 120s
+        depends_on:
+            db:
+                condition: service_healthy
+            setup:
+                condition: service_completed_successfully
+        networks:
+            - app-network
+        logging:
+            driver: local
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     frontend:
         image: node:22-alpine
-        container_name: frontend
         working_dir: /app
         volumes:
             - ./frontend:/app
-            - frontend-modules:/app/node_modules
-        command: sh -c "npm install && npm run dev"
+            - dev_frontend_modules:/app/node_modules
+            - dev_frontend_next:/app/.next
+        command: >
+            sh -c "npm ci &&
+                   npm run dev -- --hostname 0.0.0.0 --port 3000"
         ports:
             - "${FRONTEND_PORT:-3000}:3000"
         environment:
-            NODE_ENV: "${NODE_ENV:-development}"
-            PORT: "${FRONTEND_PORT:-3000}"
-            PUBLIC_URL: "${PUBLIC_URL:-http://localhost:3000}"
+            NODE_ENV: development
+            PORT: "3000"
+            PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
+            BACKEND_URL: "http://backend:4000"
+        healthcheck:
+            test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+            interval: 5s
+            timeout: 3s
+            retries: 30
+            start_period: 120s
         depends_on:
             backend:
-                condition: service_started
+                condition: service_healthy
+        networks:
+            - app-network
+        logging:
+            driver: local
+            options:
+                max-size: "10m"
+                max-file: "3"
 
 volumes:
-    db-data:
-    backend-modules:
-    frontend-modules:
+    dev_postgres_data:
+    dev_backend_modules:
+    dev_backend_dist:
+    dev_frontend_modules:
+    dev_frontend_next:
+
+networks:
+    app-network:
+        driver: bridge

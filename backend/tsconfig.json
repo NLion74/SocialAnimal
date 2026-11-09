@@ -1,29 +1,30 @@
 {
-    "compilerOptions": {
-        "target": "ES2022",
-        "lib": ["ES2022"],
-        "module": "NodeNext",
-        "moduleResolution": "NodeNext",
-        "strict": true,
-        "esModuleInterop": true,
-        "allowSyntheticDefaultImports": true,
-        "skipLibCheck": true,
-        "forceConsistentCasingInFileNames": true,
-        "outDir": "./dist",
-        "rootDir": "./src",
-        "declaration": true,
-        "declarationMap": true,
-        "sourceMap": true,
-        "resolveJsonModule": true,
-        "typeRoots": ["./src/types", "./node_modules/@types"],
-        "paths": {
-            "@/*": ["./src/*"]
-        }
-    },
-    "ts-node": {
-        "esm": true,
-        "experimentalSpecifierResolution": "node"
-    },
-    "include": ["src/**/*.ts"],
-    "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
+	"compilerOptions": {
+		"target": "ES2022",
+		"allowJs": true,
+		"lib": ["ES2022"],
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"strict": true,
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"outDir": "./dist",
+		"rootDir": "./src",
+		"declaration": true,
+		"declarationMap": true,
+		"sourceMap": true,
+		"resolveJsonModule": true,
+		"typeRoots": ["./src/types", "./node_modules/@types"],
+		"paths": {
+			"@/*": ["./src/*"]
+		}
+	},
+	"ts-node": {
+		"esm": true,
+		"experimentalSpecifierResolution": "node"
+	},
+	"include": ["src/**/*.ts", "src/**/*.cjs"],
+	"exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
 }

@@ -8,6 +8,8 @@ build/
 
 coverage/
 
+docker_data/
+
 .env
 .env.*
 !.env.example
@@ -21,3 +23,24 @@ pnpm-debug.log*
 .idea/
 .vscode/
 *.swp
+
+.agents/
+.codex/
+AGENTS.md
+skills-lock.json
+AGENT.md
+
+# Local browser test artifacts
+playwright-report/
+test-results/
+
+.next-e2e/
+
+# Local tooling instructions and working notes
+CLAUDE.md
+/docs/*.md
+
+# Keep architecture and project documentation in README files.
+*.[mM][dD]
+*.[mM][aA][rR][kK][dD][oO][wW][nN]
+![rR][eE][aA][dD][mM][eE].[mM][dD]
