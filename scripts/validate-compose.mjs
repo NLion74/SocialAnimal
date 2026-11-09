@@ -1,11 +1,18 @@
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
-const [mode = "development", file = mode === "build" ? ".env.build" : ".env"] =
-	process.argv.slice(2);
+const [mode = "development", suppliedFile] = process.argv.slice(2);
+const file =
+	suppliedFile ||
+	{
+		development: ".env.dev",
+		build: ".env.build",
+		production: ".env",
+		legacy: ".env",
+	}[mode];
 
 const composeFiles = {
 	development: "dev-docker-compose.yml",
@@ -25,22 +32,29 @@ if (!Object.hasOwn(composeFiles, mode)) {
 let config;
 
 try {
-	config = JSON.parse(
-		execFileSync(
-			"docker",
-			[
-				"compose",
-				"--env-file",
-				resolve(file),
-				"-f",
-				composeFiles[mode],
-				"config",
-				"--format",
-				"json",
-			],
-			{ cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
-		),
+	const result = spawnSync(
+		"docker",
+		[
+			"compose",
+			"--env-file",
+			resolve(root, file),
+			"-f",
+			composeFiles[mode],
+			"config",
+			"--format",
+			"json",
+		],
+		{ cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
 	);
+	if (result.error || result.status !== 0)
+		throw new Error("Invalid configuration");
+	if (result.stderr.includes("variable is not set")) {
+		console.error(
+			"The environment file references an undefined variable. Define intended references, or single-quote literal secrets containing $ so Compose does not change them.",
+		);
+		process.exit(1);
+	}
+	config = JSON.parse(result.stdout);
 } catch {
 	console.error(
 		"Compose configuration could not be resolved. Check the env file and required variables: DATABASE_URL, JWT_SECRET, CREDENTIAL_ENCRYPTION_KEY, PUBLIC_URL, POSTGRES_PASSWORD and (for production) SOCIALANIMAL_VERSION.",
@@ -72,6 +86,29 @@ const database = parseUrl(env.DATABASE_URL);
 const publicUrl = parseUrl(env.PUBLIC_URL);
 
 const development = mode === "development";
+
+check(
+	!env.LOG_MODE || ["verbose", "production"].includes(env.LOG_MODE),
+	"LOG_MODE must be verbose or production.",
+);
+
+check(
+	!env.LOG_LEVEL ||
+		["fatal", "error", "warn", "info", "debug", "trace", "silent"].includes(
+			env.LOG_LEVEL,
+		),
+	"LOG_LEVEL must be blank or a supported logging level.",
+);
+
+check(
+	Object.values(config.services).every(
+		(service) =>
+			service.logging?.driver === "local" &&
+			service.logging.options?.["max-size"] === "10m" &&
+			String(service.logging.options?.["max-file"]) === "3",
+	),
+	"Services must use bounded local Docker logs (three 10 MB files).",
+);
 
 check(
 	/^[a-fA-F0-9]{64}$/.test(env.CREDENTIAL_ENCRYPTION_KEY || ""),
@@ -194,7 +231,7 @@ if (!development) {
 	);
 
 	check(
-		Object.values(config.services).every(
+		[setup, backend, frontend].every(
 			(service) =>
 				!(service.volumes || []).some(
 					(volume) => volume.type === "bind",

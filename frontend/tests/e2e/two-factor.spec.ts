@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect, adminSection } from "./fixtures";
 import { createRequire } from "node:module";
 import { createHmac, createDecipheriv, randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
@@ -78,11 +78,31 @@ test("optional verification, authenticator setup, recovery login, email switchin
 		await page.goto("/login");
 		await page.getByLabel("Email", { exact: true }).fill(email);
 		await page.getByLabel("Password", { exact: true }).fill(password);
-		if (recovery) await page.getByLabel("Use a recovery code").check();
+
+		await expect(
+			page.getByText("Use a recovery code", { exact: true }),
+		).toHaveCount(0);
 
 		await page
 			.getByRole("button", { name: "Sign In", exact: true })
 			.click();
+
+		if (recovery) {
+			await expect(
+				page.getByLabel("Authenticator code", { exact: true }),
+			).toBeVisible();
+
+			await page
+				.getByRole("button", {
+					name: "Use a recovery code",
+					exact: true,
+				})
+				.click();
+
+			await expect(
+				page.getByLabel("Recovery code", { exact: true }),
+			).toBeVisible();
+		}
 	}
 
 	try {
@@ -201,6 +221,7 @@ test("optional verification, authenticator setup, recovery login, email switchin
 		).toBeVisible();
 
 		await page.goto("/admin");
+		await adminSection(page, "Email jobs");
 
 		await expect(
 			page.getByRole("heading", { name: "Email jobs" }),
@@ -222,6 +243,132 @@ test("optional verification, authenticator setup, recovery login, email switchin
 		});
 
 		expect(errors).toEqual([]);
+	} finally {
+		await db.query('DELETE FROM "RecoveryMail" WHERE "userId" = $1', [id]);
+		await db.query('DELETE FROM "User" WHERE id = $1', [id]);
+		await db.end();
+	}
+});
+
+test("profile deletion requires a fresh email factor after password confirmation", async ({
+	page,
+	request,
+}) => {
+	const db = new Client({ connectionString: process.env.TEST_DATABASE_URL });
+	await db.connect();
+
+	const email = `delete-${randomUUID()}@example.test`,
+		password = "delete-browser-password";
+
+	const registered = await request.post("/api/v1/auth/registrations", {
+		data: { email, password },
+	});
+
+	expect(registered.status()).toBe(201);
+	const id = (await registered.json()).id;
+
+	const latestCode = async () => {
+		const job = await db.query(
+			'SELECT payload FROM "RecoveryMail" WHERE "userId" = $1 AND kind = \'code\' AND payload <> \'\' ORDER BY "createdAt" DESC LIMIT 1',
+			[id],
+		);
+
+		return mailPayload(job.rows[0].payload).token;
+	};
+
+	try {
+		await db.query(
+			'UPDATE "User" SET "twoFactorMethod" = \'email\', "emailVerifiedAt" = NOW() WHERE id = $1',
+			[id],
+		);
+
+		await page.goto("/login");
+
+		await expect(
+			page.getByText("Use a recovery code", { exact: true }),
+		).toHaveCount(0);
+
+		await page.getByLabel("Email", { exact: true }).fill(email);
+		await page.getByLabel("Password", { exact: true }).fill(password);
+
+		await page
+			.getByRole("button", { name: "Sign In", exact: true })
+			.click();
+
+		await expect(
+			page.getByLabel("Email code", { exact: true }),
+		).toBeVisible();
+
+		await expect(
+			page.getByRole("button", {
+				name: "Use a recovery code",
+				exact: true,
+			}),
+		).toBeVisible();
+
+		const loginCode = await latestCode();
+		await page.getByLabel("Email code", { exact: true }).fill(loginCode);
+
+		await page
+			.getByRole("button", { name: "Sign In", exact: true })
+			.click();
+
+		await expect(page).toHaveURL(/dashboard/);
+		await page.goto("/profile");
+
+		await page
+			.getByLabel("Confirm Password", { exact: true })
+			.fill(password);
+
+		await page
+			.getByRole("button", { name: "Delete Account", exact: true })
+			.click();
+
+		const dialog = page.getByRole("dialog", {
+			name: "Confirm account deletion",
+		});
+
+		await dialog
+			.getByRole("button", { name: "Permanently delete account" })
+			.click();
+
+		await expect(
+			dialog.getByLabel("Email code", { exact: true }),
+		).toBeVisible();
+
+		expect(
+			(await db.query('SELECT id FROM "User" WHERE id = $1', [id]))
+				.rowCount,
+		).toBe(1);
+
+		const deletionCode = await latestCode();
+
+		await dialog
+			.getByLabel("Email code", { exact: true })
+			.fill("invalid-code");
+
+		await dialog
+			.getByRole("button", { name: "Permanently delete account" })
+			.click();
+
+		await expect(dialog.getByRole("alert")).toContainText(
+			"Account was not deleted",
+		);
+
+		await dialog
+			.getByLabel("Email code", { exact: true })
+			.fill(deletionCode);
+
+		await dialog
+			.getByRole("button", { name: "Permanently delete account" })
+			.click();
+
+		await expect(dialog).toHaveCount(0);
+
+		expect(
+			(await db.query('SELECT id FROM "User" WHERE id = $1', [id]))
+				.rowCount,
+		).toBe(0);
 	} finally {
 		await db.query('DELETE FROM "RecoveryMail" WHERE "userId" = $1', [id]);
 		await db.query('DELETE FROM "User" WHERE id = $1', [id]);

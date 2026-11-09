@@ -11,6 +11,7 @@ test("ruleset editor, share preview, admin roles, verification, and mobile layou
 	request,
 	browser,
 }) => {
+	test.setTimeout(90000);
 	const db = new Client({ connectionString: process.env.TEST_DATABASE_URL });
 	await db.connect();
 	const suffix = Date.now();
@@ -98,6 +99,17 @@ test("ruleset editor, share preview, admin roles, verification, and mobile layou
 
 		expect(imported.status()).toBe(201);
 		const calendarId = (await imported.json()).id;
+		const second = await request.post("/api/v1/calendar-imports", {
+			headers,
+			data: {
+				connectionId: (await connection.json()).id,
+				remoteId: "weekend",
+				name: "Weekend calendar",
+				syncInterval: 0,
+			},
+		});
+		expect(second.status()).toBe(201);
+
 		const monday = new Date();
 
 		monday.setUTCDate(
@@ -131,13 +143,16 @@ test("ruleset editor, share preview, admin roles, verification, and mobile layou
 		).toBeVisible();
 
 		await page.goto("/friends");
-		await page.getByRole("button", { name: "Share", exact: true }).click();
+		await page.getByRole("button", { name: /Browser Friend/ }).click();
+		await page
+			.getByRole("button", { name: /Planning calendar Not shared/ })
+			.click();
 
 		await page
 			.getByRole("button", { name: "Add ruleset", exact: true })
 			.click();
 
-		const editor = page.getByRole("dialog", {
+		const editor = page.getByRole("region", {
 			name: "Add ruleset",
 			exact: true,
 		});
@@ -145,11 +160,25 @@ test("ruleset editor, share preview, admin roles, verification, and mobile layou
 		await editor.getByLabel("Name", { exact: true }).fill("Monday privacy");
 
 		await editor
-			.getByRole("button", { name: "Add rule", exact: true })
+			.getByRole("button", { name: "Add exception", exact: true })
 			.click();
-
-		await editor.getByRole("button", { name: "Add AND condition" }).click();
-		await editor.getByLabel("Expert mode", { exact: false }).check();
+		await editor.getByLabel("Add a filter").selectOption("days");
+		await editor
+			.getByRole("button", { name: "monday", exact: true })
+			.click();
+		await expect(
+			editor.getByRole("combobox", { name: "Attribute" }),
+		).toHaveCount(0);
+		await editor
+			.getByRole("button", { name: "Done with exception" })
+			.click();
+		await expect(editor).toContainText("Monday");
+		await editor
+			.getByRole("button", { name: "Expert", exact: true })
+			.click();
+		await editor
+			.getByRole("button", { name: "Add condition", exact: true })
+			.click();
 
 		await editor
 			.getByRole("combobox", { name: "Attribute", exact: true })
@@ -166,13 +195,47 @@ test("ruleset editor, share preview, admin roles, verification, and mobile layou
 			.fill("Secret");
 
 		await editor
-			.getByRole("button", { name: "Add NOT", exact: true })
+			.getByText("Condition options", { exact: true })
 			.nth(1)
 			.click();
 
 		await editor
-			.getByRole("combobox", { name: "Otherwise, if no rule matches" })
+			.getByRole("button", { name: "Invert (NOT)", exact: true })
+			.click();
+
+		await expect(
+			editor.getByText("Except when", { exact: true }),
+		).toBeVisible();
+
+		await expect(
+			editor.getByRole("button", { name: "Basic", exact: true }),
+		).toBeDisabled();
+
+		await editor
+			.getByRole("button", { name: "Add nested group", exact: true })
+			.click();
+
+		await expect(
+			editor.getByRole("combobox", { name: "Match conditions" }).nth(1),
+		).toHaveValue("any");
+
+		await editor
+			.getByRole("button", { name: "Remove condition 3", exact: true })
+			.click();
+
+		await expect(
+			editor.getByRole("combobox", { name: "Match conditions" }),
+		).toHaveCount(1);
+
+		await editor
+			.getByRole("combobox", { name: "Default visibility" })
 			.selectOption("hidden");
+
+		await page.setViewportSize({ width: 1440, height: 1000 });
+
+		await editor
+			.getByLabel("Name", { exact: true })
+			.scrollIntoViewIfNeeded();
 
 		await page.screenshot({
 			path: "/tmp/socialanimal-ruleset-desktop.png",
@@ -186,31 +249,94 @@ test("ruleset editor, share preview, admin roles, verification, and mobile layou
 			fullPage: true,
 		});
 
+		await editor
+			.getByText("Except when", { exact: true })
+			.scrollIntoViewIfNeeded();
+
+		await page.screenshot({
+			path: "/tmp/socialanimal-ruleset-mobile-nested.png",
+			fullPage: true,
+		});
+
+		expect(
+			await editor
+				.locator("form")
+				.evaluate((form) => form.scrollWidth <= form.clientWidth),
+		).toBe(true);
+
 		expect(
 			await page.evaluate(
 				() => document.documentElement.scrollWidth <= innerWidth,
 			),
 		).toBe(true);
 
+		await page.setViewportSize({ width: 320, height: 740 });
+		expect(
+			await editor
+				.locator("form")
+				.evaluate((form) => form.scrollWidth <= form.clientWidth),
+		).toBe(true);
+		await page.setViewportSize({ width: 390, height: 844 });
+
 		await editor.getByRole("button", { name: "Save ruleset" }).click();
 		await expect(editor).toHaveCount(0);
 
-		const sharing = page.getByRole("dialog", {
-			name: "Share with Browser Friend",
+		const sharing = page.getByRole("region", {
+			name: "Planning calendar",
 			exact: true,
 		});
 
-		await sharing
-			.getByRole("combobox", { name: "Ruleset", exact: true })
-			.selectOption({ label: "Monday privacy" });
-
+		await expect(
+			sharing
+				.getByRole("combobox", { name: "Ruleset", exact: true })
+				.locator("option:checked"),
+		).toHaveText("Monday privacy");
 		await sharing.getByLabel("Planning calendar").check();
+		await expect(
+			sharing.getByText("Unsaved changes", { exact: true }),
+		).toBeVisible();
+		const grantUrl = `**/api/v1/calendars/${calendarId}/grants/${ids[1]}`;
+		await page.route(grantUrl, (route) =>
+			route.fulfill({
+				status: 500,
+				contentType: "application/json",
+				body: JSON.stringify({
+					code: "TEST_ERROR",
+					message: "Please try again.",
+					requestId: "test",
+				}),
+			}),
+		);
+		await sharing
+			.getByRole("button", { name: "Share calendar", exact: true })
+			.click();
+		await expect(sharing.getByRole("alert")).toContainText(
+			"Sharing was not changed",
+		);
+		await expect(sharing.getByLabel("Planning calendar")).toBeChecked();
+		await page.unroute(grantUrl);
+		await sharing
+			.getByRole("button", { name: "Share calendar", exact: true })
+			.click();
+		await expect(
+			sharing.getByText("Sharing saved.", { exact: true }),
+		).toBeVisible();
+		await page.screenshot({
+			path: "/tmp/socialanimal-friend-sharing-mobile.png",
+			fullPage: true,
+		});
+		await page.setViewportSize({ width: 1440, height: 1000 });
+		await page.screenshot({
+			path: "/tmp/socialanimal-friend-sharing-desktop.png",
+			fullPage: true,
+		});
+		await page.setViewportSize({ width: 390, height: 844 });
 
 		await sharing
 			.getByRole("button", { name: "Preview", exact: true })
 			.click();
 
-		const preview = page.getByRole("dialog", {
+		const preview = page.getByRole("region", {
 			name: "What your friend sees",
 		});
 
@@ -222,8 +348,21 @@ test("ruleset editor, share preview, admin roles, verification, and mobile layou
 			preview.getByText("Private discussion", { exact: true }),
 		).toBeVisible();
 
-		await preview.getByText("Why this visibility?").click();
-		await expect(preview).toContainText("matched");
+		await expect(preview.getByText("Why this visibility?")).toHaveCount(0);
+		await expect(preview).toContainText("Rule 1 matched");
+		await expect(preview).toContainText("Day of week is exactly");
+
+		await page.screenshot({
+			path: "/tmp/socialanimal-preview-mobile.png",
+			fullPage: true,
+		});
+
+		await page.setViewportSize({ width: 1440, height: 1000 });
+
+		await page.screenshot({
+			path: "/tmp/socialanimal-preview-desktop.png",
+			fullPage: true,
+		});
 
 		await preview
 			.getByRole("button", { name: "Calendar", exact: true })
@@ -235,8 +374,112 @@ test("ruleset editor, share preview, admin roles, verification, and mobile layou
 			.getByRole("button", { name: "List", exact: true })
 			.click();
 
-		await page.keyboard.press("Escape");
-		await page.keyboard.press("Escape");
+		await preview
+			.getByRole("button", { name: "← Back", exact: true })
+			.click();
+
+		await sharing
+			.getByRole("combobox", { name: "Ruleset", exact: true })
+			.selectOption({ label: "Full details" });
+		await sharing
+			.getByRole("button", { name: "Save changes", exact: true })
+			.click();
+		await expect(
+			sharing.getByText("Sharing saved.", { exact: true }),
+		).toBeVisible();
+
+		await sharing
+			.getByRole("combobox", { name: "Ruleset", exact: true })
+			.selectOption({ label: "Busy only" });
+		page.once("dialog", async (dialog) => {
+			expect(dialog.message()).toBe("Discard unsaved sharing changes?");
+			await dialog.dismiss();
+		});
+		await sharing
+			.getByRole("button", { name: "← Back", exact: true })
+			.click();
+		await page
+			.getByRole("region", { name: "Browser Friend", exact: true })
+			.getByRole("button", { name: "← Back", exact: true })
+			.click();
+		await page.getByRole("button", { name: /Planning calendar/ }).click();
+		await expect(sharing).toBeVisible();
+		await sharing
+			.getByRole("combobox", { name: "Ruleset", exact: true })
+			.selectOption({ label: "Full details" });
+
+		await sharing
+			.getByRole("button", { name: "Preview", exact: true })
+			.click();
+
+		await preview
+			.getByRole("button", { name: "Show preview", exact: true })
+			.click();
+
+		await expect(preview).toContainText("Default visibility");
+		await expect(preview.getByText("Why this visibility?")).toHaveCount(0);
+		await preview
+			.getByRole("button", { name: "← Back", exact: true })
+			.click();
+		await sharing
+			.getByRole("button", { name: "← Back", exact: true })
+			.click();
+		await page.getByRole("button", { name: /Weekend calendar/ }).click();
+		const weekend = page.getByRole("region", {
+			name: "Weekend calendar",
+			exact: true,
+		});
+		await weekend.getByLabel("Weekend calendar", { exact: true }).check();
+		await weekend
+			.getByRole("combobox", { name: "Ruleset", exact: true })
+			.selectOption({ label: "Busy only" });
+		await weekend
+			.locator("summary:visible")
+			.filter({ hasText: "Set an expiration (optional)" })
+			.click();
+		await weekend
+			.locator("input[type=datetime-local]:visible")
+			.fill("2027-12-01T12:00");
+		await weekend
+			.getByRole("button", { name: "Preview", exact: true })
+			.click();
+		await preview
+			.getByRole("button", { name: "← Back", exact: true })
+			.click();
+		await expect(
+			weekend.locator("input[type=datetime-local]:visible"),
+		).toHaveValue("2027-12-01T12:00");
+		await weekend
+			.getByRole("button", { name: "← Back", exact: true })
+			.click();
+		await page.getByRole("button", { name: /Planning calendar/ }).click();
+		await expect(
+			sharing
+				.getByRole("combobox", { name: "Ruleset", exact: true })
+				.locator("option:checked"),
+		).toHaveText("Full details");
+		await sharing
+			.getByRole("button", { name: "← Back", exact: true })
+			.click();
+		await page.getByRole("button", { name: /Weekend calendar/ }).click();
+		await expect(
+			weekend
+				.getByRole("combobox", { name: "Ruleset", exact: true })
+				.locator("option:checked"),
+		).toHaveText("Busy only");
+		await weekend
+			.getByRole("button", { name: "Share calendar", exact: true })
+			.click();
+		await expect(
+			weekend.getByText("Sharing saved.", { exact: true }),
+		).toBeVisible();
+		const savedFriends = await request.get("/api/v1/friendships", {
+			headers,
+		});
+		expect(
+			(await savedFriends.json()).items[0].sharedCalendarIds,
+		).toHaveLength(2);
+
 		await page.setViewportSize({ width: 1280, height: 800 });
 		await page.goto("/admin");
 
@@ -244,6 +487,7 @@ test("ruleset editor, share preview, admin roles, verification, and mobile layou
 			page.getByRole("heading", { name: "Instance activity" }),
 		).toBeVisible();
 
+		await page.getByRole("button", { name: "Users", exact: false }).click();
 		await page.getByLabel("Search users").fill(friendEmail);
 		await page.getByRole("button", { name: "Search", exact: true }).click();
 
@@ -284,6 +528,38 @@ test("ruleset editor, share preview, admin roles, verification, and mobile layou
 				() => document.documentElement.scrollWidth <= innerWidth,
 			),
 		).toBe(true);
+
+		await page
+			.getByRole("link", { name: "Admin", exact: true })
+			.scrollIntoViewIfNeeded();
+		await expect(
+			page.getByRole("link", { name: "Admin", exact: true }),
+		).toBeInViewport();
+		await page
+			.getByRole("button", { name: "← Administration", exact: true })
+			.click();
+		await page.getByRole("button", { name: "Users", exact: false }).click();
+		const manage = page.getByRole("button", {
+			name: "Manage",
+			exact: true,
+		});
+		await expect(manage).toBeInViewport();
+		await page.screenshot({
+			path: "/tmp/socialanimal-admin-users-mobile.png",
+			fullPage: false,
+		});
+		await manage.click();
+		await expect(
+			page.getByRole("combobox", { name: "Role", exact: true }),
+		).toBeVisible();
+		await page.keyboard.press("Escape");
+		for (const table of await page.locator("table:visible").all()) {
+			expect(
+				await table.evaluate(
+					(element) => element.scrollWidth <= element.clientWidth,
+				),
+			).toBe(true);
+		}
 
 		const denied = await request.patch("/api/v1/me", {
 			headers: { authorization: `Bearer ${friendToken}` },

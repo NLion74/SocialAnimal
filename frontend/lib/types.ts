@@ -7,6 +7,7 @@ export interface CalendarEvent {
 }
 
 export interface CalendarData {
+	timezone?: string;
 	id: string;
 	name: string;
 	type: string;
@@ -53,15 +54,18 @@ export interface Friend {
 }
 
 export interface CalEvent extends CalendarEvent {
+	highlighted?: boolean;
 	calendarId?: string;
 	description?: string | null;
 	location?: string | null;
 	isFriend?: boolean;
 	owner?: { id: string; name?: string | null; email: string } | null;
-	calendar: { id: string; name: string; type: string };
+	calendar: { id: string; name: string; type: string; color?: string };
 }
 
 export interface CalSource {
+	color?: string;
+	defaultColor?: string;
 	id: string;
 	name: string;
 	isFriend: boolean;

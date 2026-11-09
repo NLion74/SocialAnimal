@@ -1,3 +1,4 @@
+import colors, { colorSchema } from "./colors";
 import { publicProviderMessage } from "../../core/http/provider-errors";
 import { visiblePage } from "../../core/http/visible-page";
 import type { FastifyPluginAsync } from "fastify";
@@ -32,6 +33,7 @@ async function owned(id: string, userId: string) {
 
 const routes: FastifyPluginAsync = async (app) => {
 	app.addHook("preHandler", authenticateToken);
+	await app.register(colors);
 
 	app.get<{ Querystring: PageQuery }>(
 		"/calendars",
@@ -45,11 +47,19 @@ const routes: FastifyPluginAsync = async (app) => {
 				(
 					await prisma.calendar.findMany({
 						where: { userId: req.user.id },
-						include: { _count: { select: { events: true } } },
+						include: {
+							_count: { select: { events: true } },
+							user: {
+								select: {
+									settings: { select: { timezone: true } },
+								},
+							},
+						},
 						...pageArgs(req.query),
 					})
 				).map(({ _count, ...calendar }) => ({
 					...calendar,
+					timezone: calendar.user.settings?.timezone || "UTC",
 					lastError: publicProviderMessage(calendar.lastError),
 					eventCount: _count.events,
 				})),
@@ -59,7 +69,7 @@ const routes: FastifyPluginAsync = async (app) => {
 
 	app.patch<{
 		Params: { id: string };
-		Body: { name?: string; syncInterval?: number };
+		Body: { name?: string; syncInterval?: number; color?: string };
 	}>(
 		"/calendars/:id",
 		{
@@ -67,6 +77,7 @@ const routes: FastifyPluginAsync = async (app) => {
 				body: obj(
 					{
 						name: { type: "string", minLength: 1, maxLength: 200 },
+						color: colorSchema,
 						syncInterval: {
 							type: "integer",
 							minimum: 0,
@@ -84,10 +95,16 @@ const routes: FastifyPluginAsync = async (app) => {
 			const calendar = await prisma.calendar.update({
 				where: { id: req.params.id },
 				data: req.body,
+				include: {
+					user: {
+						select: { settings: { select: { timezone: true } } },
+					},
+				},
 			});
 
 			return {
 				...calendar,
+				timezone: calendar.user.settings?.timezone || "UTC",
 				lastError: publicProviderMessage(calendar.lastError),
 			};
 		},

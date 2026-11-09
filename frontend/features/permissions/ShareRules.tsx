@@ -1,16 +1,24 @@
 "use client";
 
-import ExpirationInput from "../../components/ExpirationInput";
+import CalendarShareRow from "./CalendarShareRow";
+import layout from "./ShareRules.module.css";
 import CalendarView from "../calendars/CalendarView";
 import { useSession } from "../account/SessionProvider";
 import { eventInterval } from "../calendars/api";
 import Feedback from "../../components/Feedback";
 
-import { useEffect, useState } from "react";
-import Modal from "../../components/Modal";
-import { sharingApi } from "../sharing/api";
+import {
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+	type ReactNode,
+} from "react";
+import EditorFrame from "./EditorFrame";
 import { permissionsApi, type Ruleset } from "./api";
 import RulesetEditor, { visibilityLabels } from "./RulesetEditor";
+import { describeCondition, operatorLabels } from "./conditions";
+import type { Registry } from "./ConditionEditor";
 import type { CalendarData, Friend } from "../../lib/types";
 import s from "./Permissions.module.css";
 
@@ -23,6 +31,8 @@ export default function ShareRules({
 	onClose,
 	onChanged,
 	readonly,
+	onGuard,
+	actions,
 }: {
 	friend: Friend;
 	friendId: string;
@@ -30,27 +40,51 @@ export default function ShareRules({
 	onClose: () => void;
 	onChanged: () => void;
 	readonly: boolean;
+	onGuard?: (guard: () => boolean) => void;
+	actions?: ReactNode;
 }) {
 	const { user } = useSession();
 
-	const [expirations, setExpirations] = useState<
-		Record<string, string | null>
-	>(friend.sharedCalendarExpirations || {});
+	const editorGuard = useRef<() => boolean>(() => true);
+	const setEditorGuard = useCallback((guard: () => boolean) => {
+		editorGuard.current = guard;
+	}, []);
+	const pendingDrafts = useRef(new Set<string>());
+	const trackDraft = useCallback((calendarId: string, dirty: boolean) => {
+		if (dirty) pendingDrafts.current.add(calendarId);
+		else pendingDrafts.current.delete(calendarId);
+	}, []);
+
+	const close = () => {
+		if (
+			pendingDrafts.current.size &&
+			!window.confirm("Discard unsaved sharing changes?")
+		)
+			return;
+		onClose();
+	};
+
+	useEffect(() => {
+		onGuard?.(
+			() =>
+				editorGuard.current() &&
+				(!pendingDrafts.current.size ||
+					window.confirm("Discard unsaved sharing changes?")),
+		);
+		return () => onGuard?.(() => true);
+	}, [onGuard]);
+
+	const [selectedCalendar, setSelectedCalendar] = useState<string | null>(
+		null,
+	);
 
 	const [previewView, setPreviewView] = useState<"list" | "calendar">("list");
 	const [previewDate, setPreviewDate] = useState(new Date());
 	const [rulesets, setRulesets] = useState<Ruleset[]>([]);
 
-	const [selected, setSelected] = useState<Record<string, string>>(
-		friend.sharedCalendarRulesets || {},
-	);
-
-	const [shared, setShared] = useState(friend.sharedCalendarIds || []);
 	const [editor, setEditor] = useState<Ruleset | "new" | null>(null);
 	const [error, setError] = useState("");
-	const [busy, setBusy] = useState(false);
-	const [feedbackId, setFeedbackId] = useState<string | null>(null);
-	const [notice, setNotice] = useState("");
+	const selectCreated = useRef<((id: string) => void) | null>(null);
 	const [loaded, setLoaded] = useState(false);
 
 	const [preview, setPreview] = useState<{
@@ -59,6 +93,8 @@ export default function ShareRules({
 		start: string;
 		end: string;
 	} | null>(null);
+
+	const [registry, setRegistry] = useState<Registry | null>(null);
 
 	const [result, setResult] = useState<Preview | null>(null);
 	const [previewError, setPreviewError] = useState("");
@@ -77,67 +113,23 @@ export default function ShareRules({
 		void reload();
 	}, []);
 
-	const defaultId =
-		rulesets.find((row) => row.seedKey === "full")?.id ||
-		rulesets[0]?.id ||
-		"";
-
-	const save = async (
-		calendarId: string,
-		rulesetId: string,
-		enable: boolean,
-	) => {
-		setBusy(true);
-		setFeedbackId(calendarId);
-		setNotice("");
-		setError("");
-
-		const previousShared = shared;
-		const previousSelected = selected;
-		setSelected((prev) => ({ ...prev, [calendarId]: rulesetId }));
-
-		setShared((prev) =>
-			enable
-				? [...new Set([...prev, calendarId])]
-				: prev.filter((id) => id !== calendarId),
-		);
-
-		try {
-			await sharingApi.set({
-				calendarId,
-				friendId,
-				share: enable,
-				rulesetId,
-				expiresAt: expirations[calendarId] || null,
-			});
-
-			setNotice(enable ? "Sharing saved." : "Sharing removed.");
-			onChanged();
-		} catch (e) {
-			setShared(previousShared);
-			setSelected(previousSelected);
-			setError((e as Error).message);
-		} finally {
-			setBusy(false);
-		}
-	};
-
 	const loadPreview = async (cursor?: string) => {
 		if (!preview) return;
 		setPreviewLoading(true);
 		setPreviewError("");
 
 		try {
-			const page = await permissionsApi.preview(
-				preview.calendarId,
-				friendId,
-				{
+			const [page, attributes] = await Promise.all([
+				permissionsApi.preview(preview.calendarId, friendId, {
 					rulesetId: preview.rulesetId,
 					start: new Date(preview.start).toISOString(),
 					end: new Date(preview.end).toISOString(),
 					cursor,
-				},
-			);
+				}),
+				registry || permissionsApi.registry(),
+			]);
+
+			setRegistry(attributes);
 
 			setResult((prev) =>
 				cursor && prev
@@ -155,203 +147,154 @@ export default function ShareRules({
 
 	return (
 		<>
-			<Modal
-				isOpen
-				onClose={onClose}
-				title={`Share with ${target.name || target.email}`}
-			>
-				<div className={s.stack}>
-					<p>
-						Choose one ruleset for each calendar. Its rules decide
-						which events and details your friend can see.
-					</p>
-					{readonly && <p>This demo account is read-only.</p>}
-					{error && !feedbackId && (
-						<Feedback focusOnMount>{error}</Feedback>
-					)}
-					{!loaded && !error && <p>Loading rulesets…</p>}
-					{calendars.length === 0 && (
-						<p>No calendars to share yet.</p>
-					)}
-					{calendars.map((calendar) => {
-						const id = rulesets.some(
-							(row) => row.id === selected[calendar.id],
-						)
-							? selected[calendar.id]
-							: defaultId;
-
-						const rule = rulesets.find((row) => row.id === id);
-						const enabled = shared.includes(calendar.id);
-
-						return (
-							<section key={calendar.id} className={s.calendar}>
-								{feedbackId === calendar.id && error && (
-									<Feedback
-										focusOnMount
-										title="Sharing was not changed"
-									>
-										{error}
-									</Feedback>
-								)}
-								{feedbackId === calendar.id && notice && (
-									<Feedback tone="success">{notice}</Feedback>
-								)}
-								{feedbackId === calendar.id && busy && (
-									<span className={s.hint} role="status">
-										Saving sharing…
-									</span>
-								)}
-								<label className={s.row}>
-									<input
-										type="checkbox"
-										checked={enabled}
-										disabled={busy || readonly || !id}
-										onChange={(e) =>
-											void save(
-												calendar.id,
-												id,
-												e.target.checked,
-											)
-										}
-									/>
-									<strong>{calendar.name}</strong>
-								</label>
-								<label className={s.field}>
-									Ruleset
-									<select
-										className={s.select}
-										value={id}
-										disabled={busy || readonly || !loaded}
-										onChange={(e) => {
-											if (enabled)
-												void save(
-													calendar.id,
-													e.target.value,
-													true,
-												);
-											else
-												setSelected((prev) => ({
-													...prev,
-													[calendar.id]:
-														e.target.value,
-												}));
-										}}
-									>
-										{!id && (
-											<option value="">
-												Create a ruleset to start
-											</option>
-										)}
-										{rulesets.map((row) => (
-											<option key={row.id} value={row.id}>
-												{row.name}
-											</option>
-										))}
-									</select>
-								</label>
-								<ExpirationInput
-									value={expirations[calendar.id] || null}
-									disabled={busy || readonly}
-									onChange={(value) =>
-										setExpirations((old) => ({
-											...old,
-											[calendar.id]: value,
-										}))
+			<div hidden={!!editor || !!preview}>
+				<EditorFrame
+					active={!editor && !preview}
+					actions={!selectedCalendar ? actions : undefined}
+					embedded
+					onClose={() =>
+						selectedCalendar ? setSelectedCalendar(null) : close()
+					}
+					title={
+						calendars.find(
+							(calendar) => calendar.id === selectedCalendar,
+						)?.name ||
+						target.name ||
+						target.email
+					}
+				>
+					<div className={s.stack}>
+						{!selectedCalendar && (
+							<>
+								<section
+									className={layout.received}
+									aria-label="Shared with you"
+								>
+									<h3>Shared with you</h3>
+									{friend.sharedWithMe?.length ? (
+										<ul>
+											{friend.sharedWithMe.map(
+												(calendar) => (
+													<li key={calendar.id}>
+														<strong>
+															{calendar.name}
+														</strong>
+														<span>
+															{
+																calendar.accessLabel
+															}
+														</span>
+													</li>
+												),
+											)}
+										</ul>
+									) : (
+										<p className={layout.intro}>
+											This friend isn’t sharing any
+											calendars with you yet.
+										</p>
+									)}
+								</section>
+								<h3>Your calendars</h3>
+							</>
+						)}
+						<p className={layout.intro}>
+							{selectedCalendar
+								? `Sharing with ${target.name || target.email}`
+								: "Choose a calendar to manage what this friend can see."}
+						</p>
+						{readonly && <p>This demo account is read-only.</p>}
+						{error && <Feedback focusOnMount>{error}</Feedback>}
+						{!loaded && !error && <p>Loading rulesets…</p>}
+						{calendars.length === 0 && (
+							<p>No calendars to share yet.</p>
+						)}
+						{loaded &&
+							calendars.map((calendar) => (
+								<div
+									key={calendar.id}
+									hidden={
+										!!selectedCalendar &&
+										selectedCalendar !== calendar.id
 									}
-								/>
-								{enabled && (
-									<button
-										className={s.button}
-										disabled={busy || readonly}
-										onClick={() =>
-											void save(calendar.id, id, true)
+								>
+									<CalendarShareRow
+										key={calendar.id}
+										calendar={calendar}
+										friend={friend}
+										friendId={friendId}
+										rulesets={rulesets}
+										readonly={readonly}
+										open={selectedCalendar === calendar.id}
+										onOpen={() =>
+											setSelectedCalendar(calendar.id)
 										}
-									>
-										Save expiration
-									</button>
-								)}
-								{rule && (
-									<div className={s.row}>
-										<span className={s.hint}>
-											{rule.rules.length
-												? `${rule.rules.length} rules · otherwise ${visibilityLabels[rule.fallback].toLowerCase()}`
-												: visibilityLabels[
-														rule.fallback
-													]}
-										</span>
-										<button
-											className={s.button}
-											disabled={readonly || busy}
-											onClick={() => setEditor(rule)}
-										>
-											Edit
-										</button>
-										<button
-											className={s.button}
-											onClick={() => {
-												setResult(null);
-												setPreviewError("");
 
-												setPreview({
-													calendarId: calendar.id,
-													rulesetId: id,
-													start: new Date()
-														.toISOString()
-														.slice(0, 10),
-													end: new Date(
-														Date.now() +
-															30 * 86400000,
-													)
-														.toISOString()
-														.slice(0, 10),
-												});
-											}}
-										>
-											Preview
-										</button>
-									</div>
-								)}
-							</section>
-						);
-					})}
-					<button
-						className={s.button}
-						disabled={readonly || busy || rulesets.length >= 32}
-						onClick={() => setEditor("new")}
-					>
-						Add ruleset
-					</button>
-				</div>
-			</Modal>
+										onChanged={onChanged}
+										onDraftChange={trackDraft}
+										onEdit={(rule, select) => {
+											selectCreated.current = select;
+											setEditor(rule);
+										}}
+										onPreview={(calendarId, rulesetId) => {
+											setResult(null);
+											setPreviewError("");
+											setPreviewView("list");
+
+											setPreview({
+												calendarId,
+												rulesetId,
+												start: new Date()
+													.toISOString()
+													.slice(0, 10),
+												end: new Date(
+													Date.now() + 30 * 86400000,
+												)
+													.toISOString()
+													.slice(0, 10),
+											});
+										}}
+									/>
+								</div>
+							))}
+					</div>
+				</EditorFrame>
+			</div>
 			{editor && (
 				<RulesetEditor
+					onGuard={setEditorGuard}
+					embedded
 					existing={editor === "new" ? undefined : editor}
 					onClose={() => setEditor(null)}
 					onDeleted={() => {
 						setEditor(null);
 						void reload();
 					}}
-					onSaved={() => {
+					onSaved={(rule) => {
+						setRulesets((old) => [
+							...old.filter((item) => item.id !== rule.id),
+							rule,
+						]);
+
+						selectCreated.current?.(rule.id);
 						setEditor(null);
-						void reload();
 						onChanged();
 					}}
 				/>
 			)}
 			{preview && (
-				<Modal
-					isOpen
+				<EditorFrame
+					embedded
 					title="What your friend sees"
 					onClose={() => setPreview(null)}
 				>
 					<div className={s.stack}>
 						<p>
-							Preview uses the saved ruleset and your friend’s
-							attributes. The list includes hidden events and
-							private rule explanations; the calendar shows what
-							is visible.
+							The list shows how your saved rules apply, including
+							hidden events. The calendar shows only what your
+							friend can see.
 						</p>
-						<div className={s.row}>
+						<div className={s.previewControls}>
 							<label className={s.field}>
 								From
 								<input
@@ -384,39 +327,36 @@ export default function ShareRules({
 									}}
 								/>
 							</label>
+							<button
+								className={`${s.button} ${s.primary}`}
+								disabled={
+									previewLoading ||
+									!preview.start ||
+									!preview.end
+								}
+								onClick={() => void loadPreview()}
+							>
+								{previewLoading ? "Loading…" : "Show preview"}
+							</button>
 						</div>
-						<button
-							className={`${s.button} ${s.primary}`}
-							disabled={
-								previewLoading || !preview.start || !preview.end
-							}
-							onClick={() => void loadPreview()}
-						>
-							{previewLoading ? "Loading…" : "Show preview"}
-						</button>
 						{previewError && (
 							<Feedback focusOnMount>{previewError}</Feedback>
 						)}
 						{result && !result.items.length && (
-							<p>
-								No visible events in this page of the selected
-								interval.
-							</p>
+							<p>No events in the selected interval.</p>
 						)}
 						<div
-							className={s.row}
+							className={s.segmented}
 							role="group"
 							aria-label="Preview view"
 						>
 							<button
-								className={`${s.button} ${previewView === "list" ? s.primary : ""}`}
 								aria-pressed={previewView === "list"}
 								onClick={() => setPreviewView("list")}
 							>
 								List
 							</button>
 							<button
-								className={`${s.button} ${previewView === "calendar" ? s.primary : ""}`}
 								aria-pressed={previewView === "calendar"}
 								onClick={() => {
 									setPreviewDate(new Date(preview.start));
@@ -435,16 +375,20 @@ export default function ShareRules({
 									)
 									.map((event) => ({
 										...event,
+										highlighted:
+											event.visibility === "highlight",
 										title:
 											event.visibility === "busy"
 												? "Busy"
 												: event.title,
 										description:
-											event.visibility === "full"
+											event.visibility === "full" ||
+											event.visibility === "highlight"
 												? event.description
 												: null,
 										location:
-											event.visibility === "full"
+											event.visibility === "full" ||
+											event.visibility === "highlight"
 												? event.location
 												: null,
 										calendar: {
@@ -496,45 +440,70 @@ export default function ShareRules({
 						{previewView === "list" &&
 							result?.items.map((event) => (
 								<article key={event.id} className={s.event}>
-									<strong>{event.title}</strong>
-									<p>
-										{event.explanation.ruleIndex === null
-											? "Fallback"
-											: `Rule ${event.explanation.ruleIndex + 1} (priority ${event.explanation.ruleIndex})`}
-										: {event.explanation.reason} →{" "}
-										{event.visibility}
-									</p>
-									<details>
-										<summary>Why this visibility?</summary>
-										<p>
-											Timezone:{" "}
-											{event.explanation.timezone}
-											{event.explanation.matchedAt
-												? `; matching time: ${new Date(event.explanation.matchedAt).toLocaleString(undefined, { timeZone: event.explanation.timezone })}`
-												: ""}
-										</p>
-										<ul>
-											{event.explanation.conditions.map(
-												(condition) => (
-													<li key={condition.path}>
-														<strong>
-															{condition.path}:{" "}
-															{condition.result}
-														</strong>{" "}
-														— {condition.label}
-													</li>
-												),
-											)}
-										</ul>
-									</details>
-									<span className={s.hint}>
+									<div className={s.eventHeader}>
+										<strong>{event.title}</strong>
+										<span
+											className={s.visibilityBadge}
+											data-visibility={event.visibility}
+										>
+											{visibilityLabels[event.visibility]}
+										</span>
+									</div>
+									<time
+										className={s.hint}
+										dateTime={event.startTime}
+									>
 										{new Date(
 											event.startTime,
-										).toLocaleString()}{" "}
-										· {visibilityLabels[event.visibility]}
-									</span>
+										).toLocaleString(undefined, {
+											timeZone: event.allDay
+												? "UTC"
+												: event.explanation.timezone,
+											dateStyle: "medium",
+											...(event.allDay
+												? {}
+												: { timeStyle: "short" }),
+										})}
+										{event.allDay ? " · All day" : ""}
+									</time>
+									<div className={s.eventReason}>
+										<p>
+											<strong>
+												{event.explanation.ruleIndex ===
+												null
+													? "Default visibility"
+													: `Rule ${event.explanation.ruleIndex + 1} matched`}
+											</strong>{" "}
+											{event.explanation.reason !==
+												"First matching rule" &&
+												`- ${event.explanation.reason}`}
+										</p>
+										{event.explanation.ruleIndex !== null &&
+											registry &&
+											(() => {
+												const rule = rulesets.find(
+													(row) =>
+														row.id ===
+														preview.rulesetId,
+												)?.rules[
+													event.explanation.ruleIndex
+												];
+
+												return rule ? (
+													<p>
+														{describeCondition(
+															rule.when,
+															registry.attributes,
+															operatorLabels,
+														)}
+													</p>
+												) : null;
+											})()}
+									</div>
 									{event.location && (
-										<span>{event.location}</span>
+										<span className={s.hint}>
+											{event.location}
+										</span>
 									)}
 									{event.description && (
 										<p>{event.description}</p>
@@ -553,7 +522,7 @@ export default function ShareRules({
 							</button>
 						)}
 					</div>
-				</Modal>
+				</EditorFrame>
 			)}
 		</>
 	);

@@ -26,14 +26,14 @@ export default function Invitations() {
 	}, []);
 
 	return (
-		<section className={s.section}>
+		<section className={s.section} id="invitations">
 			<h2>Registration invitations</h2>
 			<p className={f.hint}>
 				Each invitation can create one account. Closing registrations
 				also blocks invited registrations.
 			</p>
 			<form
-				className={f.row}
+				className={s.filterBar}
 				onSubmit={async (e) => {
 					e.preventDefault();
 					setTarget("create");

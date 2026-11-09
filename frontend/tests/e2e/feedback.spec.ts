@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect, adminSection } from "./fixtures";
 import { createRequire } from "node:module";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
@@ -90,6 +90,7 @@ for (const viewport of [
 
 			await expect(page).toHaveURL(/\/dashboard$/);
 			await page.goto("/admin");
+			await adminSection(page, "Settings");
 
 			const settings = page.locator("section").filter({
 				has: page.getByRole("heading", {
@@ -152,6 +153,12 @@ for (const viewport of [
 
 			await expect(settings.getByRole("status")).toHaveCount(0);
 
+			await adminSection(page, "Invitations");
+			await adminSection(page, "Settings");
+			await expect(
+				settings.getByLabel("Sync future days", { exact: true }),
+			).toHaveValue("366");
+			await adminSection(page, "Invitations");
 			await page
 				.getByLabel("Invitation label", { exact: true })
 				.fill("Design review invitation");
@@ -216,6 +223,26 @@ for (const viewport of [
 					page.getByRole("button", { name: "Sign out", exact: true }),
 				).toBeVisible();
 
+				if (route !== "calendar") {
+					await expect(
+						page.getByRole("heading", {
+							name:
+								route === "profile"
+									? "Profile & Settings"
+									: route === "friends"
+										? "Friends"
+										: "Dashboard",
+							exact: true,
+						}),
+					).toBeVisible();
+				} else {
+					await expect(
+						page.getByRole("button", {
+							name: "Today",
+							exact: true,
+						}),
+					).toBeVisible();
+				}
 				await expect(
 					page.getByText("Loading…", { exact: true }),
 				).toHaveCount(0);

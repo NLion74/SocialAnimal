@@ -108,7 +108,7 @@ export async function securityState(userId: string) {
 
 export async function beginChallenge(
 	userId: string,
-	purpose: "login" | "enroll",
+	purpose: "login" | "enroll" | `delete:${string}`,
 	method?: string,
 	expectedVersion?: number,
 ) {
@@ -134,7 +134,7 @@ export async function beginChallenge(
 			![
 				"email",
 				"totp",
-				...(purpose === "login" &&
+				...(purpose !== "enroll" &&
 				user.twoFactorMethod !== "none" &&
 				user.recoveryCodes.length
 					? ["recovery"]
@@ -201,6 +201,9 @@ export async function beginChallenge(
 					token: code,
 					challengeId: id,
 					authVersion: String(user.authVersion),
+					...(purpose.startsWith("delete:")
+						? { action: "account-deletion" }
+						: {}),
 				},
 				expiresAt,
 				userId,
@@ -220,113 +223,119 @@ export async function beginChallenge(
 	});
 }
 
+// Called inside the protected operation's transaction so a proof is consumed atomically.
+export async function consumeChallenge(
+	tx: Prisma.TransactionClient,
+	raw: string,
+	code: string,
+	purpose: "login" | "enroll" | `delete:${string}`,
+	actorId?: string,
+) {
+	const id = tokenHash(raw);
+
+	const initial = await tx.authChallenge.findUnique({ where: { id } });
+	if (!initial || (actorId && initial.userId !== actorId)) return null;
+	await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${initial.userId} FOR UPDATE`;
+	const challenge = await tx.authChallenge.findUnique({ where: { id } });
+
+	const user = await tx.user.findUnique({
+		where: { id: initial.userId },
+	});
+
+	if (
+		!challenge ||
+		!user ||
+		user.disabled ||
+		challenge.purpose !== purpose ||
+		challenge.expiresAt <= new Date() ||
+		challenge.attempts >= 5 ||
+		challenge.authVersion !== user.authVersion
+	)
+		return null;
+
+	await tx.authChallenge.update({
+		where: { id },
+		data: { attempts: { increment: 1 } },
+	});
+
+	let step: number | undefined;
+	let backup = false;
+
+	let valid =
+		challenge.method === "email" &&
+		equal(verifier(id, code), challenge.verifier || "");
+
+	if (challenge.method === "totp") {
+		const envelope =
+			purpose === "enroll" ? challenge.secret : user.totpSecret;
+
+		if (envelope) {
+			const secret = decrypt(envelope).secret;
+			const current = Math.floor(Date.now() / 30000);
+
+			step = [current, current - 1, current + 1].find(
+				(candidate) =>
+					(purpose === "enroll" ||
+						BigInt(candidate) > (user.totpLastStep ?? -1n)) &&
+					equal(totp(secret, candidate), code),
+			);
+
+			valid = step !== undefined;
+		}
+	}
+
+	if (!valid && purpose !== "enroll") {
+		backup = user.recoveryCodes.includes(tokenHash(code));
+		valid = backup;
+	}
+
+	if (!valid) return null;
+	await tx.authChallenge.delete({ where: { id } });
+
+	const codes =
+		purpose === "enroll"
+			? Array.from({ length: 10 }, () => randomBytes(12).toString("hex"))
+			: undefined;
+
+	const updated = await tx.user.update({
+		where: { id: user.id },
+		data:
+			purpose === "enroll"
+				? {
+						twoFactorMethod: challenge.method,
+						totpSecret: challenge.secret,
+						totpLastStep: step === undefined ? null : BigInt(step),
+						recoveryCodes: codes!.map(tokenHash),
+						authVersion: { increment: 1 },
+						securitySetupRequired: false,
+					}
+				: {
+						...(step === undefined
+							? {}
+							: { totpLastStep: BigInt(step) }),
+						...(backup
+							? {
+									recoveryCodes: user.recoveryCodes.filter(
+										(hash) => hash !== tokenHash(code),
+									),
+								}
+							: {}),
+					},
+	});
+
+	if (purpose === "enroll") await notifySecurity(tx, user.id, user.email);
+	return { user: updated, codes };
+}
+
 export async function completeChallenge(
 	raw: string,
 	code: string,
 	purpose: "login" | "enroll",
 	actorId?: string,
 ) {
-	const id = tokenHash(raw);
-
-	const outcome = await prisma.$transaction(async (tx) => {
-		const initial = await tx.authChallenge.findUnique({ where: { id } });
-		if (!initial || (actorId && initial.userId !== actorId)) return null;
-		await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${initial.userId} FOR UPDATE`;
-		const challenge = await tx.authChallenge.findUnique({ where: { id } });
-
-		const user = await tx.user.findUnique({
-			where: { id: initial.userId },
-		});
-
-		if (
-			!challenge ||
-			!user ||
-			user.disabled ||
-			challenge.purpose !== purpose ||
-			challenge.expiresAt <= new Date() ||
-			challenge.attempts >= 5 ||
-			challenge.authVersion !== user.authVersion
-		)
-			return null;
-
-		await tx.authChallenge.update({
-			where: { id },
-			data: { attempts: { increment: 1 } },
-		});
-
-		let step: number | undefined;
-		let backup = false;
-
-		let valid =
-			challenge.method === "email" &&
-			equal(verifier(id, code), challenge.verifier || "");
-
-		if (challenge.method === "totp") {
-			const envelope =
-				purpose === "enroll" ? challenge.secret : user.totpSecret;
-
-			if (envelope) {
-				const secret = decrypt(envelope).secret;
-				const current = Math.floor(Date.now() / 30000);
-
-				step = [current, current - 1, current + 1].find(
-					(candidate) =>
-						(purpose === "enroll" ||
-							BigInt(candidate) > (user.totpLastStep ?? -1n)) &&
-						equal(totp(secret, candidate), code),
-				);
-
-				valid = step !== undefined;
-			}
-		}
-
-		if (!valid && purpose === "login") {
-			backup = user.recoveryCodes.includes(tokenHash(code));
-			valid = backup;
-		}
-
-		if (!valid) return null;
-		await tx.authChallenge.delete({ where: { id } });
-
-		const codes =
-			purpose === "enroll"
-				? Array.from({ length: 10 }, () =>
-						randomBytes(12).toString("hex"),
-					)
-				: undefined;
-
-		const updated = await tx.user.update({
-			where: { id: user.id },
-			data:
-				purpose === "enroll"
-					? {
-							twoFactorMethod: challenge.method,
-							totpSecret: challenge.secret,
-							totpLastStep:
-								step === undefined ? null : BigInt(step),
-							recoveryCodes: codes!.map(tokenHash),
-							authVersion: { increment: 1 },
-							securitySetupRequired: false,
-						}
-					: {
-							...(step === undefined
-								? {}
-								: { totpLastStep: BigInt(step) }),
-							...(backup
-								? {
-										recoveryCodes:
-											user.recoveryCodes.filter(
-												(hash) =>
-													hash !== tokenHash(code),
-											),
-									}
-								: {}),
-						},
-		});
-
-		if (purpose === "enroll") await notifySecurity(tx, user.id, user.email);
-		return { user: updated, codes };
-	});
+	const outcome = await prisma.$transaction((tx) =>
+		consumeChallenge(tx, raw, code, purpose, actorId),
+	);
 
 	if (!outcome)
 		fail(

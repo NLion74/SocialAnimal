@@ -11,6 +11,8 @@ export async function sendAccountEmail(
 	email: string,
 	kind: "verify" | "reset" | "changed" | "code" | "security",
 	token?: string,
+	action?: "account-deletion",
+	notification?: { title: string; href: string },
 ) {
 	if (!mailConfigured()) throw new Error("SMTP is not configured");
 	const secure = process.env.SMTP_SECURE === "true";
@@ -37,25 +39,31 @@ export async function sendAccountEmail(
 
 	url.hash = token || "";
 
-	const subject =
-		kind === "code"
-			? "Your SocialAnimal sign-in code"
-			: kind === "security"
-				? "Your SocialAnimal security settings changed"
-				: kind === "verify"
-					? "Verify your SocialAnimal email address"
-					: kind === "reset"
-						? "Reset your SocialAnimal password"
-						: "Your SocialAnimal password changed";
+	const subject = notification
+		? "SocialAnimal update"
+		: action === "account-deletion"
+			? "Confirm SocialAnimal account deletion"
+			: kind === "code"
+				? "Your SocialAnimal sign-in code"
+				: kind === "security"
+					? "Your SocialAnimal security settings changed"
+					: kind === "verify"
+						? "Verify your SocialAnimal email address"
+						: kind === "reset"
+							? "Reset your SocialAnimal password"
+							: "Your SocialAnimal password changed";
 
-	const text =
-		kind === "code"
-			? `Your SocialAnimal code is ${token}. It expires in five minutes. Never share this code.`
-			: kind === "security"
-				? "Your SocialAnimal two-factor settings were changed. If this was not you, contact your administrator immediately."
-				: kind === "changed"
-					? "Your SocialAnimal password was changed and existing sessions were signed out. If this was not you, request a password reset or contact your administrator."
-					: `${kind === "reset" ? "Reset your password" : "Confirm your email address"} for SocialAnimal:\n\n${url.href}\n\nThis link expires in ${kind === "reset" ? "30 minutes" : "24 hours"} and can be used once. If you did not request this, ignore this email.`;
+	const text = notification
+		? `${notification.title}\n\n${new URL(notification.href, process.env.PUBLIC_URL || "http://localhost:3000").href}`
+		: action === "account-deletion"
+			? `Your code to confirm permanent account deletion is ${token}. It expires in five minutes. Only enter it if you requested this deletion. Never share this code.`
+			: kind === "code"
+				? `Your SocialAnimal code is ${token}. It expires in five minutes. Never share this code.`
+				: kind === "security"
+					? "Your SocialAnimal two-factor settings were changed. If this was not you, contact your administrator immediately."
+					: kind === "changed"
+						? "Your SocialAnimal password was changed and existing sessions were signed out. If this was not you, request a password reset or contact your administrator."
+						: `${kind === "reset" ? "Reset your password" : "Confirm your email address"} for SocialAnimal:\n\n${url.href}\n\nThis link expires in ${kind === "reset" ? "30 minutes" : "24 hours"} and can be used once. If you did not request this, ignore this email.`;
 
 	try {
 		await transport.sendMail({
@@ -69,4 +77,15 @@ export async function sendAccountEmail(
 	} finally {
 		transport.close();
 	}
+}
+
+export async function sendNotificationEmail(
+	email: string,
+	title: string,
+	href: string,
+) {
+	await sendAccountEmail(email, "changed", undefined, undefined, {
+		title,
+		href,
+	});
 }

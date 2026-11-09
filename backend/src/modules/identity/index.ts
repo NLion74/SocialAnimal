@@ -22,4 +22,8 @@ export { securityState, resetFactor } from "./two-factor";
 
 export { requireRecentAuthentication, verifyToken } from "./auth";
 
-export { deleteAccount } from "./accounts";
+export {
+	deleteAccount,
+	beginAccountDeletion,
+	type DeletionProof,
+} from "./accounts";

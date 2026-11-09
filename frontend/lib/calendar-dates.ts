@@ -73,3 +73,24 @@ export function dayBounds(date: Date, timezone: string) {
 		end: zonedDayStart(next, timezone),
 	};
 }
+
+// This is a display choice only: timed events keep their original timestamps.
+// End times are exclusive, so ending at midnight does not occupy the next day.
+export function displaysAsAllDay(
+	event: { allDay: boolean; startTime: string; endTime: string },
+	timezone: string,
+): boolean {
+	if (event.allDay) return true;
+	const start = +new Date(event.startTime);
+	const end = +new Date(event.endTime);
+	if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start)
+		return false;
+
+	const first = zonedParts(new Date(start), timezone);
+	const last = zonedParts(new Date(end - 1), timezone);
+	return (
+		first.year !== last.year ||
+		first.month !== last.month ||
+		first.day !== last.day
+	);
+}

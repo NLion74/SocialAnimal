@@ -11,6 +11,7 @@ it("classifies nested network errors without exposing provider URLs or credentia
 		["CERT_HAS_EXPIRED", "PROVIDER_TLS_FAILED"],
 		["PROVIDER_ADDRESS_BLOCKED", "PROVIDER_ADDRESS_BLOCKED"],
 		["UND_ERR_CONNECT_TIMEOUT", "PROVIDER_TIMEOUT"],
+		["CALENDAR_PROCESSING_FAILED", "CALENDAR_PROCESSING_FAILED"],
 	]) {
 		const error = new Error(
 			"Fetch failed for https://secret-token@provider.test/private",

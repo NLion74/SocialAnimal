@@ -125,7 +125,10 @@ export async function resetPassword(token: string, password: string) {
 	});
 }
 
-export async function runRecoveryTick(logger?: JobLogger) {
+export async function runRecoveryTick(
+	logger?: JobLogger,
+	deliverNotification?: (id: string, email: string) => Promise<boolean>,
+) {
 	const now = new Date();
 
 	await prisma.recoveryMail.updateMany({
@@ -302,10 +305,24 @@ export async function runRecoveryTick(logger?: JobLogger) {
 				continue;
 			}
 
+			if (kind === "notification") {
+				const sent =
+					deliverNotification &&
+					(await deliverNotification(
+						payload.notificationId,
+						payload.email,
+					));
+				await finishMail(job.id, sent ? "sent" : "cancelled");
+				continue;
+			}
+
 			await sendAccountEmail(
 				payload.email,
 				kind as "reset" | "changed" | "verify" | "code" | "security",
 				payload.token,
+				...(payload.action === "account-deletion"
+					? ["account-deletion" as const]
+					: []),
 			);
 
 			await finishMail(job.id, "sent");
@@ -319,17 +336,18 @@ export async function runRecoveryTick(logger?: JobLogger) {
 				},
 				"Email accepted by SMTP server",
 			);
-		} catch {
+		} catch (error) {
 			logger?.warn(
 				{
 					job: "email-delivery",
 					jobId: job.id,
 					status: job.attempts >= 5 ? "failed" : "retrying",
 					attempts: job.attempts,
+					err: error,
 				},
 				"Email delivery failed",
 			);
-			// Never log recipient addresses, tokens, SMTP errors or encrypted payloads.
+			// The logger allowlists error codes; SMTP responses and recipients stay private.
 			await prisma.recoveryMail.updateMany({
 				where: { id: job.id, status: "running" },
 				data: {

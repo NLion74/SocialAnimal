@@ -13,9 +13,29 @@ export class ApiError extends Error {
 
 export class ApiClient {
 	basePath: string;
+	private sessionTransition: Promise<void> | null = null;
 
 	constructor(basePath = "") {
 		this.basePath = basePath.replace(/\/+$/, "");
+	}
+
+	async rotateSession<T extends { token?: string }>(
+		operation: () => Promise<T>,
+	): Promise<T> {
+		if (this.sessionTransition) await this.sessionTransition;
+		let release!: () => void;
+		this.sessionTransition = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+
+		try {
+			const result = await operation();
+			if (result.token) this.setToken(result.token);
+			return result;
+		} finally {
+			this.sessionTransition = null;
+			release();
+		}
 	}
 
 	getUid(): string | null {
@@ -106,7 +126,20 @@ export class ApiClient {
 			const isInvalidCredentialsError =
 				errData?.code === "INVALID_CREDENTIALS";
 
-			if (res.status === 401 && !isInvalidCredentialsError) {
+			// A background request may finish while enrollment rotates the session.
+			// The enrollment request itself must never wait on its own transition.
+			if (
+				res.status === 401 &&
+				this.sessionTransition &&
+				!path.includes("two-factor-enrollment-completions")
+			)
+				await this.sessionTransition;
+
+			if (
+				res.status === 401 &&
+				!isInvalidCredentialsError &&
+				headers.Authorization === this.authHeaders().Authorization
+			) {
 				this.setToken(null);
 
 				if (hasWindow) {
@@ -120,6 +153,9 @@ export class ApiClient {
 
 			throw new ApiError(errMsg, res.status, errData);
 		}
+
+		if (hasWindow && opts.method && !["GET", "HEAD"].includes(opts.method))
+			window.dispatchEvent(new Event("data:changed"));
 
 		const text = await res.text();
 		if (!text) return undefined as unknown as T;

@@ -1,8 +1,16 @@
+# Use: docker compose -f legacy-docker-compose.yml up --wait
+x-logging: &service-logging
+    driver: local
+    options:
+        max-size: "10m"
+        max-file: "3"
+
 # Compatibility filename: runs the same prebuilt production services.
 x-backend-environment: &backend-environment
     NODE_ENV: production
     PORT: "4000"
-    LOG_LEVEL: "${LOG_LEVEL:-info}"
+    LOG_MODE: "${LOG_MODE:-production}"
+    LOG_LEVEL: "${LOG_LEVEL:-}"
     DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
     JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
     CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY:?Set CREDENTIAL_ENCRYPTION_KEY}
@@ -23,6 +31,7 @@ x-backend-environment: &backend-environment
 
 services:
     db:
+        logging: *service-logging
         image: postgres:16
         restart: unless-stopped
         environment:
@@ -30,7 +39,7 @@ services:
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
             POSTGRES_DB: ${POSTGRES_DB:-socialanimal}
         volumes:
-            - db_data:/var/lib/postgresql/data
+            - ./docker_data/legacy/postgres:/var/lib/postgresql/data
         healthcheck:
             test:
                 [
@@ -43,6 +52,7 @@ services:
             start_period: 5s
 
     setup:
+        logging: *service-logging
         image: nlion/socialanimal-backend:${SOCIALANIMAL_VERSION:?Set SOCIALANIMAL_VERSION to a release tag}
         restart: "no"
         environment: *backend-environment
@@ -52,6 +62,7 @@ services:
                 condition: service_healthy
 
     backend:
+        logging: *service-logging
         image: nlion/socialanimal-backend:${SOCIALANIMAL_VERSION:?Set SOCIALANIMAL_VERSION to a release tag}
         restart: unless-stopped
         environment: *backend-environment
@@ -68,6 +79,7 @@ services:
             start_period: 10s
 
     frontend:
+        logging: *service-logging
         image: nlion/socialanimal-frontend:${SOCIALANIMAL_VERSION:?Set SOCIALANIMAL_VERSION to a release tag}
         restart: unless-stopped
         ports:
@@ -75,6 +87,7 @@ services:
         environment:
             NODE_ENV: production
             PORT: "3000"
+            BACKEND_URL: http://backend:4000
             PUBLIC_URL: ${PUBLIC_URL:?Set PUBLIC_URL}
         depends_on:
             backend:
@@ -85,7 +98,3 @@ services:
             timeout: 3s
             retries: 20
             start_period: 10s
-
-volumes:
-    db_data:
-        name: ${DATABASE_VOLUME:-socialanimal_legacy_db_data}

@@ -13,3 +13,19 @@ export const test = base.extend({
 });
 
 export { expect };
+
+export async function adminSection(
+	page: import("@playwright/test").Page,
+	name: string,
+) {
+	const back = page.getByRole("button", {
+		name: "← Administration",
+		exact: true,
+	});
+	if (await back.isVisible()) await back.click();
+	const button = page
+		.getByRole("navigation", { name: "Administration sections" })
+		.getByRole("button", { name, exact: false });
+	await button.focus();
+	await button.press("Enter");
+}

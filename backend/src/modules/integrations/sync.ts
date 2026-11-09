@@ -1,3 +1,4 @@
+import { notify } from "../notifications";
 import { providerFailure } from "../../core/http/provider-errors";
 import type { JobLogger } from "../../core/jobs";
 import { effectiveMinimumInterval, registrationSettings } from "../settings";
@@ -111,6 +112,14 @@ export async function commitSnapshot(
 				},
 				data: {
 					lastSuccess: new Date(),
+					...(result.kind === "snapshot" &&
+					result.complete &&
+					result.coverage
+						? {
+								coverageStart: result.coverage.start,
+								coverageEnd: result.coverage.end,
+							}
+						: {}),
 					lastSync: new Date(),
 					lastError: null,
 					leaseOwner: null,
@@ -210,9 +219,10 @@ export async function executeSync(runId: string, logger?: JobLogger) {
 	});
 
 	if (!run) return;
+	const started = performance.now();
 
 	logger?.info(
-		{ job: "calendar-sync", runId },
+		{ job: "calendar-sync", runId, calendarId: run.calendarId },
 		"Calendar synchronization started",
 	);
 
@@ -222,7 +232,12 @@ export async function executeSync(runId: string, logger?: JobLogger) {
 				where: { id: run.calendarId, leaseOwner: owner },
 				data: { leaseUntil: new Date(Date.now() + leaseMs) },
 			})
-			.catch(() => {});
+			.catch((error) =>
+				logger?.warn(
+					{ job: "calendar-sync", runId, err: error },
+					"Calendar lease heartbeat failed",
+				),
+			);
 	}, 30000);
 
 	try {
@@ -247,12 +262,32 @@ export async function executeSync(runId: string, logger?: JobLogger) {
 		};
 
 		const credentials = decrypt(calendar.connection.credentials);
+		logger?.debug(
+			{
+				job: "calendar-sync",
+				runId,
+				provider: calendar.type,
+				pastDays: window.pastDays,
+				futureDays: window.futureDays,
+			},
+			"Fetching provider calendar",
+		);
 
 		const result = await capability(provider(calendar.type), "fetch")(
 			credentials,
 			calendar.remoteId,
 			calendar.user.settings?.timezone,
 			window,
+		);
+		logger?.debug(
+			{
+				job: "calendar-sync",
+				runId,
+				kind: result.kind,
+				eventCount: result.events.length,
+				durationMs: Math.round(performance.now() - started),
+			},
+			"Provider calendar fetched; persisting snapshot",
 		);
 
 		if (
@@ -270,20 +305,36 @@ export async function executeSync(runId: string, logger?: JobLogger) {
 		await commitSnapshot(calendar.id, run.id, owner, result, window);
 
 		logger?.info(
-			{ job: "calendar-sync", runId },
+			{
+				job: "calendar-sync",
+				runId,
+				calendarId: calendar.id,
+				provider: calendar.type,
+				durationMs: Math.round(performance.now() - started),
+			},
 			"Calendar snapshot processed",
 		);
 	} catch (error) {
 		const failure = providerFailure(error);
 
 		logger?.warn(
-			{ job: "calendar-sync", runId, code: failure.code },
+			{
+				job: "calendar-sync",
+				runId,
+				calendarId: run.calendarId,
+				code: failure.code,
+				err: error,
+				durationMs: Math.round(performance.now() - started),
+			},
 			failure.message,
 		);
 
 		await prisma.$transaction(async (tx) => {
 			await tx.$executeRaw`SELECT pg_advisory_xact_lock(742904)`;
 
+			const before = await tx.calendar.findUnique({
+				where: { id: run.calendarId },
+			});
 			const held = await tx.calendar.updateMany({
 				where: { id: run.calendarId, leaseOwner: owner },
 				data: {
@@ -292,6 +343,15 @@ export async function executeSync(runId: string, logger?: JobLogger) {
 					lastError: failure.message,
 				},
 			});
+
+			if (held.count && before && !before.lastError)
+				await notify(
+					tx,
+					before.userId,
+					"syncFailure",
+					before.id,
+					`syncFailure:${run.id}`,
+				);
 
 			if (held.count)
 				await tx.syncRun.updateMany({
@@ -353,6 +413,15 @@ export async function runSyncTick(logger?: JobLogger) {
 		take: concurrency,
 		orderBy: { createdAt: "asc" },
 	});
+	logger?.debug(
+		{
+			job: "calendar-sync",
+			dueCount: due.length,
+			queuedCount: jobs.length,
+			concurrency,
+		},
+		"Synchronization queue checked",
+	);
 
 	const results = await Promise.allSettled(
 		jobs.map((job) => executeSync(job.id, logger)),
@@ -361,7 +430,11 @@ export async function runSyncTick(logger?: JobLogger) {
 	for (const [index, result] of results.entries())
 		if (result.status === "rejected")
 			logger?.error(
-				{ job: "calendar-sync", runId: jobs[index].id },
+				{
+					job: "calendar-sync",
+					runId: jobs[index].id,
+					err: result.reason,
+				},
 				"Calendar synchronization could not complete",
 			);
 }

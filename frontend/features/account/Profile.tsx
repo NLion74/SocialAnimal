@@ -1,5 +1,8 @@
 "use client";
 
+import AccountDeletionDialog from "./AccountDeletionDialog";
+
+import NotificationSettings from "../notifications/NotificationSettings";
 import TwoFactorSettings from "./TwoFactorSettings";
 
 import { useState, useEffect } from "react";
@@ -42,6 +45,8 @@ export default function ProfilePage() {
 	const [curPw, setCurPw] = useState("");
 	const [newPw, setNewPw] = useState("");
 	const [confirmNewPw, setConfirmNewPw] = useState("");
+	const [confirmDelete, setConfirmDelete] = useState(false);
+
 	const [deletePw, setDeletePw] = useState("");
 	const [firstDay, setFirstDay] = useState<"sunday" | "monday">("monday");
 	const [timezone, setTimezone] = useState(browserTimezone);
@@ -165,25 +170,8 @@ export default function ProfilePage() {
 			return;
 		}
 
-		const confirmed = globalThis.confirm(
-			"Are you sure you want to permanently delete your account? This cannot be undone.",
-		);
-
-		if (!confirmed) return;
-
-		setDeleting(true);
-		setMsg("");
 		setDeleteError("");
-
-		try {
-			await accountApi.remove(deletePw);
-			apiClient.setToken(null);
-			router.push("/");
-		} catch (e: any) {
-			setDeleteError(e.message);
-		} finally {
-			setDeleting(false);
-		}
+		setConfirmDelete(true);
 	};
 
 	if (!user && err)
@@ -396,9 +384,31 @@ export default function ProfilePage() {
 
 			<div className={s.section}>
 				<div className={s.formStack}>
+					<NotificationSettings />
 					<TwoFactorSettings />
 				</div>
 			</div>
+
+			{confirmDelete && (
+				<AccountDeletionDialog
+					description="Permanently delete your account and all associated data."
+					begin={(recovery) =>
+						accountApi.beginDeletion(deletePw, recovery)
+					}
+					remove={async (confirmation) => {
+						setDeleting(true);
+
+						try {
+							await accountApi.remove(deletePw, confirmation);
+							apiClient.setToken(null);
+							router.push("/");
+						} finally {
+							setDeleting(false);
+						}
+					}}
+					onClose={() => setConfirmDelete(false)}
+				/>
+			)}
 
 			<div className={s.section}>
 				<div className={s.sectionHeader}>

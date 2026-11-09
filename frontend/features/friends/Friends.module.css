@@ -8,10 +8,12 @@
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
+	gap: 1rem;
+	flex-wrap: wrap;
 }
 
 .pageTitle {
-	font-size: 1.375rem;
+	font-size: 1.625rem;
 	font-weight: 700;
 	color: var(--text-primary);
 	letter-spacing: -0.02em;
@@ -27,7 +29,12 @@
 	font-weight: 500;
 	cursor: pointer;
 	border: 1px solid transparent;
-	transition: all var(--transition);
+	transition:
+		background-color var(--transition),
+		color var(--transition),
+		border-color var(--transition);
+	min-height: 44px;
+	touch-action: manipulation;
 	white-space: nowrap;
 }
 
@@ -77,8 +84,9 @@
 }
 
 .btnSm {
-	padding: 0.3rem 0.65rem;
-	font-size: 0.8rem;
+	padding: 0.55rem 0.85rem;
+	min-height: 44px;
+	font-size: 0.875rem;
 }
 
 .section {
@@ -89,28 +97,26 @@
 }
 
 .sectionTitle {
-	font-size: 0.78rem;
+	font-size: 1rem;
 	font-weight: 600;
 	color: var(--text-muted);
 	text-transform: none;
-	letter-spacing: 0.08em;
+	letter-spacing: 0;
 	margin-bottom: 1rem;
 }
 
 .list {
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: 0;
 }
 
 .row {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	padding: 0.875rem 1rem;
-	background: var(--bg-elevated);
-	border: 1px solid var(--border);
-	border-radius: var(--radius-md);
+	padding: 1.25rem 0;
+	border-top: 1px solid var(--border);
 	transition: border-color var(--transition);
 	gap: 0.75rem;
 }
@@ -137,11 +143,11 @@
 }
 
 .rowMeta {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
+	display: grid;
+	gap: 0.2rem;
 	margin-top: 0.3rem;
-	flex-wrap: wrap;
+	font-size: 0.8125rem;
+	color: var(--text-secondary);
 }
 
 .rowActions {
@@ -414,4 +420,176 @@
 
 .row > [role="alert"] {
 	flex-basis: 100%;
+}
+
+.subtitle {
+	color: var(--text-secondary);
+	font-size: 0.875rem;
+	line-height: 1.6;
+	margin-top: 0.4rem;
+}
+
+.btnQuiet {
+	color: var(--text-secondary);
+	background: transparent;
+}
+
+.btnQuiet:hover:not(:disabled) {
+	color: #fca5a5;
+	background: var(--danger-dim);
+}
+
+.btn:focus-visible {
+	outline: 2px solid var(--purple-400);
+	outline-offset: 3px;
+}
+
+.rowEmail,
+.rowName {
+	overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+	.rowActions {
+		justify-content: flex-start;
+	}
+
+	.pageHeader > .btn {
+		min-height: 44px;
+	}
+}
+
+.workspace {
+	display: grid;
+	grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.7fr);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	overflow: clip;
+	min-height: 440px;
+}
+
+.friendList {
+	min-width: 0;
+	padding: 1rem;
+	border-right: 1px solid var(--border);
+	background: var(--bg-surface);
+}
+
+.friendList .section {
+	padding: 0;
+	background: none;
+	border: none;
+}
+.friendList .list {
+	gap: 0.25rem;
+}
+
+.friendList .section + .section {
+	margin-top: 1.5rem;
+	padding-top: 1.5rem;
+	border-top: 1px solid var(--border);
+}
+
+.searchField {
+	display: grid;
+	gap: 0.5rem;
+	font-size: 0.875rem;
+	margin: 1rem 0;
+}
+
+.friendChoice {
+	width: 100%;
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	text-align: left;
+	padding: 1rem 0.75rem;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--text-primary);
+	font: inherit;
+	cursor: pointer;
+}
+
+.friendChoice:hover,
+.friendChoice[aria-pressed="true"] {
+	background: var(--bg-hover);
+	border-color: var(--border);
+}
+.friendChoice:focus-visible {
+	outline: 2px solid var(--purple-400);
+	outline-offset: 2px;
+}
+.friendChoice .rowInfo {
+	display: grid;
+	gap: 0.25rem;
+	overflow-wrap: anywhere;
+}
+.friendChoice > svg {
+	flex-shrink: 0;
+}
+
+.avatar {
+	display: grid;
+	place-items: center;
+	width: 36px;
+	height: 36px;
+	flex-shrink: 0;
+	border-radius: 50%;
+	background: var(--bg-elevated);
+	color: var(--text-secondary);
+}
+
+.friendDetail {
+	padding: 1.5rem;
+	min-width: 0;
+}
+.btnRemove {
+	border-color: var(--border);
+	background: transparent;
+	color: #fca5a5;
+}
+.btnRemove:hover:not(:disabled) {
+	background: var(--danger-dim);
+	border-color: var(--danger);
+}
+.detailEmpty {
+	display: grid;
+	justify-items: center;
+	align-content: center;
+	gap: 1rem;
+	min-height: 350px;
+	text-align: center;
+	color: var(--text-secondary);
+}
+.detailEmpty h2 {
+	font-size: 1.125rem;
+	color: var(--text-primary);
+}
+
+@media (max-width: 760px) {
+	.workspace {
+		display: block;
+		min-height: 0;
+	}
+	.friendList {
+		border: none;
+	}
+	.workspace[data-selected="true"] .friendList,
+	.workspace[data-selected="false"] .friendDetail {
+		display: none;
+	}
+	.friendDetail {
+		padding: 1rem;
+	}
+	.searchField input {
+		font-size: 1rem;
+	}
+}
+
+@media (max-width: 760px) {
+	.page[data-detail="true"] .pageHeader {
+		display: none;
+	}
 }

@@ -9,7 +9,34 @@ export type PermissionCondition =
 	| { all: Array<PermissionCondition> }
 	| { any: Array<PermissionCondition> }
 	| { not: PermissionCondition };
-export type deleteAdminUserInput = { id: string };
+export type beginAdminAccountDeletionInput = {
+	id: string;
+	body: { recovery?: boolean };
+};
+
+export type beginAdminAccountDeletionResponse = {
+	required: boolean;
+	challenge?: string;
+	method?: string;
+	expiresAt?: string;
+};
+
+export function beginAdminAccountDeletion(
+	input: beginAdminAccountDeletionInput,
+): Promise<beginAdminAccountDeletionResponse> {
+	let path = "/api/v1/admin/users/{id}/deletion-challenges";
+	path = path.replace("{id}", encodeURIComponent(input.id));
+	const query = new URLSearchParams();
+	return apiClient.request(path + (query.size ? "?" + query : ""), {
+		method: "POST",
+		body: input.body,
+	});
+}
+
+export type deleteAdminUserInput = {
+	id: string;
+	body: { confirmation?: { challenge: string; code: string } };
+};
 
 export type deleteAdminUserResponse = void;
 
@@ -21,6 +48,7 @@ export function deleteAdminUser(
 	const query = new URLSearchParams();
 	return apiClient.request(path + (query.size ? "?" + query : ""), {
 		method: "DELETE",
+		body: input.body,
 	});
 }
 
@@ -243,6 +271,140 @@ export function adminSyncRuns(
 	if (input.status !== undefined) query.set("status", String(input.status));
 	return apiClient.request(path + (query.size ? "?" + query : ""), {
 		method: "GET",
+	});
+}
+
+export type findTimeInput = {
+	body: {
+		friendIds: Array<string>;
+		calendarIds?: Array<string>;
+		start: string;
+		end: string;
+		from: string;
+		to: string;
+		minutes: number;
+		includeAllDay?: boolean;
+	};
+};
+
+export type findTimeResponse = {
+	timezone: string;
+	allDayEvents: number;
+	items: Array<{ start: string; end: string }>;
+	notices: Array<{ userId: string; message: string }>;
+};
+
+export function findTime(input: findTimeInput): Promise<findTimeResponse> {
+	let path = "/api/v1/availability/searches";
+	const query = new URLSearchParams();
+	return apiClient.request(path + (query.size ? "?" + query : ""), {
+		method: "POST",
+		body: input.body,
+	});
+}
+
+export type notificationsInput = { limit?: number; cursor?: string };
+
+export type notificationsResponse = {
+	items: Array<{
+		id: string;
+		title: string;
+		href: string;
+		tab: string;
+		active: boolean;
+		readAt: null | string;
+		createdAt: string;
+	}>;
+	nextCursor: null | string;
+};
+
+export function notifications(
+	input: notificationsInput = {},
+): Promise<notificationsResponse> {
+	let path = "/api/v1/me/notifications";
+	const query = new URLSearchParams();
+	if (input.limit !== undefined) query.set("limit", String(input.limit));
+	if (input.cursor !== undefined) query.set("cursor", String(input.cursor));
+	return apiClient.request(path + (query.size ? "?" + query : ""), {
+		method: "GET",
+	});
+}
+
+export type attentionInput = {};
+
+export type attentionResponse = {
+	items: Array<{ id: string; title: string; href: string; tab: string }>;
+};
+
+export function attention(
+	_input: attentionInput = {},
+): Promise<attentionResponse> {
+	let path = "/api/v1/me/attention";
+	const query = new URLSearchParams();
+	return apiClient.request(path + (query.size ? "?" + query : ""), {
+		method: "GET",
+	});
+}
+
+export type readNotificationInput = { id: string; body: { read: boolean } };
+
+export type readNotificationResponse = void;
+
+export function readNotification(
+	input: readNotificationInput,
+): Promise<readNotificationResponse> {
+	let path = "/api/v1/me/notifications/{id}";
+	path = path.replace("{id}", encodeURIComponent(input.id));
+	const query = new URLSearchParams();
+	return apiClient.request(path + (query.size ? "?" + query : ""), {
+		method: "PATCH",
+		body: input.body,
+	});
+}
+
+export type notificationSettingsInput = {};
+
+export type notificationSettingsResponse = {
+	emailFriendRequests: boolean;
+	emailFriendAccepted: boolean;
+	emailHighlights: boolean;
+	emailSyncFailures: boolean;
+};
+
+export function notificationSettings(
+	_input: notificationSettingsInput = {},
+): Promise<notificationSettingsResponse> {
+	let path = "/api/v1/me/notification-settings";
+	const query = new URLSearchParams();
+	return apiClient.request(path + (query.size ? "?" + query : ""), {
+		method: "GET",
+	});
+}
+
+export type updateNotificationSettingsInput = {
+	body: {
+		emailFriendRequests?: boolean;
+		emailFriendAccepted?: boolean;
+		emailHighlights?: boolean;
+		emailSyncFailures?: boolean;
+	};
+};
+
+export type updateNotificationSettingsResponse = {
+	emailFriendRequests: boolean;
+	emailFriendAccepted: boolean;
+	emailHighlights: boolean;
+	emailSyncFailures: boolean;
+};
+
+export function updateNotificationSettings(
+	input: updateNotificationSettingsInput,
+): Promise<updateNotificationSettingsResponse> {
+	let path = "/api/v1/me/notification-settings";
+	const query = new URLSearchParams();
+	return apiClient.request(path + (query.size ? "?" + query : ""), {
+		method: "PATCH",
+		body: input.body,
 	});
 }
 
@@ -530,7 +692,12 @@ export function updateMe(input: updateMeInput): Promise<updateMeResponse> {
 	});
 }
 
-export type deleteMeInput = { body: { password: string } };
+export type deleteMeInput = {
+	body: {
+		password: string;
+		confirmation?: { challenge: string; code: string };
+	};
+};
 
 export type deleteMeResponse = void;
 
@@ -556,6 +723,28 @@ export function changePassword(
 	const query = new URLSearchParams();
 	return apiClient.request(path + (query.size ? "?" + query : ""), {
 		method: "PUT",
+		body: input.body,
+	});
+}
+
+export type beginMyAccountDeletionInput = {
+	body: { password: string; recovery?: boolean };
+};
+
+export type beginMyAccountDeletionResponse = {
+	required: boolean;
+	challenge?: string;
+	method?: string;
+	expiresAt?: string;
+};
+
+export function beginMyAccountDeletion(
+	input: beginMyAccountDeletionInput,
+): Promise<beginMyAccountDeletionResponse> {
+	let path = "/api/v1/me/deletion-challenges";
+	const query = new URLSearchParams();
+	return apiClient.request(path + (query.size ? "?" + query : ""), {
+		method: "POST",
 		body: input.body,
 	});
 }
@@ -905,6 +1094,73 @@ export function removeFriendship(
 	});
 }
 
+export type calendarSourcesInput = { limit?: number; cursor?: string };
+
+export type calendarSourcesResponse = {
+	items: Array<{
+		id: string;
+		name: string;
+		color:
+			"blue" | "green" | "teal" | "amber" | "rose" | "violet" | "slate";
+		defaultColor:
+			"blue" | "green" | "teal" | "amber" | "rose" | "violet" | "slate";
+		timezone: string;
+		isFriend: boolean;
+	}>;
+	nextCursor: null | string;
+};
+
+export function calendarSources(
+	input: calendarSourcesInput = {},
+): Promise<calendarSourcesResponse> {
+	let path = "/api/v1/calendar-sources";
+	const query = new URLSearchParams();
+	if (input.limit !== undefined) query.set("limit", String(input.limit));
+	if (input.cursor !== undefined) query.set("cursor", String(input.cursor));
+	return apiClient.request(path + (query.size ? "?" + query : ""), {
+		method: "GET",
+	});
+}
+
+export type setCalendarColorInput = {
+	id: string;
+	body: {
+		color:
+			"blue" | "green" | "teal" | "amber" | "rose" | "violet" | "slate";
+	};
+};
+
+export type setCalendarColorResponse = {
+	color: "blue" | "green" | "teal" | "amber" | "rose" | "violet" | "slate";
+};
+
+export function setCalendarColor(
+	input: setCalendarColorInput,
+): Promise<setCalendarColorResponse> {
+	let path = "/api/v1/me/calendar-colors/{id}";
+	path = path.replace("{id}", encodeURIComponent(input.id));
+	const query = new URLSearchParams();
+	return apiClient.request(path + (query.size ? "?" + query : ""), {
+		method: "PUT",
+		body: input.body,
+	});
+}
+
+export type resetCalendarColorInput = { id: string };
+
+export type resetCalendarColorResponse = void;
+
+export function resetCalendarColor(
+	input: resetCalendarColorInput,
+): Promise<resetCalendarColorResponse> {
+	let path = "/api/v1/me/calendar-colors/{id}";
+	path = path.replace("{id}", encodeURIComponent(input.id));
+	const query = new URLSearchParams();
+	return apiClient.request(path + (query.size ? "?" + query : ""), {
+		method: "DELETE",
+	});
+}
+
 export type calendarsInput = { limit?: number; cursor?: string };
 
 export type calendarsResponse = {
@@ -912,6 +1168,9 @@ export type calendarsResponse = {
 		id: string;
 		name: string;
 		type: string;
+		color?:
+			"blue" | "green" | "teal" | "amber" | "rose" | "violet" | "slate";
+		timezone?: string;
 		connectionId?: null | string;
 		remoteId?: null | string;
 		syncInterval: number;
@@ -938,13 +1197,20 @@ export function calendars(
 
 export type updateCalendarInput = {
 	id: string;
-	body: { name?: string; syncInterval?: number };
+	body: {
+		name?: string;
+		color?:
+			"blue" | "green" | "teal" | "amber" | "rose" | "violet" | "slate";
+		syncInterval?: number;
+	};
 };
 
 export type updateCalendarResponse = {
 	id: string;
 	name: string;
 	type: string;
+	color?: "blue" | "green" | "teal" | "amber" | "rose" | "violet" | "slate";
+	timezone?: string;
 	connectionId?: null | string;
 	remoteId?: null | string;
 	syncInterval: number;
@@ -1002,6 +1268,7 @@ export type eventsResponse = {
 		endTime: string;
 		allDay: boolean;
 		isFriend: boolean;
+		highlighted: boolean;
 		calendar: { id: string; name: string; type: string };
 		owner: { id: string; email: string; name: null | string };
 	}>;
@@ -1242,6 +1509,8 @@ export type importCalendarResponse = {
 	id: string;
 	name: string;
 	type: string;
+	color?: "blue" | "green" | "teal" | "amber" | "rose" | "violet" | "slate";
+	timezone?: string;
 	connectionId?: null | string;
 	remoteId?: null | string;
 	syncInterval: number;
@@ -1324,10 +1593,10 @@ export type rulesetsResponse = {
 	items: Array<{
 		id: string;
 		name: string;
-		fallback: "hidden" | "busy" | "titles" | "full";
+		fallback: "hidden" | "busy" | "titles" | "full" | "highlight";
 		rules: Array<{
 			when: PermissionCondition;
-			visibility: "hidden" | "busy" | "titles" | "full";
+			visibility: "hidden" | "busy" | "titles" | "full" | "highlight";
 		}>;
 		version: number;
 		seedKey: null | string;
@@ -1349,10 +1618,10 @@ export function rulesets(input: rulesetsInput = {}): Promise<rulesetsResponse> {
 export type createRulesetInput = {
 	body: {
 		name: string;
-		fallback: "hidden" | "busy" | "titles" | "full";
+		fallback: "hidden" | "busy" | "titles" | "full" | "highlight";
 		rules: Array<{
 			when: PermissionCondition;
-			visibility: "hidden" | "busy" | "titles" | "full";
+			visibility: "hidden" | "busy" | "titles" | "full" | "highlight";
 		}>;
 	};
 };
@@ -1360,10 +1629,10 @@ export type createRulesetInput = {
 export type createRulesetResponse = {
 	id: string;
 	name: string;
-	fallback: "hidden" | "busy" | "titles" | "full";
+	fallback: "hidden" | "busy" | "titles" | "full" | "highlight";
 	rules: Array<{
 		when: PermissionCondition;
-		visibility: "hidden" | "busy" | "titles" | "full";
+		visibility: "hidden" | "busy" | "titles" | "full" | "highlight";
 	}>;
 	version: number;
 	seedKey: null | string;
@@ -1385,10 +1654,10 @@ export type updateRulesetInput = {
 	id: string;
 	body: {
 		name: string;
-		fallback: "hidden" | "busy" | "titles" | "full";
+		fallback: "hidden" | "busy" | "titles" | "full" | "highlight";
 		rules: Array<{
 			when: PermissionCondition;
-			visibility: "hidden" | "busy" | "titles" | "full";
+			visibility: "hidden" | "busy" | "titles" | "full" | "highlight";
 		}>;
 		version: number;
 	};
@@ -1397,10 +1666,10 @@ export type updateRulesetInput = {
 export type updateRulesetResponse = {
 	id: string;
 	name: string;
-	fallback: "hidden" | "busy" | "titles" | "full";
+	fallback: "hidden" | "busy" | "titles" | "full" | "highlight";
 	rules: Array<{
 		when: PermissionCondition;
-		visibility: "hidden" | "busy" | "titles" | "full";
+		visibility: "hidden" | "busy" | "titles" | "full" | "highlight";
 	}>;
 	version: number;
 	seedKey: null | string;
@@ -1449,7 +1718,7 @@ export type previewGrantInput = {
 export type previewGrantResponse = {
 	items: Array<{
 		explanation: {
-			visibility: "hidden" | "busy" | "titles" | "full";
+			visibility: "hidden" | "busy" | "titles" | "full" | "highlight";
 			ruleIndex: null | number;
 			reason: string;
 			timezone: string;
@@ -1463,7 +1732,7 @@ export type previewGrantResponse = {
 		startTime: string;
 		endTime: string;
 		allDay: boolean;
-		visibility: "hidden" | "busy" | "titles" | "full";
+		visibility: "hidden" | "busy" | "titles" | "full" | "highlight";
 	}>;
 	nextCursor: null | string;
 };
@@ -1642,6 +1911,7 @@ export type sharedCalendarPreviewInput = {
 
 export type sharedCalendarPreviewResponse = {
 	name: string;
+	color: string;
 	timezone: string;
 	firstDayOfWeek: "monday" | "sunday";
 	accessRevision: string;

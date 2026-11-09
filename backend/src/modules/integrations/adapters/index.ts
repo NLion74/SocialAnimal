@@ -12,6 +12,7 @@ import {
 export type RemoteCalendar = { remoteId: string; name: string; color?: string };
 
 export type RemoteEvent = {
+	blocksTime?: boolean;
 	isRecurring?: boolean | null;
 	externalId: string;
 	title: string;
@@ -83,6 +84,7 @@ const normalize = (e: any): RemoteEvent => ({
 	startTime: e.startTime,
 	endTime: e.endTime,
 	allDay: e.allDay,
+	blocksTime: e.blocksTime ?? true,
 });
 
 const dav = new CaldavAdapter();

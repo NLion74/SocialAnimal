@@ -8,6 +8,8 @@ build/
 
 coverage/
 
+docker_data/
+
 .env
 .env.*
 !.env.example
@@ -37,3 +39,8 @@ test-results/
 # Local tooling instructions and working notes
 CLAUDE.md
 /docs/*.md
+
+# Keep architecture and project documentation in README files.
+*.[mM][dD]
+*.[mM][aA][rR][kK][dD][oO][wW][nN]
+![rR][eE][aA][dD][mM][eE].[mM][dD]

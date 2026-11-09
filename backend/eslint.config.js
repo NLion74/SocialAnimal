@@ -59,7 +59,7 @@ const boundaryRule = {
 module.exports = [
 	{
 		ignores: ["node_modules", "dist"],
-		files: ["src/**/*.ts"],
+		files: ["src/**/*.ts", "src/**/*.cjs"],
 		languageOptions: { parser: require("@typescript-eslint/parser") },
 		plugins: {
 			"@typescript-eslint": require("@typescript-eslint/eslint-plugin"),

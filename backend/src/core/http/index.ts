@@ -5,13 +5,19 @@ export class HttpError extends Error {
 		public statusCode: number,
 		public code: string,
 		message: string,
+		public cause?: unknown,
 	) {
 		super(message);
 	}
 }
 
-export const fail = (status: number, code: string, message: string): never => {
-	throw new HttpError(status, code, message);
+export const fail = (
+	status: number,
+	code: string,
+	message: string,
+	cause?: unknown,
+): never => {
+	throw new HttpError(status, code, message, cause);
 };
 
 export const str = { type: "string" } as const;
@@ -107,7 +113,7 @@ export function errors(app: FastifyInstance) {
 						: "REQUEST_FAILED";
 
 		request.log[status >= 500 ? "error" : "warn"](
-			{ code },
+			{ code, err: error },
 			"Request failed",
 		);
 

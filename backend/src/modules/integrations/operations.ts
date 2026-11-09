@@ -80,7 +80,7 @@ export async function withProvider<T>(
 		if (error instanceof HttpError) throw error;
 
 		const failure = providerFailure(error);
-		return fail(502, failure.code, failure.message);
+		return fail(502, failure.code, failure.message, error);
 	}
 }
 

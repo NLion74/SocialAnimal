@@ -16,20 +16,40 @@ export function startRunner(
 	let current = Promise.resolve();
 
 	const run = () => {
-		if (running || stopped) return;
+		if (stopped) return;
+		if (running) {
+			options?.logger.debug(
+				{ job: options.name },
+				"Background job still running; tick skipped",
+			);
+			return;
+		}
 		running = true;
+		const started = performance.now();
+		options?.logger.debug(
+			{ job: options.name },
+			"Background job tick started",
+		);
 
-		current = tick()
-			.catch(() => {
+		current = Promise.resolve()
+			.then(tick)
+			.catch((error) => {
 				if (options)
 					options.logger.error(
-						{ job: options.name },
+						{ job: options.name, err: error },
 						"Background job tick failed",
 					);
 				else console.error("Background job tick failed");
 			})
 			.finally(() => {
 				running = false;
+				options?.logger.debug(
+					{
+						job: options.name,
+						durationMs: Math.round(performance.now() - started),
+					},
+					"Background job tick finished",
+				);
 			});
 	};
 

@@ -75,6 +75,8 @@ export class IcsAdapter {
 				userTimezone,
 			),
 			allDay: e.datetype === "date",
+			blocksTime:
+				String(e.transparency || "").toUpperCase() !== "TRANSPARENT",
 		}));
 	}
 

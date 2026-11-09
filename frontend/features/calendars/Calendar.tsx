@@ -1,34 +1,49 @@
 "use client";
 
+import FindTime from "../availability/FindTime";
+import CalendarColors from "./CalendarColors";
 import Feedback from "../../components/Feedback";
 
 import { useEffect, useState } from "react";
 import { accountApi } from "../account/api";
 import { calendarsApi } from "./api";
 import CalendarView from "./CalendarView";
+import s from "./Calendar.module.css";
 import type { CalEvent, CalSource, FirstDay } from "../../lib/types";
 
 export default function CalendarPage() {
 	const [date, setDate] = useState(() => new Date());
+	const [dateRestored, setDateRestored] = useState(false);
 	const [events, setEvents] = useState<CalEvent[]>([]);
 	const [sources, setSources] = useState<CalSource[]>([]);
 	const [firstDay, setFirstDay] = useState<FirstDay>("monday");
 	const [timezone, setTimezone] = useState("UTC");
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
+	const [viewKey, setViewKey] = useState(0);
+	const [focusTime, setFocusTime] = useState<string>();
 
 	useEffect(() => {
 		try {
-			const saved = localStorage.getItem("calendar:date");
+			const requested = new URLSearchParams(window.location.search).get(
+				"date",
+			);
+			const saved =
+				requested && /^\d{4}-\d{2}-\d{2}$/.test(requested)
+					? `${requested}T12:00:00`
+					: localStorage.getItem("calendar:date");
 
 			if (saved && Number.isFinite(+new Date(saved)))
 				setDate(new Date(saved));
 		} catch {
 			/* Use today when local storage is unavailable. */
 		}
+
+		setDateRestored(true);
 	}, []);
 
 	useEffect(() => {
+		if (!dateRestored) return;
 		let active = true;
 		setLoading(true);
 		setError("");
@@ -36,7 +51,7 @@ export default function CalendarPage() {
 		Promise.all([
 			calendarsApi.events("mine", date),
 			calendarsApi.events("shared", date),
-			calendarsApi.list(),
+			calendarsApi.sources(),
 			accountApi.me(),
 		])
 			.then(([mine, shared, calendars, me]) => {
@@ -51,11 +66,15 @@ export default function CalendarPage() {
 					(calendar) => ({
 						id: calendar.id,
 						name: calendar.name,
-						isFriend: false,
+						isFriend: calendar.isFriend,
+						color: calendar.color,
+						defaultColor: calendar.defaultColor,
 					}),
 				);
 
-				const seen = new Set<string>();
+				const seen = new Set<string>(
+					visibleSources.map((source) => source.id),
+				);
 
 				for (const event of shared) {
 					if (!event.owner || seen.has(event.calendar.id)) continue;
@@ -85,14 +104,37 @@ export default function CalendarPage() {
 		return () => {
 			active = false;
 		};
-	}, [date]);
+	}, [date, dateRestored]);
+
+	// Restore the saved date before CalendarView persists its initial state.
+	if (!dateRestored)
+		return (
+			<div className={s.loading} role="status">
+				Loading calendar…
+			</div>
+		);
 
 	return (
 		<>
+			<div className={s.calendarActions}>
+				<FindTime
+					disabled={loading}
+					timezone={timezone}
+					onSelect={(next, instant) => {
+						setFocusTime(instant);
+						localStorage.setItem("calendar:view", "day");
+						setDate(next);
+						setViewKey((value) => value + 1);
+					}}
+				/>
+				<CalendarColors sources={sources} onSaved={setSources} />
+			</div>
 			{error && (
 				<Feedback title="Could not load calendar">{error}</Feedback>
 			)}
 			<CalendarView
+				key={viewKey}
+				focusTime={focusTime}
 				events={events}
 				sources={sources}
 				date={date}

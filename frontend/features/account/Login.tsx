@@ -5,7 +5,7 @@ import Feedback from "../../components/Feedback";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Share2 } from "lucide-react";
-import { apiClient } from "../../lib/api";
+import { apiClient, ApiError } from "../../lib/api";
 import { accountApi } from "../account/api";
 import PasswordInput from "../../components/PasswordInput";
 import s from "../../app/(auth)/auth.module.css";
@@ -33,7 +33,20 @@ export default function LoginPage() {
 		try {
 			const data = challenge
 				? await accountApi.completeChallenge(challenge.challenge, code)
-				: await accountApi.login({ email, password, recovery });
+				: await accountApi.login({ email, password }).catch((error) => {
+						// A mail outage must not prevent use of saved recovery codes.
+						if (
+							error instanceof ApiError &&
+							error.data?.code === "MAIL_UNAVAILABLE"
+						)
+							return accountApi.login({
+								email,
+								password,
+								recovery: true,
+							});
+
+						throw error;
+					});
 
 			if (data.challenge) {
 				setChallenge({
@@ -42,6 +55,7 @@ export default function LoginPage() {
 				});
 
 				setPassword("");
+				setRecovery(data.method === "recovery");
 				return;
 			}
 
@@ -103,33 +117,24 @@ export default function LoginPage() {
 									placeholder="••••••••"
 								/>
 							</div>
-
-							<label className={s.label}>
-								<input
-									type="checkbox"
-									checked={recovery}
-									onChange={(e) =>
-										setRecovery(e.target.checked)
-									}
-								/>{" "}
-								Use a recovery code
-							</label>
 						</>
 					)}
 					{challenge && (
 						<div className={s.field}>
 							<label className={s.label} htmlFor="login-code">
-								{challenge.method === "email"
-									? "Email code"
-									: challenge.method === "recovery"
-										? "Recovery code"
-										: "Authenticator code"}{" "}
-								or recovery code
+								{recovery
+									? "Recovery code"
+									: challenge.method === "email"
+										? "Email code"
+										: "Authenticator code"}
 							</label>
 							<input
 								id="login-code"
 								className={s.input}
-								autoComplete="one-time-code"
+								autoComplete={
+									recovery ? "off" : "one-time-code"
+								}
+								inputMode={recovery ? "text" : "numeric"}
 								value={code}
 								onChange={(e) => setCode(e.target.value)}
 								required
@@ -137,19 +142,40 @@ export default function LoginPage() {
 								autoFocus
 							/>
 							<p className={s.subtitle}>
-								{challenge.method === "email"
-									? "Check your verified email. Delivery may take a moment."
-									: challenge.method === "recovery"
-										? "Use one of your saved recovery codes."
-										: "Open your authenticator app."}{" "}
-								Codes expire after five minutes.
+								{recovery
+									? "Enter one of your saved recovery codes. Each code can only be used once."
+									: challenge.method === "email"
+										? "Check your verified email. Delivery may take a moment."
+										: "Open your authenticator app."}
+								{!recovery &&
+									" Codes expire after five minutes."}
 							</p>
+							{challenge.method !== "recovery" && (
+								<button
+									type="button"
+									className={s.switchBtn}
+									disabled={loading}
+									onClick={() => {
+										setRecovery(!recovery);
+										setCode("");
+										setError("");
+									}}
+								>
+									{recovery
+										? challenge.method === "email"
+											? "Use an email code instead"
+											: "Use an authenticator code instead"
+										: "Use a recovery code"}
+								</button>
+							)}
 							<button
 								type="button"
 								className={s.switchBtn}
 								onClick={() => {
 									setChallenge(null);
+									setRecovery(false);
 									setCode("");
+									setError("");
 								}}
 							>
 								Start again / request another code

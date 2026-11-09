@@ -8,6 +8,8 @@ import {
 	securityState,
 	verifyToken,
 	deleteAccount,
+	beginAccountDeletion,
+	type DeletionProof,
 } from "../identity";
 import {
 	contract,
@@ -125,20 +127,68 @@ const routes: FastifyPluginAsync = async (app) => {
 		},
 	);
 
-	app.delete<{ Body: { password: string } }>(
+	app.post<{ Body: { password: string; recovery?: boolean } }>(
+		"/me/deletion-challenges",
+		{
+			schema: contract(
+				"beginMyAccountDeletion",
+				obj(
+					{
+						required: bool,
+						challenge: str,
+						method: str,
+						expiresAt: date,
+					},
+					["required"],
+				),
+				{ body: obj({ password: str, recovery: bool }, ["password"]) },
+			),
+		},
+		async (req) => {
+			const user = await checkPassword(req.user.id, req.body.password);
+
+			return beginAccountDeletion(
+				user.id,
+				req.body.recovery,
+				user.authVersion,
+			);
+		},
+	);
+
+	app.delete<{ Body: { password: string; confirmation?: DeletionProof } }>(
 		"/me",
 		{
 			schema: contract(
 				"deleteMe",
 				{ type: "null" },
-				{ body: obj({ password: str }) },
+				{
+					body: obj(
+						{
+							password: str,
+							confirmation: obj({
+								challenge: str,
+								code: {
+									type: "string",
+									minLength: 1,
+									maxLength: 32,
+								},
+							}),
+						},
+						["password"],
+					),
+				},
 				204,
 			),
 		},
 		async (req, reply) => {
 			await checkPassword(req.user.id, req.body.password);
 
-			await deleteAccount(req.user.id);
+			await deleteAccount(
+				req.user.id,
+				undefined,
+				req.body.confirmation,
+				req.body.password,
+			);
 
 			return reply.code(204).send();
 		},

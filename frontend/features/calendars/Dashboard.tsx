@@ -1,5 +1,7 @@
 "use client";
 
+import Notifications from "../notifications/Notifications";
+
 import Feedback from "../../components/Feedback";
 
 import { useState, useEffect } from "react";
@@ -324,6 +326,54 @@ export default function DashboardPage() {
 	}, []);
 
 	useEffect(() => {
+		if (loading) return;
+
+		let cancelled = false;
+		let refreshing = false;
+
+		const refreshHealth = async () => {
+			if (document.visibilityState === "hidden" || refreshing) return;
+			refreshing = true;
+
+			try {
+				const calendars = await calendarsApi.list();
+				if (cancelled) return;
+
+				setCalendars(calendars);
+				setEventCountsByCalendar(
+					Object.fromEntries(
+						calendars.map((calendar) => [
+							calendar.id,
+							calendar.eventCount ?? 0,
+						]),
+					),
+				);
+				setTotalEvents(
+					calendars.reduce(
+						(sum, calendar) => sum + (calendar.eventCount ?? 0),
+						0,
+					),
+				);
+			} catch {
+				// Keep the last known health when refreshing fails.
+			} finally {
+				refreshing = false;
+			}
+		};
+
+		const interval = window.setInterval(() => void refreshHealth(), 15000);
+		window.addEventListener("focus", refreshHealth);
+		document.addEventListener("visibilitychange", refreshHealth);
+
+		return () => {
+			cancelled = true;
+			window.clearInterval(interval);
+			window.removeEventListener("focus", refreshHealth);
+			document.removeEventListener("visibilitychange", refreshHealth);
+		};
+	}, [loading]);
+
+	useEffect(() => {
 		if (!editingCalendar) {
 			resetForm();
 			return;
@@ -376,18 +426,8 @@ export default function DashboardPage() {
 				),
 			);
 
-			setCalendars((prev) =>
-				crRaw.map((c) => {
-					const old = prev.find((p) => p.id === c.id);
-
-					return {
-						...c,
-						lastSyncSuccess: !c.lastError,
-						lastTestSuccess: old?.lastTestSuccess ?? true,
-						lastError: c.lastError ?? old?.lastError ?? null,
-					};
-				}),
-			);
+			setCalendars(crRaw);
+			setCalendarFeedback({});
 
 			setFriends(frRaw);
 			setIncomingShares(deriveIncomingShares(frRaw, uid as string));
@@ -784,52 +824,40 @@ export default function DashboardPage() {
 	const doSync = async (c: CalendarData) => {
 		setSyncingId(c.id);
 		reportCalendar(c.id, "info", "Syncing calendar…");
-
 		try {
-			const res = await calendarsApi.sync(c.id);
-
-			reportCalendar(
-				c.id,
-				"success",
-				"Calendar synchronized",
-				`${res.eventsSynced ?? 0} events synchronized.`,
-			);
-
-			setCalendars((prev) =>
-				prev.map((cal) =>
-					cal.id === c.id
-						? {
-								...cal,
-								lastSyncSuccess: res?.success !== false,
-								lastError:
-									res?.success === false
-										? "Sync failed"
-										: null,
-							}
-						: cal,
-				),
-			);
-		} catch (err: any) {
+			const result = await calendarsApi.sync(c.id);
+			await loadAll();
+			if (result.status === "succeeded")
+				reportCalendar(
+					c.id,
+					"success",
+					"Calendar synchronized",
+					`${result.eventsSynced} events synchronized.`,
+				);
+			else if (result.status === "failed")
+				reportCalendar(
+					c.id,
+					"error",
+					"Synchronization failed",
+					result.message,
+				);
+			else
+				reportCalendar(
+					c.id,
+					"info",
+					result.status === "pending"
+						? "Synchronization is still running"
+						: "Sync status is unavailable",
+					"The job continues on the server. Reload this page to see its latest result.",
+				);
+		} catch (error) {
 			reportCalendar(
 				c.id,
 				"error",
-				"Synchronization failed",
-				err.message || "Check your connection and try again.",
-			);
-
-			setCalendars((prev) =>
-				prev.map((cal) =>
-					cal.id === c.id
-						? {
-								...cal,
-								lastSyncSuccess: false,
-								lastError: err.message ?? "Sync error",
-							}
-						: cal,
-				),
+				"Could not start synchronization",
+				(error as Error).message,
 			);
 		} finally {
-			await loadAll();
 			setSyncingId(null);
 		}
 	};
@@ -837,45 +865,19 @@ export default function DashboardPage() {
 	const doTest = async (c: CalendarData) => {
 		setTestingId(c.id);
 		reportCalendar(c.id, "info", "Testing connection…");
-
 		try {
-			const res = await integrationsApi.test(c.connectionId!);
-
+			const result = await integrationsApi.test(c.connectionId!);
 			reportCalendar(
 				c.id,
-				res.success ? "success" : "error",
-				res.success ? "Connection works" : "Connection test failed",
+				result.success ? "success" : "error",
+				result.success ? "Connection works" : "Connection test failed",
 			);
-
-			setCalendars((prev) =>
-				prev.map((cal) =>
-					cal.id === c.id
-						? {
-								...cal,
-								lastTestSuccess: res.success,
-								lastError: res.success ? null : "Test failed",
-							}
-						: cal,
-				),
-			);
-		} catch (err: any) {
+		} catch (error) {
 			reportCalendar(
 				c.id,
 				"error",
 				"Connection test failed",
-				err.message || "Check the provider settings and try again.",
-			);
-
-			setCalendars((prev) =>
-				prev.map((cal) =>
-					cal.id === c.id
-						? {
-								...cal,
-								lastTestSuccess: false,
-								lastError: err.message ?? "Network error",
-							}
-						: cal,
-				),
+				(error as Error).message,
 			);
 		} finally {
 			setTestingId(null);
@@ -926,6 +928,8 @@ export default function DashboardPage() {
 					</button>
 				</div>
 			</div>
+
+			<Notifications />
 
 			{loadError && (
 				<div className={s.error} role="alert">
@@ -981,7 +985,10 @@ export default function DashboardPage() {
 									>
 										{calendarFeedback[c.id].message}
 									</Feedback>
-								) : c.lastError ? (
+								) : null}
+								{c.lastError &&
+								calendarFeedback[c.id]?.title !==
+									"Synchronization failed" ? (
 									<Feedback title="Calendar needs attention">
 										{c.lastError}
 									</Feedback>
@@ -989,8 +996,7 @@ export default function DashboardPage() {
 								<div className={s.rowInfo}>
 									<div className={s.rowName}>
 										{c.name}
-										{(c.lastTestSuccess === false ||
-											c.lastSyncSuccess === false) && (
+										{c.lastError && (
 											<span
 												className={s.rowFailedDot}
 												title={

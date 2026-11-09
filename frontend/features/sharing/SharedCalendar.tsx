@@ -100,7 +100,12 @@ export default function SharedCalendar() {
 		() =>
 			data?.items.map((event) => ({
 				...event,
-				calendar: { id: "shared", name: data.name, type: "shared" },
+				calendar: {
+					id: "shared",
+					name: data.name,
+					type: "shared",
+					color: data.color,
+				},
 			})) || [],
 		[data],
 	);
@@ -200,7 +205,7 @@ export default function SharedCalendar() {
 																data?.timezone,
 														},
 													)}{" "}
-													—{" "}
+													-{" "}
 													{new Date(
 														event.endTime,
 													).toLocaleString(

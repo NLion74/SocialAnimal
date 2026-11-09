@@ -1,6 +1,8 @@
-.stack {
+.stack,
+.editorFields {
 	display: grid;
 	gap: 1.25rem;
+	min-width: 0;
 }
 
 .notice {
@@ -14,7 +16,7 @@
 .stack p,
 .hint {
 	color: var(--text-secondary);
-	font-size: 0.85rem;
+	font-size: 0.875rem;
 	line-height: 1.6;
 }
 
@@ -27,51 +29,108 @@
 
 .field {
 	display: grid;
-	gap: 0.4rem;
-	font-size: 0.85rem;
+	gap: 0.45rem;
+	font-size: 0.8125rem;
+	font-weight: 500;
+	color: var(--text-secondary);
 	flex: 1;
-	min-width: 120px;
+	min-width: 0;
 }
 
 .input,
 .select {
 	width: 100%;
 	min-width: 0;
-	padding: 0.6rem 0.7rem;
-	border: 1px solid var(--border);
-	border-radius: var(--radius-md);
-	background: var(--bg-elevated);
+	min-height: 42px;
+	padding: 0.65rem 0.75rem;
+	border: 1px solid #454453;
+	border-radius: 6px;
+	background: var(--bg-surface);
 	color: var(--text-primary);
 	font: inherit;
+	font-size: 0.875rem;
+	font-weight: 400;
 }
 
 .input:focus-visible,
 .select:focus-visible,
-.button:focus-visible {
+.button:focus-visible,
+.iconButton:focus-visible,
+.textButton:focus-visible,
+.segmented button:focus-visible,
+.conditionOptions summary:focus-visible,
+.ruleSummary summary:focus-visible {
 	outline: 2px solid var(--purple-400);
 	outline-offset: 3px;
 }
 
-.button {
-	padding: 0.55rem 0.85rem;
-	border-radius: var(--radius-md);
-	border: 1px solid var(--border);
-	background: var(--bg-elevated);
+.button,
+.iconButton,
+.textButton {
+	min-height: 42px;
+	border-radius: 6px;
 	color: var(--text-primary);
 	font: inherit;
-	font-size: 0.85rem;
+	font-size: 0.875rem;
 	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.45rem;
+	transition:
+		background var(--transition),
+		border-color var(--transition);
 }
 
-.button:disabled {
+.button {
+	padding: 0.6rem 1rem;
+	border: 1px solid #454453;
+	background: var(--bg-elevated);
+}
+
+.button:hover:not(:disabled),
+.iconButton:hover:not(:disabled),
+.textButton:hover:not(:disabled) {
+	background: var(--bg-hover);
+	color: var(--text-primary);
+}
+
+.button:disabled,
+.iconButton:disabled,
+.textButton:disabled,
+.segmented button:disabled {
 	opacity: 0.45;
 	cursor: not-allowed;
 }
 
 .primary {
 	background: var(--purple-500);
-	border-color: var(--purple-600);
+	border-color: var(--purple-500);
 	color: white;
+	font-weight: 600;
+}
+
+.primary:hover:not(:disabled) {
+	background: var(--purple-600);
+	border-color: var(--purple-400);
+}
+
+.textButton,
+.iconButton {
+	border: 0;
+	background: transparent;
+	color: var(--text-secondary);
+	padding: 0.5rem;
+}
+
+.iconButton {
+	width: 36px;
+	min-height: 40px;
+	flex: 0 0 auto;
+}
+
+.textButton {
+	justify-self: start;
 }
 
 .rule {
@@ -79,26 +138,6 @@
 	border-top: 1px solid var(--border);
 	display: grid;
 	gap: 0.9rem;
-}
-
-.group {
-	border: 1px solid var(--border);
-	border-left: 3px solid var(--text-muted);
-	border-radius: var(--radius-md);
-	padding: 0.8rem;
-	display: grid;
-	gap: 0.8rem;
-	min-width: 0;
-}
-
-.condition {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 0.6rem;
-}
-
-.condition > :last-child {
-	grid-column: 1 / -1;
 }
 
 .error {
@@ -114,42 +153,10 @@
 	gap: 0.75rem;
 }
 
-.event {
-	padding: 0.85rem 0;
-	border-bottom: 1px solid var(--border);
-	display: grid;
-	gap: 0.25rem;
-}
-
-@media (max-width: 480px) {
-	.condition {
-		grid-template-columns: 1fr;
-	}
-	.group {
-		padding-left: 0.5rem;
-	}
-}
-
-fieldset.stack {
+fieldset.stack,
+.editorFields {
 	border: 0;
 	min-width: 0;
-}
-
-.button {
-	min-height: 40px;
-	transition:
-		background var(--transition),
-		border-color var(--transition);
-}
-
-.button:hover:not(:disabled) {
-	background: var(--bg-hover);
-	border-color: var(--text-muted);
-}
-
-.primary:hover:not(:disabled) {
-	background: var(--purple-600);
-	border-color: var(--purple-400);
 }
 
 .danger {
@@ -173,27 +180,529 @@ fieldset.stack {
 	align-items: flex-end;
 }
 
-.connector {
+.editor {
+	display: grid;
+	gap: 1.25rem;
+}
+
+.editorToolbar,
+.ruleHeader,
+.groupHeader,
+.eventHeader,
+.previewToolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	flex-wrap: wrap;
+}
+
+.editorToolbar {
+	padding-top: 0.5rem;
+	align-items: start;
+}
+
+.editorToolbar h3 {
+	font-size: 1rem;
+	font-weight: 600;
+	margin-bottom: 0.3rem;
+}
+
+.editorToolbar > div:first-child {
+	flex: 1 1 300px;
+}
+
+.segmented {
+	display: inline-flex;
+	justify-self: start;
+	padding: 3px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--bg-surface);
+	flex-shrink: 0;
+}
+
+.segmented button {
+	border: 0;
+	border-radius: 5px;
+	padding: 0.5rem 0.85rem;
+	min-height: 36px;
+	background: transparent;
 	color: var(--text-secondary);
-	font-size: 0.8rem;
+	font: inherit;
+	font-size: 0.8125rem;
+	cursor: pointer;
+}
+
+.segmented button[aria-pressed="true"] {
+	background: #383744;
+	color: white;
 	font-weight: 600;
 }
 
-.expression {
-	padding: 0.75rem;
-	background: var(--bg-elevated);
-	border-radius: var(--radius-md);
+.emptyRules {
+	border-left: 2px solid #666477;
+	padding: 0.5rem 1rem;
+}
+
+.emptyRules strong {
+	font-size: 0.9375rem;
+	font-weight: 500;
+}
+
+.emptyRules p {
+	margin-top: 0.35rem;
+}
+
+.ruleCard {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	border: 1px solid #3b3a48;
+	border-radius: 10px;
+	min-width: 0;
+	background: var(--bg-surface);
+}
+
+.ruleHeader {
+	padding: 0.55rem 1rem;
+	border-bottom: 1px solid var(--border);
+}
+
+.ruleHeader h4 {
+	font-size: 0.875rem;
+	font-weight: 600;
+}
+
+.ruleActions {
+	display: flex;
+	gap: 0.25rem;
+}
+
+.ruleBody {
+	grid-column: 1 / -1;
+	padding: 1.1rem;
+	display: grid;
+	gap: 0.85rem;
+}
+
+.sectionLabel {
+	font-size: 0.875rem;
+	font-weight: 600;
+}
+
+.conditionBlock {
+	display: grid;
+	gap: 0.5rem;
+	min-width: 0;
+	container-type: inline-size;
+}
+
+.condition {
+	display: grid;
+	grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1.2fr);
+	gap: 0.75rem;
+	align-items: start;
+}
+
+.condition > .row {
+	flex-wrap: nowrap;
+}
+
+.group {
+	min-width: 0;
+	border-left: 2px solid #777489;
+	padding: 0.25rem 0 0.25rem 1rem;
+	display: grid;
+	gap: 0.85rem;
+}
+
+.group[data-logic="any"] {
+	border-left-style: dashed;
+}
+
+.groupHeader {
+	justify-content: flex-start;
+	gap: 0.6rem;
+	font-size: 0.8125rem;
+}
+
+.groupHeader > .textButton {
+	margin-left: auto;
+	font-size: 0.8125rem;
+}
+
+.logicBadge {
+	font-size: 0.6875rem;
+	font-weight: 700;
+	padding: 0.3rem 0.45rem;
+	border: 1px solid #666477;
+	border-radius: 4px;
+	color: var(--text-primary);
+}
+
+.negated {
+	border-left-color: #b09a6a;
+}
+
+.negated > .groupHeader .logicBadge {
+	color: #e2c898;
+	border-color: #85704c;
+}
+
+.matchLabel {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	min-width: 0;
+}
+
+.matchLabel select {
+	width: auto;
+	min-height: 36px;
+	padding: 0.4rem 0.5rem;
+	font-size: 0.8125rem;
+}
+
+.childCondition {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 36px;
+	gap: 0.35rem;
+	align-items: start;
+}
+
+.childCondition > .iconButton {
+	margin-top: 1.3rem;
+}
+
+.connector {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	color: var(--text-muted);
+	font-size: 0.75rem;
+	font-weight: 600;
+	padding: 0.6rem 0;
+}
+
+.connector::after {
+	content: "";
+	height: 1px;
+	background: var(--border);
+	flex: 1;
+}
+
+.conditionOptions,
+.ruleSummary {
+	color: var(--text-secondary);
+	font-size: 0.8125rem;
+	line-height: 1.6;
+}
+
+.conditionOptions summary,
+.ruleSummary summary {
+	cursor: pointer;
+	padding: 0.35rem 0;
+	width: fit-content;
+}
+
+.conditionOptions[open] .row {
+	margin-top: 0.5rem;
+}
+
+.ruleSummary p {
+	margin-top: 0.5rem;
 	overflow-wrap: anywhere;
 }
 
-@media (max-width: 480px) {
-	.group {
-		padding: 0.6rem;
+.ruleOutcome {
+	border-bottom: 1px solid var(--border);
+	padding: 0.9rem 1.1rem;
+	background: var(--bg-surface);
+	border-radius: 0 10px 0 0;
+}
+
+.outcomeField {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	font-size: 0.875rem;
+	font-weight: 500;
+}
+
+.outcomeField select {
+	max-width: 180px;
+}
+
+.rulesetIdentity {
+	display: grid;
+	grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+	gap: 1rem;
+	align-items: end;
+}
+
+.fallback {
+	min-width: 0;
+}
+
+.addRule {
+	border-style: dashed;
+	background: transparent;
+}
+
+.editorFooter {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	width: 100%;
+	flex-wrap: wrap;
+}
+
+.footerActions {
+	display: flex;
+	gap: 0.75rem;
+	margin-left: auto;
+}
+
+.event {
+	padding: 1.25rem 0;
+	border-top: 1px solid var(--border);
+	display: grid;
+	gap: 0.65rem;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.eventHeader strong {
+	font-size: 1rem;
+	font-weight: 600;
+}
+
+.visibilityBadge {
+	border: 1px solid #575565;
+	border-radius: 5px;
+	padding: 0.3rem 0.6rem;
+	font-size: 0.75rem;
+	white-space: nowrap;
+}
+
+.visibilityBadge[data-visibility="hidden"] {
+	border-style: dashed;
+	color: var(--text-muted);
+}
+
+.eventReason {
+	padding-left: 0.85rem;
+	border-left: 2px solid #666477;
+}
+
+.eventReason strong {
+	color: var(--text-primary);
+	font-weight: 500;
+}
+
+.previewControls {
+	display: flex;
+	align-items: end;
+	gap: 0.75rem;
+	flex-wrap: wrap;
+}
+
+.previewControls .field {
+	flex: 1 1 160px;
+}
+
+@container (max-width: 530px) {
+	.condition {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
+
+	.condition > .field:first-child {
+		grid-column: 1 / -1;
+	}
+
+	.condition > .row {
+		flex-wrap: wrap;
+	}
+
+	.condition > .row > .field {
+		flex-basis: 100%;
+	}
+}
+
+@container (max-width: 230px) {
 	.condition {
 		grid-template-columns: minmax(0, 1fr);
 	}
-	.row > .field {
+
+	.condition > .row {
+		flex-wrap: wrap;
+	}
+
+	.condition > .row > .field {
 		flex-basis: 100%;
 	}
+}
+
+@media (max-width: 600px) {
+	.ruleCard {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.ruleOutcome {
+		border-radius: 0;
+	}
+
+	.rulesetIdentity {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.ruleBody,
+	.ruleOutcome {
+		padding: 0.85rem;
+	}
+
+	.group {
+		padding-left: 0.6rem;
+	}
+
+	.outcomeField {
+		align-items: stretch;
+		flex-direction: column;
+		gap: 0.6rem;
+	}
+
+	.outcomeField select {
+		max-width: none;
+	}
+
+	.editorFooter > .textButton {
+		min-height: 32px;
+	}
+
+	.previewControls > .button {
+		width: 100%;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.button,
+	.iconButton,
+	.textButton {
+		transition: none;
+	}
+}
+
+.focusedPanel {
+	min-width: 0;
+	display: grid;
+	gap: 1.5rem;
+}
+
+.panelHeader {
+	display: grid;
+	justify-items: start;
+	gap: 0.75rem;
+}
+
+.panelHeader h2 {
+	font-size: 1.25rem;
+	overflow-wrap: anywhere;
+}
+
+.panelIdentity {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	flex-wrap: wrap;
+	width: 100%;
+}
+
+.panelFooter {
+	padding-top: 1rem;
+	border-top: 1px solid var(--border);
+}
+
+.basicSummary {
+	display: grid;
+	gap: 0.75rem;
+	padding: 1rem 0;
+	border-bottom: 1px solid var(--border);
+}
+
+.basicDraft {
+	display: grid;
+	gap: 1.25rem;
+	padding: 1.25rem;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--bg-surface);
+}
+
+.basicFilter {
+	display: grid;
+	gap: 0.5rem;
+}
+
+.basicFilterHeading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	font-size: 0.875rem;
+}
+
+.basicRange {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.75rem;
+}
+
+.weekdays {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+.weekdays button {
+	padding: 0.5rem;
+	min-width: 44px;
+	text-transform: capitalize;
+}
+
+.weekdays button[aria-pressed="true"] {
+	background: var(--purple-600);
+	border-color: var(--purple-400);
+	color: white;
+}
+
+.validation {
+	color: #fda4af;
+	font-size: 0.875rem;
+}
+
+@media (max-width: 600px) {
+	.input,
+	.select {
+		font-size: 1rem;
+		min-height: 44px;
+	}
+	.basicDraft {
+		padding: 1rem;
+	}
+	.basicRange {
+		grid-template-columns: 1fr;
+	}
+}
+
+.editorFields[hidden],
+.addRule[hidden],
+.hint[hidden] {
+	display: none;
+}
+.basicDraft .hint summary {
+	cursor: pointer;
+	padding: 0.75rem 0;
 }

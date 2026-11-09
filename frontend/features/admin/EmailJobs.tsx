@@ -46,7 +46,7 @@ export default function EmailJobs({
 	}, [status]);
 
 	return (
-		<section className={s.section}>
+		<section className={s.section} id="email-jobs">
 			<h2>Email jobs</h2>
 			{data && (
 				<dl className={s.stats}>
@@ -64,7 +64,7 @@ export default function EmailJobs({
 			</p>
 			{error && <Feedback focusOnMount>{error}</Feedback>}
 			{notice && <Feedback tone="success">{notice}</Feedback>}
-			<div className={f.row}>
+			<div className={s.filterBar}>
 				<label className={f.field}>
 					Email status
 					<select
@@ -166,10 +166,11 @@ export default function EmailJobs({
 					<tbody>
 						{data?.items.map((job) => (
 							<tr key={job.id}>
-								<td>
+								<td data-label="Type">
 									{(
 										{
 											verify: "Email verification",
+											notification: "Notification",
 											request: "Password recovery",
 											reset: "Password reset",
 											code: "Authentication code",
@@ -178,7 +179,7 @@ export default function EmailJobs({
 										} as Record<string, string>
 									)[job.kind] || job.kind}
 								</td>
-								<td>
+								<td data-label="Status">
 									{job.status}
 									{job.lastError && (
 										<div className={s.meta}>
@@ -186,16 +187,16 @@ export default function EmailJobs({
 										</div>
 									)}
 								</td>
-								<td>{job.attempts}</td>
-								<td>
+								<td data-label="Attempts">{job.attempts}</td>
+								<td data-label="Created">
 									{new Date(job.createdAt).toLocaleString()}
 								</td>
-								<td>
+								<td data-label="Finished">
 									{job.finishedAt
 										? new Date(
 												job.finishedAt,
 											).toLocaleString()
-										: "—"}
+										: "-"}
 								</td>
 							</tr>
 						))}

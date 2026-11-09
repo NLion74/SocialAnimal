@@ -2,7 +2,13 @@ import { createHash } from "node:crypto";
 import { Temporal } from "@js-temporal/polyfill";
 import { RE2JS } from "re2js";
 
-export const visibilities = ["hidden", "busy", "titles", "full"] as const;
+export const visibilities = [
+	"hidden",
+	"busy",
+	"titles",
+	"full",
+	"highlight",
+] as const;
 
 export type Visibility = (typeof visibilities)[number];
 
@@ -408,8 +414,8 @@ function conditionTrace(
 				path,
 				label:
 					"all" in condition
-						? "AND — all conditions"
-						: "OR — any condition",
+						? "AND - all conditions"
+						: "OR - any condition",
 				result,
 			},
 			...children.flatMap((child, i) =>
@@ -637,9 +643,9 @@ export function compileRuleset(input: unknown): CompiledRuleset {
 }
 
 export function stricter(a: Visibility, b: Visibility): Visibility {
-	return visibilities[
-		Math.min(visibilities.indexOf(a), visibilities.indexOf(b))
-	];
+	const rank = { hidden: 0, busy: 1, titles: 2, full: 3, highlight: 3 };
+	if (rank[a] !== rank[b]) return rank[a] < rank[b] ? a : b;
+	return a === "highlight" || b === "highlight" ? "highlight" : a;
 }
 
 const formatters = new Map<string, Intl.DateTimeFormat>();

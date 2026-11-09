@@ -1,4 +1,8 @@
 /** @type {import('next').NextConfig} */
+const publicHost = process.env.PUBLIC_URL
+	? new URL(process.env.PUBLIC_URL).hostname
+	: null;
+
 const nextConfig = {
 	output: "standalone",
 	logging: {
@@ -6,7 +10,10 @@ const nextConfig = {
 		fetches: { fullUrl: false },
 		serverFunctions: false,
 	},
-	allowedDevOrigins: ["127.0.0.1"],
+	allowedDevOrigins: [
+		"127.0.0.1",
+		...(publicHost && publicHost !== "127.0.0.1" ? [publicHost] : []),
+	],
 	distDir: process.env.NEXT_DIST_DIR || ".next",
 	async headers() {
 		return [

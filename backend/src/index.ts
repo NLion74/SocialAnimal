@@ -1,9 +1,14 @@
+import {
+	reconcileHighlights,
+	deliverNotification,
+} from "./modules/notifications";
 import { runRecoveryTick } from "./modules/identity";
 import { buildApp } from "./app";
 import { prisma } from "./core/database";
 import { encryptionKey } from "./core/secrets";
 import { startRunner } from "./core/jobs";
 import { runSyncTick, validateConnections } from "./modules/integrations";
+import { logProcessFailure } from "./core/http/logging";
 
 async function start() {
 	encryptionKey();
@@ -23,8 +28,17 @@ async function start() {
 		logger: app.log,
 	});
 
-	const stopMail = startRunner(() => runRecoveryTick(app.log), 5000, {
-		name: "email-delivery",
+	const stopMail = startRunner(
+		() => runRecoveryTick(app.log, deliverNotification),
+		5000,
+		{
+			name: "email-delivery",
+			logger: app.log,
+		},
+	);
+
+	const stopNotifications = startRunner(reconcileHighlights, 15000, {
+		name: "notifications",
 		logger: app.log,
 	});
 
@@ -36,12 +50,17 @@ async function start() {
 		app.log.info("Backend shutting down");
 
 		try {
-			await Promise.all([app.close(), stop(), stopMail()]);
+			await Promise.all([
+				app.close(),
+				stop(),
+				stopMail(),
+				stopNotifications(),
+			]);
 			await prisma.$disconnect();
 			// The development watcher keeps an IPC channel open after cleanup.
 			process.exit(0);
-		} catch {
-			console.error("Server shutdown failed");
+		} catch (error) {
+			app.log.error({ err: error }, "Server shutdown failed");
 			process.exit(1);
 		}
 	};
@@ -50,9 +69,10 @@ async function start() {
 	process.once("SIGINT", () => void shutdown());
 }
 
-start().catch(async () => {
-	console.error(
+start().catch(async (error) => {
+	logProcessFailure(
 		"Startup failed: check database schema, calendar connections, JWT_SECRET, and CREDENTIAL_ENCRYPTION_KEY",
+		error,
 	);
 
 	await prisma.$disconnect();

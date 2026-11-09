@@ -72,7 +72,7 @@ export default function HomePage() {
 				<h1 className={s.h1}>SocialAnimal</h1>
 
 				<p className={s.tagline}>
-					Share your calendar with friends —
+					Share your calendar with friends -
 					<br />
 					without giving up your calendar provider.
 				</p>

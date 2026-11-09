@@ -1,3 +1,4 @@
+import { notify } from "../notifications";
 import { prisma } from "../../core/database";
 import { pageArgs, type PageQuery } from "../../core/http";
 
@@ -77,6 +78,7 @@ export async function listFriendshipsWithShares(
 							: (
 									{
 										full: "Full details",
+										highlight: "Highlighted · full details",
 										titles: "Titles only",
 										busy: "Busy only",
 										hidden: "Hidden",
@@ -85,6 +87,7 @@ export async function listFriendshipsWithShares(
 						: (
 								{
 									full: "Full details",
+									highlight: "Highlighted · full details",
 									titles: "Titles only",
 									busy: "Busy only",
 								} as Record<string, string>
@@ -147,6 +150,13 @@ export async function requestFriendByUserId(
 			},
 		});
 
+		await notify(
+			tx,
+			target.id,
+			"friendRequest",
+			friendship.id,
+			`friendRequest:${friendship.id}`,
+		);
 		return friendship;
 	});
 }
@@ -188,13 +198,27 @@ export async function acceptFriendRequest(
 
 	if (!f) return null;
 
-	return prisma.friendship.update({
-		where: { id: friendshipId },
-		data: { status: "accepted" },
-		include: {
-			user1: { select: { id: true, email: true, name: true } },
-			user2: { select: { id: true, email: true, name: true } },
-		},
+	return prisma.$transaction(async (tx) => {
+		await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${[f.user1Id, f.user2Id].sort().join(":")}))`;
+		const accepted = await tx.friendship.updateMany({
+			where: { id: friendshipId, status: "pending", user2Id: userId },
+			data: { status: "accepted" },
+		});
+		if (!accepted.count) return null;
+		await notify(
+			tx,
+			f.user1Id,
+			"friendAccepted",
+			friendshipId,
+			`friendAccepted:${friendshipId}`,
+		);
+		return tx.friendship.findUnique({
+			where: { id: friendshipId },
+			include: {
+				user1: { select: { id: true, email: true, name: true } },
+				user2: { select: { id: true, email: true, name: true } },
+			},
+		});
 	});
 }
 

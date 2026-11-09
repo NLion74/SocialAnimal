@@ -19,6 +19,7 @@ type ParsedEvent = {
 	startTime: Date;
 	endTime: Date;
 	allDay: boolean;
+	blocksTime: boolean;
 };
 
 type FloatingHint = {
@@ -117,6 +118,9 @@ export class CaldavAdapter {
 					userTimezone,
 				),
 				allDay,
+				blocksTime:
+					String(component.transparency || "").toUpperCase() !==
+					"TRANSPARENT",
 			});
 		}
 

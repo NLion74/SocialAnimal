@@ -12,6 +12,8 @@ import settings from "./modules/settings";
 import social from "./modules/social";
 import calendars from "./modules/calendars";
 import integrations from "./modules/integrations";
+import notifications from "./modules/notifications";
+import availability from "./modules/availability";
 import admin from "./modules/admin";
 import sharing, { permissionConditionSchema } from "./modules/sharing";
 
@@ -86,6 +88,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 		const expensive =
 			route.url.startsWith("/feeds/") ||
 			route.url.includes("previews") ||
+			route.url.includes("/availability/") ||
 			route.url.endsWith("/discoveries") ||
 			route.url.endsWith("/tests");
 
@@ -148,6 +151,8 @@ export async function buildApp(): Promise<FastifyInstance> {
 
 	for (const plugin of [
 		admin,
+		availability,
+		notifications,
 		identity,
 		profiles,
 		invitations,

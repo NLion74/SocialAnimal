@@ -18,6 +18,53 @@ const event = (properties: string) =>
 	`BEGIN:VEVENT\r\nUID:recurring\r\nSUMMARY:Planning\r\n${properties}\r\nEND:VEVENT`;
 
 describe("bounded recurrence normalization", () => {
+	it("preserves free/busy transparency and recurrence overrides", async () => {
+		const rows = await parseWindow(
+			[
+				feed(
+					event(
+						"DTSTART:20261024T130000Z\r\nDTEND:20261024T140000Z\r\nRRULE:FREQ=DAILY;COUNT=3\r\nTRANSP:TRANSPARENT",
+					) +
+						"\r\n" +
+						event(
+							"RECURRENCE-ID:20261025T130000Z\r\nDTSTART:20261025T130000Z\r\nDTEND:20261025T140000Z\r\nTRANSP:OPAQUE",
+						),
+				),
+			],
+			window,
+		);
+		expect(rows.map((row) => row.blocksTime)).toEqual([false, true, false]);
+		const defaults = await parseWindow(
+			[feed(event("DTSTART:20261024T130000Z\r\nDTEND:20261024T140000Z"))],
+			window,
+		);
+		expect(defaults[0].blocksTime).toBe(true);
+	});
+
+	it.each([
+		"X-WR-TIMEZONE:Europe/London",
+		"TIMEZONE-ID:Europe/London",
+		"BEGIN:VTIMEZONE\r\nTZID:Europe/London\r\nEND:VTIMEZONE",
+		"X-WR-TIMEZONE:Europe/\r\n London",
+	])(
+		"preserves main's calendar timezone precedence for floating times: %s",
+		async (metadata) => {
+			const rows = await parseWindow(
+				[
+					feed(
+						`${metadata}\r\n${event("DTSTART:20261024T130000\r\nDTEND:20261024T140000")}`,
+					),
+				],
+				window,
+				"America/New_York",
+			);
+
+			expect(rows[0].startTime.toISOString()).toBe(
+				"2026-10-24T12:00:00.000Z",
+			);
+		},
+	);
+
 	it("expands floating recurrences in the owner's timezone across DST", async () => {
 		const rows = await parseWindow(
 			[
@@ -108,6 +155,6 @@ describe("bounded recurrence normalization", () => {
 				],
 				window,
 			),
-		).rejects.toThrow();
+		).rejects.toThrow("PROVIDER_RESPONSE_TOO_LARGE");
 	});
 });

@@ -156,4 +156,5 @@ export const googleFetch = async (
 			startTime: new Date(e.start.dateTime || e.start.date),
 			endTime: new Date(e.end.dateTime || e.end.date),
 			allDay: !e.start.dateTime,
+			blocksTime: e.transparency !== "transparent",
 		}));

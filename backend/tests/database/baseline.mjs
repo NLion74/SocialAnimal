@@ -1,51 +1,19 @@
-// Applies only committed historical migrations to an EMPTY disposable database.
-// Never uses schema push, reset, or rewrites migration history.
+// Create the supported historical baseline through Prisma, including checksums.
 import pg from "pg";
-import { readdir, readFile, writeFile } from "node:fs/promises";
-
+import { deployProductionBaseline } from "./upgrade-support.mjs";
 const url = process.env.TEST_DATABASE_URL;
-
 if (!url || !new URL(url).pathname.endsWith("_test"))
 	throw new Error("TEST_DATABASE_URL must name a disposable *_test database");
-
 const db = new pg.Client({ connectionString: url });
-
 await db.connect();
-
-if (
-	(
-		await db.query(
-			`SELECT tablename FROM pg_tables WHERE schemaname='public'`,
-		)
-	).rows.length
-)
-	throw new Error("Baseline requires an empty database");
-
-for (const name of (await readdir("prisma/migrations")).sort()) {
+try {
 	if (
-		name > "20260305102000_add_default_tab_to_user_settings" ||
-		name === "migration_lock.toml"
+		(await db.query("SELECT 1 FROM pg_tables WHERE schemaname='public'"))
+			.rowCount
 	)
-		continue;
-
-	await db.query(
-		await readFile(`prisma/migrations/${name}/migration.sql`, "utf8"),
-	);
+		throw new Error("Baseline requires an empty database");
+	deployProductionBaseline(url);
+	console.log("Production baseline and 14 migration checksums established.");
+} finally {
+	await db.end();
 }
-
-const columns = (
-	await db.query(
-		`SELECT table_name, column_name, data_type, column_default, is_nullable FROM information_schema.columns WHERE table_schema='public' ORDER BY table_name, ordinal_position`,
-	)
-).rows;
-
-await writeFile(
-	"tests/database/baseline-columns.json",
-	JSON.stringify(columns, null, "\t") + "\n",
-);
-
-console.log(
-	`Established baseline: ${columns.length} columns. Historical defaultSharePermission is retained.`,
-);
-
-await db.end();

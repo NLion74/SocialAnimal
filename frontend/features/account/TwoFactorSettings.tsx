@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useSession } from "./SessionProvider";
 import { accountApi } from "./api";
-import { apiClient } from "../../lib/api";
 import Feedback from "../../components/Feedback";
 import CopyField from "../../components/CopyField";
 import s from "../permissions/Permissions.module.css";
@@ -128,7 +127,6 @@ export default function TwoFactorSettings() {
 							if (!result.token)
 								throw new Error("Enrollment did not complete");
 
-							apiClient.setToken(result.token);
 							setCodes(result.recoveryCodes || []);
 							setEnrollment(null);
 							setCode("");

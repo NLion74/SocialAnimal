@@ -56,13 +56,22 @@ jobs:
               working-directory: ./backend
               run: npm run build && node tests/database/fresh.mjs
 
-            - name: Verify populated database setup
+            - name: Build the Compose backend image for upgrade tests
+              run: docker build -t socialanimal-upgrade-ci ./backend
+
+            - name: Verify populated database setup through the production image
               working-directory: ./backend
+              env:
+                  SETUP_IMAGE: socialanimal-upgrade-ci
               run: node tests/database/permissions-setup.mjs
 
             - name: Run tests
               working-directory: ./backend
               run: npm test
+
+            - name: Verify development and production calendar workers
+              working-directory: ./backend
+              run: npm run test:provider-runtime
 
             - name: Check generated API client
               working-directory: ./backend
@@ -158,15 +167,18 @@ jobs:
                   for (const [key, value] of Object.entries(values)) {
                       text = text.replace(new RegExp(`^${key}=.*$`, "m"), `${key}=${value}`);
                   }
-                  writeFileSync(".env.build", text, { mode: 0o600 });
+                  for (const file of [".env", ".env.dev", ".env.build"]) {
+                      writeFileSync(file, text, { mode: 0o600 });
+                  }
                   JS
 
             - name: Validate all Compose modes
               run: |
-                  node scripts/validate-compose.mjs development .env.build
-                  node scripts/validate-compose.mjs build .env.build
-                  node scripts/validate-compose.mjs production .env.build
-                  node scripts/validate-compose.mjs legacy .env.build
+                  node --test tests/deployment/compose-env.test.mjs
+                  node scripts/validate-compose.mjs development
+                  node scripts/validate-compose.mjs build
+                  node scripts/validate-compose.mjs production
+                  node scripts/validate-compose.mjs legacy
 
             - name: Build and start production-mode images
               run: docker compose --env-file .env.build -f build-docker-compose.yml up --build --wait --wait-timeout 180
@@ -176,24 +188,24 @@ jobs:
                   docker compose --env-file .env.build -f build-docker-compose.yml exec -T backend wget -qO- http://127.0.0.1:4000/ready
                   node tests/deployment/compose-smoke.mjs
 
-            - name: Start production Compose using the same prebuilt images and database
+            - name: Start production Compose using the same prebuilt images
               run: |
                   docker compose --env-file .env.build -f build-docker-compose.yml down
-                  docker compose --env-file .env.build -f docker-compose.yml up --no-build --pull never --wait --wait-timeout 180
+                  docker compose -f docker-compose.yml up --no-build --pull never --wait --wait-timeout 180
 
             - name: Smoke-test production Compose
               run: node tests/deployment/compose-smoke.mjs
 
             - name: Smoke-test legacy Compose filename
               run: |
-                  docker compose --env-file .env.build -f legacy-docker-compose.yml up --no-build --pull never --wait --wait-timeout 180
+                  docker compose -f legacy-docker-compose.yml up --no-build --pull never --wait --wait-timeout 180
                   node tests/deployment/compose-smoke.mjs
 
             - name: Stop production services before testing development ports
-              run: docker compose --env-file .env.build -f docker-compose.yml down
+              run: docker compose -f docker-compose.yml down
 
             - name: Start development Compose
-              run: docker compose -p socialanimal-ci-dev --env-file .env.build -f dev-docker-compose.yml up --wait --wait-timeout 300
+              run: docker compose --env-file .env.dev -f dev-docker-compose.yml -p socialanimal-ci-dev up --wait --wait-timeout 300
 
             - name: Smoke-test development Compose
               run: node tests/deployment/compose-smoke.mjs
@@ -201,11 +213,11 @@ jobs:
             - name: Show service logs
               if: failure()
               run: |
-                  docker compose --env-file .env.build -f docker-compose.yml logs --tail 100
-                  docker compose -p socialanimal-ci-dev --env-file .env.build -f dev-docker-compose.yml logs --tail 100
+                  docker compose -f docker-compose.yml logs --tail 100
+                  docker compose --env-file .env.dev -f dev-docker-compose.yml -p socialanimal-ci-dev logs --tail 100
 
             - name: Stop disposable test services
               if: always()
               run: |
-                  docker compose --env-file .env.build -f docker-compose.yml down -v
-                  docker compose -p socialanimal-ci-dev --env-file .env.build -f dev-docker-compose.yml down -v
+                  docker compose -f docker-compose.yml down -v
+                  docker compose --env-file .env.dev -f dev-docker-compose.yml -p socialanimal-ci-dev down -v

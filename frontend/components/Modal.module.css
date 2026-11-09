@@ -40,6 +40,10 @@
 	border-bottom: 1px solid var(--border);
 }
 
+.wide {
+	max-width: 880px;
+}
+
 .header h2 {
 	min-width: 0;
 	overflow-wrap: anywhere;
@@ -71,6 +75,10 @@
 }
 
 .footer {
+	position: sticky;
+	bottom: 0;
+	z-index: 1;
+	background: var(--bg-elevated);
 	padding: 1.5rem;
 	border-top: 1px solid var(--border);
 	display: flex;
@@ -100,5 +108,33 @@
 
 	.footer {
 		flex-wrap: wrap;
+	}
+}
+
+@media (max-width: 600px) {
+	.overlay:has(.wide) {
+		padding: 0;
+	}
+
+	.wide {
+		max-height: 100dvh;
+		height: 100dvh;
+		border: 0;
+		border-radius: 0;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.wide .body {
+		flex: 1;
+	}
+
+	.wide .header,
+	.wide .footer {
+		flex-shrink: 0;
+	}
+
+	.wide .footer {
+		padding-bottom: max(1rem, env(safe-area-inset-bottom));
 	}
 }

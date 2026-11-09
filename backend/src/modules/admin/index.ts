@@ -4,6 +4,8 @@ import { prisma } from "../../core/database";
 import {
 	authenticateToken,
 	deleteAccount,
+	beginAccountDeletion,
+	type DeletionProof,
 	resetFactor,
 	requireRecentAuthentication,
 	requestPasswordReset,
@@ -68,13 +70,77 @@ const routes: FastifyPluginAsync = async (app) => {
 	app.addHook("preHandler", authenticateToken);
 	app.addHook("preHandler", async (req) => requireStaff(req.user.id));
 
-	app.delete<{ Params: { id: string } }>(
+	app.post<{ Params: { id: string }; Body: { recovery?: boolean } }>(
+		"/admin/users/:id/deletion-challenges",
+		{
+			schema: contract(
+				"beginAdminAccountDeletion",
+				obj(
+					{
+						required: bool,
+						challenge: str,
+						method: str,
+						expiresAt: date,
+					},
+					["required"],
+				),
+				{ body: obj({ recovery: bool }, []) },
+			),
+		},
+		async (req) => {
+			await requireAdmin(req.user.id);
+			requireRecentAuthentication(req);
+
+			return beginAccountDeletion(
+				req.params.id,
+				req.body.recovery,
+				undefined,
+				req.user.id,
+			);
+		},
+	);
+
+	app.delete<{
+		Params: { id: string };
+		Body?: { confirmation?: DeletionProof };
+	}>(
 		"/admin/users/:id",
-		{ schema: contract("deleteAdminUser", { type: "null" }, {}, 204) },
+		{
+			// Keep requests without a body valid for accounts without a second factor.
+			preValidation: async (req) => {
+				req.body ??= {};
+			},
+			schema: contract(
+				"deleteAdminUser",
+				{ type: "null" },
+				{
+					body: obj(
+						{
+							confirmation: obj({
+								challenge: str,
+								code: {
+									type: "string",
+									minLength: 1,
+									maxLength: 32,
+								},
+							}),
+						},
+						[],
+					),
+				},
+				204,
+			),
+		},
 		async (req, reply) => {
 			await requireAdmin(req.user.id);
 			requireRecentAuthentication(req);
-			await deleteAccount(req.params.id, req.user.id);
+
+			await deleteAccount(
+				req.params.id,
+				req.user.id,
+				req.body?.confirmation,
+			);
+
 			return reply.code(204).send();
 		},
 	);

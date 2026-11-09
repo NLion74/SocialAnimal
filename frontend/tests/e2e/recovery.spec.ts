@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect, adminSection } from "./fixtures";
 import { createRequire } from "node:module";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 
@@ -126,8 +126,12 @@ test("password recovery, admin email action, and mobile reset feedback", async (
 
 		await expect(page).toHaveURL(/\/dashboard$/);
 		await page.goto("/admin");
+		await adminSection(page, "Users");
 		await page.getByLabel("Search users").fill(email);
 		await page.getByRole("button", { name: "Search", exact: true }).click();
+		await expect(
+			page.getByRole("button", { name: "Manage", exact: true }),
+		).toHaveCount(1);
 		await page.getByRole("button", { name: "Manage", exact: true }).click();
 
 		await page

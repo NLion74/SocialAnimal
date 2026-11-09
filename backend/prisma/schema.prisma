@@ -59,6 +59,9 @@ model User {
 	permissionsInitialized Boolean @default(false)
 	rulesets PermissionRuleset[]
 	emailVerification EmailVerification?
+	notifications Notification[]
+	calendarColors CalendarColor[]
+	highlights EventHighlight[]
 }
 
 model AppSettings {
@@ -77,6 +80,10 @@ model AppSettings {
 }
 
 model UserSettings {
+	emailFriendRequests Boolean @default(false)
+	emailFriendAccepted Boolean @default(false)
+	emailHighlights Boolean @default(false)
+	emailSyncFailures Boolean @default(false)
 	id                     String @id @default(uuid())
 	userId                 String @unique
 	user                   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -99,6 +106,10 @@ model InviteCode {
 }
 
 model Calendar {
+	color String @default("blue")
+	coverageStart DateTime?
+	coverageEnd DateTime?
+	viewerColors CalendarColor[]
 	id           String    @id @default(cuid())
 	userId       String
 	name         String
@@ -128,6 +139,7 @@ model Calendar {
 }
 
 model CalendarShare {
+	highlightRevision String @default("")
 	expiresAt DateTime?
 	id           String   @id @default(uuid())
 	calendarId   String
@@ -144,6 +156,7 @@ model CalendarShare {
 }
 
 model Event {
+	highlights EventHighlight[]
 	isRecurring Boolean?
 	id          String   @id @default(cuid())
 	calendarId  String
@@ -154,6 +167,7 @@ model Event {
 	startTime   DateTime
 	endTime     DateTime
 	allDay      Boolean  @default(false)
+	blocksTime  Boolean  @default(true)
 	createdAt   DateTime @default(now())
 	updatedAt   DateTime @updatedAt
 
@@ -312,4 +326,33 @@ model AuthChallenge {
 	createdAt DateTime @default(now())
 	expiresAt DateTime
 	@@index([userId, purpose])
+}
+
+model CalendarColor {
+	userId String
+	calendarId String
+	color String
+	user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+	calendar Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+	@@id([userId, calendarId])
+}
+
+model Notification {
+	id String @id @default(uuid())
+	userId String
+	user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+	kind String
+	referenceId String
+	dedupeKey String @unique
+	createdAt DateTime @default(now())
+	readAt DateTime?
+	@@index([userId, createdAt])
+}
+
+model EventHighlight {
+	userId String
+	eventId String
+	user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+	event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+	@@id([userId, eventId])
 }

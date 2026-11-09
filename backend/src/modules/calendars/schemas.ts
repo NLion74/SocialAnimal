@@ -1,3 +1,4 @@
+import { colorSchema } from "./colors";
 import { obj, str, nullableString, integer, bool, date } from "../../core/http";
 
 export const calendarSchema = obj(
@@ -5,6 +6,8 @@ export const calendarSchema = obj(
 		id: str,
 		name: str,
 		type: str,
+		color: colorSchema,
+		timezone: str,
 		connectionId: nullableString,
 		remoteId: nullableString,
 		syncInterval: integer,
@@ -27,6 +30,7 @@ export const eventSchema = obj({
 	endTime: date,
 	allDay: bool,
 	isFriend: bool,
+	highlighted: bool,
 	calendar: obj({ id: str, name: str, type: str }),
 	owner: obj({ id: str, email: str, name: nullableString }),
 });

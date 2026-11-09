@@ -5,6 +5,7 @@ import { mkdtemp, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { randomBytes } from "node:crypto";
 import secrets from "../../dist/core/secrets/index.js";
+import { snapshot, preserved, catalog } from "./upgrade-support.mjs";
 
 const url = process.env.TEST_DATABASE_URL;
 
@@ -82,39 +83,22 @@ const restored = new pg.Client({ connectionString: restoredUrl.toString() });
 
 await restored.connect();
 
-for (const table of [
-	"User",
-	"UserSettings",
-	"Calendar",
-	"Event",
-	"Friendship",
-	"CalendarShare",
-	"InviteCode",
-	"AppSettings",
-	"Connection",
-	"Subscription",
-	"OAuthFlow",
-	"SyncRun",
-	"PermissionRuleset",
-	"EmailVerification",
-	"PasswordReset",
-	"RecoveryMail",
-	"AuthChallenge",
-]) {
-	const query = `SELECT * FROM "${table}" ORDER BY id`;
-
-	assert.deepEqual(
-		(await restored.query(query)).rows,
-		(await db.query(query)).rows,
-		table,
-	);
-}
-
-assert.deepEqual(
-	(await restored.query('SELECT * FROM "RecoveryThrottle" ORDER BY key'))
-		.rows,
-	(await db.query('SELECT * FROM "RecoveryThrottle" ORDER BY key')).rows,
-	"RecoveryThrottle",
+await preserved(restored, await snapshot(db));
+assert.ok(
+	JSON.stringify(await catalog(restored)) ===
+		JSON.stringify(await catalog(db)),
+	"Restored columns, indexes, constraints and enums match",
+);
+assert.ok(
+	JSON.stringify(
+		(await restored.query("SELECT * FROM _prisma_migrations ORDER BY id"))
+			.rows,
+	) ===
+		JSON.stringify(
+			(await db.query("SELECT * FROM _prisma_migrations ORDER BY id"))
+				.rows,
+		),
+	"Restored migration history matches",
 );
 
 for (const row of (await restored.query('SELECT credentials FROM "Connection"'))
@@ -141,6 +125,15 @@ for (const row of (
 	)
 ).rows)
 	secrets.decrypt(row.secret);
+
+execFileSync(process.execPath, ["dist/setup-database.js"], {
+	env: {
+		...process.env,
+		DATABASE_URL: restoredUrl.toString(),
+		JWT_SECRET: process.env.JWT_SECRET || "restore-test",
+	},
+	stdio: "pipe",
+});
 
 console.log(
 	`Restored ${name}; all table contents and encrypted credentials verified. Test backup: ${file}`,

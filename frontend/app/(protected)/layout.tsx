@@ -6,6 +6,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { Calendar, Users, Home, User, LogOut, Shield } from "lucide-react";
 import { useSession } from "../../features/account/SessionProvider";
+import { NotificationProvider } from "../../features/notifications/NotificationProvider";
+import { NotificationBadge } from "../../features/notifications/Notifications";
 import VerificationNotice from "../../features/account/VerificationNotice";
 import s from "./layout.module.css";
 
@@ -16,11 +18,7 @@ const TABS = [
 	{ id: "/profile", label: "Profile", icon: User },
 ];
 
-export default function ProtectedLayout({
-	children,
-}: {
-	children: React.ReactNode;
-}) {
+function ProtectedContent({ children }: { children: React.ReactNode }) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const { user, loading, error, logout, refresh } = useSession();
@@ -104,10 +102,25 @@ export default function ProtectedLayout({
 					<Link
 						key={id}
 						href={id}
+						aria-label={label}
+						aria-describedby={
+							id === "/admin"
+								? undefined
+								: `notices-${id.slice(1)}`
+						}
 						className={`${s.tabBtn} ${pathname === id ? s.active : ""}`}
 					>
 						<Icon size={14} />
 						{label}
+						{id !== "/admin" && (
+							<NotificationBadge
+								tab={
+									id === "/dashboard"
+										? undefined
+										: id.slice(1)
+								}
+							/>
+						)}
 					</Link>
 				))}
 			</div>
@@ -133,5 +146,17 @@ export default function ProtectedLayout({
 				)}
 			</main>
 		</div>
+	);
+}
+
+export default function ProtectedLayout({
+	children,
+}: {
+	children: React.ReactNode;
+}) {
+	return (
+		<NotificationProvider>
+			<ProtectedContent>{children}</ProtectedContent>
+		</NotificationProvider>
 	);
 }

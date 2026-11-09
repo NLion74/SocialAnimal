@@ -122,7 +122,9 @@ export async function authenticateToken(request: FastifyRequest) {
 		);
 
 	const readOnlyPost =
-		request.method === "POST" && path.endsWith("/previews");
+		request.method === "POST" &&
+		(path.endsWith("/previews") ||
+			path === "/api/v1/availability/searches");
 
 	if (
 		user.accountRole === "readonly" &&

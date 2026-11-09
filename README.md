@@ -9,15 +9,19 @@
 
 > Name inspired by _The Social Animal_ by Elliot Aronson - no real psychological correlation, just a fitting name.
 
-SocialAnimal is a **self-hosted social calendar platform** that lets you share your calendar with friends. This is **not** a self-hosted calendar server - tools like [Radicale](https://radicale.org/) do that job well. SocialAnimal sits on top: you and your friends log in, import your existing calendars, and share them with each other - with full control over what they can see.
+SocialAnimal is a **self-hosted social calendar platform** that lets you share your calendar with friends, family, or partners without switching calendar providers.
 
-Friends can view shared calendars directly inside the app, or export them as an ICS link into their own calendar client.
+This is **not** a self-hosted calendar server - tools like [Radicale](https://radicale.org/) already do that job well. Instead, SocialAnimal connects to your existing calendars (Google Calendar, iCloud, CalDAV, or ICS feeds) and lets you decide who can see what.
+
+Friends can view shared events inside SocialAnimal, or subscribe to them from their own calendar app using an ICS link. You can also share calendars through links that don't require an account.
 
 ## Try it
 
 A public instance is available at:
 
 https://socialanimal.net
+
+SocialAnimal is still **pre-1.0**. Things may change, and bugs are to be expected. If you're self-hosting, keep backups.
 
 ---
 
@@ -35,202 +39,312 @@ https://socialanimal.net
 
 ### Friends Tab
 
-| Friend Request             | Share Menu                       |
-| -------------------------- | -------------------------------- |
-| ![](assets/friend-add.png) | ![](assets/friend-sharemenu.png) |
+| Friends                 | Sharing Permissions              |
+| ----------------------- | -------------------------------- |
+| ![](assets/friends.png) | ![](assets/friend-sharemenu.png) |
+
+### Permission Rules
+
+![Basic visibility rules](assets/ruleset-basic.png)
 
 ### Profile Tab
 
-![](assets/profile.png)
+![Profile](assets/profile.png)
 
-### Landing Page
+### Admin Tab
 
-![](assets/main-page.png)
+![User management](assets/admin-users.png)
 
 ---
 
 ## Why SocialAnimal?
 
-Many proprietary apps act as a social calendar, but usually require everyone to use their platform as a calendar provider.
+Most social calendar apps want everyone to use the same platform. But what if you already have your calendars set up and just want to share them with other people?
 
-But what if you want to keep using your existing calendar provider and simply share it with others?
+SocialAnimal sits on top of your existing calendar providers. Keep using your usual calendar app while sharing your schedule with others.
 
-SocialAnimal takes a different approach: it connects to your existing calendars and lets you share them with friends, family, or partners.
-
-- View shared events directly in the app or subscribe to them in your own calendar
-- Rulesets control what you share, with whom, and under which conditions.
+- **Keep your provider:** Import calendars from Google Calendar, iCloud, CalDAV, or an ICS feed.
+- **Control what others see:** Share full event details, just titles, or only whether you're busy. You can also hide events and set more specific rules.
+- **Share outside the app:** Let people subscribe to a shared calendar through ICS, or create a sharing link for someone without an account.
+- **Host it yourself:** Run the app on your own server with Docker.
 
 ## Current Features
 
 **Accounts & Social**
 
-- Password sign-in, optional email verification, password recovery, and profile settings
-- Two-factor authentication using email codes or an authenticator app, with recovery codes
-- Administrator-enforced verification and 2FA with restricted setup access
-- Admin UI with account roles, calendar limits, sync windows, default preferences, statistics, synchronization logs, and email job history
-- Administrator account deletion, password reset emails, and two-factor recovery
-- Multiple single-use invitations with expiry, revocation, and registration links
-- Editable sharing rulesets with simple and expert editors, plus list/calendar previews explaining which rules matched
-- Friend system (requests, accept/decline)
+- User accounts, profiles, and friend requests
+- Admin dashboard for users, registration, invitations, and instance settings
+- Email verification, password resets, and sign-in codes (with SMTP configured)
+- Authenticator-based two-factor authentication and recovery codes
 
 **Calendar Integration**
 
-- Google Calendar import
-- CalDAV / iCloud support
-- ICS / iCal feed import
-- ICS export for external calendar clients
-- Multiple named sharing links with independent rulesets, optional expiration, and revocable calendar previews for people without an account
+- Google Calendar import through OAuth
+- iCloud and other CalDAV calendars
+- ICS / iCal feed imports
+- Automatic calendar synchronization with configurable limits
+- ICS links for external calendar clients
 
 **Calendar Experience**
 
 - Day, week, and month views
-- Side-by-side view of your events and friends' calendars
-- Toggle individual calendars in the sidebar
+- View your own and your friends' shared events together
+- Toggle individual calendars on and off
 
 **Sharing & Permissions**
 
-- Share calendars with friends, with optional expiration per grant
-- Per-calendar visibility controls:
-    - Hidden
-    - Busy only
-    - Titles only
-    - Full event details
-- Rules can combine calendar, friend, event, and owner-timezone date/time attributes
-- Event conditions include description, location/description presence, and recurrence
-- Public previews offer list and calendar views; rule explanations remain private to the owner
-
-**Automation**
-
-- Automatic calendar sync on configurable intervals
+- Share individual calendars with friends
+- Visibility levels: full details, titles only, busy only, or hidden
+- Rules for specific times and events
+- Shareable links for people without accounts, with optional expiration and revocation
 
 ## Roadmap
 
-This project is not in a stable version as of yet. Stable release is planned for version v1.0.0.
+SocialAnimal is not at a stable v1.0 release yet. Some ideas for future development include:
 
-Major architectural changes, severe bugs, or data loss are to be expected.
+- [ ] More calendar integrations, such as Outlook, Proton, or Fastmail
+- [ ] Creating and managing events directly in SocialAnimal
+- [ ] Finding shared free time between friends
+- [ ] More export and calendar-push options
+- [ ] Calendar color customization
 
-What is still planned:
-
-- [ ] Easy integration for Proton, Outlook, Fastmail and possibly more
-- [ ] More export types with direct push to calendars
-- [ ] Default calendar sharing state for new friends
-- [ ] Managing Events directly within the app (Own calendar provider type, would allow shared calendars multiple people can manage)
-- [ ] Determine Shared Free Time
-- [ ] Profile avatars and Calendar color customization
-- [ ] Incremental provider synchronization
-- [ ] Many more small improvements...
+These are ideas rather than promises or a fixed release schedule. Suggestions and contributions are welcome.
 
 ---
 
 ## Setup
 
-### Quick Start
+### Quick Start (Docker)
 
-Pull the compose file and example environment:
+To run the published version of SocialAnimal, you only need **Docker with the Compose plugin**. No Git checkout or local Node.js installation is required.
+
+Download the Compose file and environment template:
 
 ```bash
 curl -O https://raw.githubusercontent.com/NLion74/SocialAnimal/refs/heads/main/docker-compose.yml
 curl -O https://raw.githubusercontent.com/NLion74/SocialAnimal/refs/heads/main/example.env
-
 cp example.env .env
 ```
 
-Edit .env with your configuration:
+Edit `.env` and set at least:
+
+| Variable                    | Description                                                                 |
+| --------------------------- | --------------------------------------------------------------------------- |
+| `POSTGRES_PASSWORD`         | Password for the PostgreSQL database                                        |
+| `JWT_SECRET`                | Secret for authentication sessions                                          |
+| `CREDENTIAL_ENCRYPTION_KEY` | A 64-character hexadecimal key for encrypting saved credentials             |
+| `PUBLIC_URL`                | The URL from which users access SocialAnimal (e.g. `http://localhost:3000`) |
+| `SOCIALANIMAL_VERSION`      | A [published release tag](https://github.com/NLion74/SocialAnimal/releases) |
+
+Generate separate random values for the database password, JWT secret, and encryption key:
 
 ```bash
-# See Google Calendar Setup below
-GOOGLE_CLIENT_ID=clientid
-GOOGLE_CLIENT_SECRET=clientsecret
-GOOGLE_REDIRECT_URI=http://localhost:3000/api/v1/connections/google/callback
+openssl rand -hex 32
+```
 
-POSTGRES_PASSWORD="generate-with-openssl-rand-hex-32"
-DATABASE_URL="postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/socialanimal"
-JWT_SECRET="replace-with-a-random-secret"
-CREDENTIAL_ENCRYPTION_KEY="generate-with-openssl-rand-hex-32-and-back-up"
-SOCIALANIMAL_VERSION="your-published-release-tag"
+Run this command three times. The example `DATABASE_URL` uses `POSTGRES_PASSWORD` automatically; leave the database hostname as `db` when using Docker Compose.
+
+Then start the application:
+
+```bash
+docker compose up -d --wait
+```
+
+Open http://localhost:3000 (or your configured `PUBLIC_URL`) and register. **The first registered account becomes the administrator.**
+
+From there, add calendars on the dashboard and share them through the Friends section. For iCloud, you'll need an Apple app-specific password; for an ICS feed, just supply its URL.
+
+**Important:** Keep your `.env` file private. When moving or restoring an existing database, keep the database password and `CREDENTIAL_ENCRYPTION_KEY` unchanged, since the encryption key is needed to read saved provider credentials and authenticator secrets. If a password contains `$`, put its value in single quotes so Compose doesn't interpret it as a variable (but leave the example `DATABASE_URL` references unquoted).
+
+For a local source build or live-reload setup, see [Development](#development).
+
+### Environment Variables
+
+Use [example.env](example.env) as the starting point for `.env`, `.env.build`, or `.env.dev`. The full template is included below; replace the blank required secrets and choose your own SMTP server if you enable email.
+
+<details>
+<summary>View example.env</summary>
+
+```dotenv
+# Production: copy to .env, fill in secrets and a published release tag.
+# Build testing: copy to .env.build and use SOCIALANIMAL_VERSION=local.
+# Development: copy to .env.dev; dev Compose always runs in development mode.
+# Single-quote literal secrets containing $, e.g. SMTP_PASSWORD='your-password'.
+SOCIALANIMAL_VERSION=
 NODE_ENV=production
+
+# Leave blank to use Compose defaults: verbose in development, production otherwise.
+# Both modes write structured JSON to stdout with sensitive data omitted.
+# Verbose includes request starts, health checks, job timings and safe error locations.
+LOG_MODE=
+# Optional override: fatal, error, warn, info, debug, trace, silent.
+# Defaults to debug in verbose mode and info in production mode.
+LOG_LEVEL=
+
+# Host ports. Containers always use frontend 3000, backend 4000 and PostgreSQL 5432.
+# BACKEND_PORT and DB_PORT are exposed only by development Compose.
 FRONTEND_PORT=3000
-PUBLIC_URL=http://localhost:3000
 BACKEND_PORT=4000
+DB_PORT=5432
+PUBLIC_URL=http://localhost:3000
+
+POSTGRES_USER=postgres
+POSTGRES_DB=socialanimal
+# Generate a password with: openssl rand -hex 32
+POSTGRES_PASSWORD=
+DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+
+# Generate independently with: openssl rand -hex 32
+JWT_SECRET=
+
+# Generate with: openssl rand -hex 32
+# Keep this key stable and back it up with the database.
+CREDENTIAL_ENCRYPTION_KEY=
+
+# Optional Google integration. Set all three together, or leave them blank.
+# The callback must also be registered in Google Cloud:
+# https://YOUR_PUBLIC_HOST/api/v1/connections/google/callback
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=
+
+MIN_SYNC_INTERVAL_MINUTES=15
+SYNC_CONCURRENCY=3
+
+# Optional exact hostnames/IPs for self-hosted providers on private networks.
+# Leave empty to block private network targets. Never use a wildcard.
+PRIVATE_PROVIDER_HOSTS=
+
+# Verification email. Configure SMTP before enabling required verification in Admin.
+# Port 587 uses STARTTLS; use SMTP_SECURE=true with port 465 for implicit TLS.
+SMTP_HOST=mail.nlion.nl
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_REQUIRE_TLS=true
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM=
+
+# Optional comma-separated browser origins; defaults to PUBLIC_URL.
+CORS_ORIGINS=
+# Only list proxy addresses/subnets you control. Empty means ignore forwarded IPs.
+TRUSTED_PROXY_CIDRS=
 ```
 
-Start the services:
+</details>
 
-```bash
-docker compose up -d
-```
+Every variable in the template is described here. Port values refer to the host; the containers keep their internal ports.
 
-The service will be available at `PUBLIC_URL`. Set `FRONTEND_PORT` to choose its host port. Containers use fixed internal ports; only the frontend is exposed in production. Keep the database password and encryption key stable when reusing a database.
+| Variable                    | What it does                                                                                                                                                                                                                      |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SOCIALANIMAL_VERSION`      | Docker image tag for release and build mode. Use a published release tag for release mode, or `local` for a local build. Development uses fixed image names.                                                                      |
+| `NODE_ENV`                  | Application runtime mode. Compose sets this to `production` for release/build and `development` for dev, overriding the value in the environment file.                                                                            |
+| `LOG_MODE`                  | Logging detail: `verbose` includes request starts, health checks, and job timings; `production` is quieter. Blank uses verbose logging in development and production logging otherwise. Secrets are omitted in both modes.        |
+| `LOG_LEVEL`                 | Minimum log severity: `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`. Blank uses `debug` in verbose mode and `info` in production mode.                                                                          |
+| `FRONTEND_PORT`             | Host port for the web interface; defaults to `3000`.                                                                                                                                                                              |
+| `BACKEND_PORT`              | Host port for direct backend access in development; defaults to `4000`. Release and build mode do not expose this port.                                                                                                           |
+| `DB_PORT`                   | Host port for PostgreSQL access in development; defaults to `5432`. Release and build mode do not expose this port.                                                                                                               |
+| `PUBLIC_URL`                | Browser-facing origin, including scheme and any nonstandard port, such as `https://calendar.example.com`. Used for generated links, authentication redirects, and the default allowed browser origin.                             |
+| `POSTGRES_USER`             | PostgreSQL user created when initializing the database; defaults to `postgres`. Must match the username in `DATABASE_URL`.                                                                                                        |
+| `POSTGRES_DB`               | Database created on first startup; defaults to `socialanimal`. Must match the database name in `DATABASE_URL`.                                                                                                                    |
+| `POSTGRES_PASSWORD`         | Password used to initialize the PostgreSQL user. Required even with a literal `DATABASE_URL`; setting it does not change an existing database user's password.                                                                    |
+| `DATABASE_URL`              | PostgreSQL connection string used by setup and the backend. The template expands the `POSTGRES_*` values and connects to Compose service `db` on internal port `5432`. URL-encode special characters if writing the URL yourself. |
+| `JWT_SECRET`                | Secret used to sign and verify authentication tokens. Generate it independently of the other secrets; changing it invalidates existing tokens.                                                                                    |
+| `CREDENTIAL_ENCRYPTION_KEY` | Exactly 64 hexadecimal characters used to encrypt saved provider credentials and authenticator secrets. Keep it stable and back it up with the database; a different key cannot decrypt existing records.                         |
+| `GOOGLE_CLIENT_ID`          | OAuth client ID for Google Calendar imports. Optional; configure it together with the other two Google variables.                                                                                                                 |
+| `GOOGLE_CLIENT_SECRET`      | Secret belonging to that Google OAuth client. Leave all three Google variables blank if Google imports are not needed.                                                                                                            |
+| `GOOGLE_REDIRECT_URI`       | Google OAuth callback URL: `PUBLIC_URL` followed by `/api/v1/connections/google/callback`. It must exactly match an authorized redirect URI in Google Cloud.                                                                      |
+| `MIN_SYNC_INTERVAL_MINUTES` | Minimum interval between automatic calendar synchronizations, in minutes; defaults to `15`. Admin can raise the instance minimum above this value.                                                                                |
+| `SYNC_CONCURRENCY`          | Maximum number of calendar sync jobs processed concurrently; defaults to `3`, with a supported range of `1`–`16`.                                                                                                                 |
+| `PRIVATE_PROVIDER_HOSTS`    | Optional comma-separated exact hostnames or IP addresses allowed for calendar providers on private networks. Blank blocks private network targets; wildcards are not supported.                                                   |
+| `SMTP_HOST`                 | SMTP server for account and notification emails. Replace the example host with your mail provider's server; email requires both this value and `SMTP_FROM`.                                                                       |
+| `SMTP_PORT`                 | SMTP server port. The template uses `587` for STARTTLS; use `465` with `SMTP_SECURE=true` for TLS from the start.                                                                                                                 |
+| `SMTP_SECURE`               | Set to `true` for TLS immediately on connection, usually port `465`. `false` allows the STARTTLS upgrade, usually on port `587`.                                                                                                  |
+| `SMTP_REQUIRE_TLS`          | Requires STARTTLS when `SMTP_SECURE=false`; defaults to `true`. Set to `false` only when intentionally using a mail server without required TLS, such as a local test server.                                                     |
+| `SMTP_USER`                 | SMTP authentication username. Leave blank if the mail server does not require authentication.                                                                                                                                     |
+| `SMTP_PASSWORD`             | SMTP authentication password for `SMTP_USER`.                                                                                                                                                                                     |
+| `SMTP_FROM`                 | Sender address for outgoing mail, optionally with a display name such as `SocialAnimal <calendar@example.com>`. Use an address your SMTP server permits.                                                                          |
+| `CORS_ORIGINS`              | Optional comma-separated browser origins allowed to call the backend. Blank uses `PUBLIC_URL`.                                                                                                                                    |
+| `TRUSTED_PROXY_CIDRS`       | Optional comma-separated proxy addresses or subnets trusted to supply forwarded client IPs. Blank ignores forwarded IPs; include only proxies you control.                                                                        |
 
 ### Google Calendar Setup (Optional)
 
-To enable Google Calendar integration:
+To enable Google Calendar imports:
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create a new project or select an existing one
-3. Enable the Google Calendar API
-4. APIs and services → OAuth Consent Screen
-5. Under Data access, add scope .../auth/calendar.readonly, then save
-6. Go to Clients and create a Client ID of type Web Application
-7. Add authorized redirect URI: `https://your-public-url/api/v1/connections/google/callback`
-8. Copy the Client ID and Client Secret to your .env file
+1. Open [Google Cloud Console](https://console.cloud.google.com/).
+2. Create a project (or select an existing one) and enable the **Google Calendar API**.
+3. Configure the OAuth consent screen with the `https://www.googleapis.com/auth/calendar.readonly` scope.
+4. Create an OAuth client of type **Web Application**.
+5. Add an authorized redirect URI, replacing the domain with your own:
 
-Without Google credentials, users can still connect Apple Calendar (iCloud), CalDAV, or an ICS/iCal URL. For a calendar server on your private network, add its exact hostname or IP to `PRIVATE_PROVIDER_HOSTS` in your environment file. Other private network addresses are blocked.
+    ```text
+    https://calendar.example.com/api/v1/connections/google/callback
+    ```
+
+6. Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` to your environment file, then restart SocialAnimal.
+
+For local installations, the redirect URI can be `http://localhost:3000/api/v1/connections/google/callback`.
+
+Google credentials are **not** needed for iCloud, CalDAV, or ICS imports. If you're connecting to a calendar server on a private network, add its exact hostname or IP to `PRIVATE_PROVIDER_HOSTS`.
+
+### Email & Account Security (Optional)
+
+Configure the `SMTP_*` variables to enable verification emails, password resets, and email sign-in codes.
+
+Port `587` typically uses STARTTLS. For port `465`, set `SMTP_SECURE=true`. Make sure `SMTP_FROM` is an address your mail server accepts.
+
+Before requiring email verification or two-factor authentication in the admin settings, test mail delivery. You can check failed or successful delivery attempts in the admin email job log. Users can also set up an authenticator app and recovery codes from their profile.
+
+### Hosting on a Domain
+
+Put SocialAnimal behind an HTTPS reverse proxy and set `PUBLIC_URL` to the public address. The release and build configurations expose only the frontend, on host port `3000` by default. You can change this using `FRONTEND_PORT`.
+
+If you need forwarded client IP addresses for rate limiting, set `TRUSTED_PROXY_CIDRS` to **only** the addresses or subnets of proxies you control. Avoid logging query strings or private sharing-link tokens in your reverse proxy access logs.
+
+---
 
 ## Development
 
-This project is in early development and contributions are very much appreciated! For larger architectural changes or if you're unsure feel free to open an issue. Otherwise you may open a PR directly for smaller fixes, or even something larger but don't be disappointed if without further discussion in an issue your changes may not be merged
+Contributions are welcome! If you're planning a larger architectural change, please open an issue first so it can be discussed. For smaller fixes, feel free to open a pull request directly.
 
-### Documentation
+Unlike the Docker-only [Quick Start](#quick-start-docker), development requires the source code. Clone the repository:
 
-#### Tech Stack
+```bash
+git clone https://github.com/NLion74/SocialAnimal.git
+cd SocialAnimal
+```
 
-- **Frontend:** Next JS, React, TypeScript
-- **Backend:** Node JS, Fastify, TypeScript
+### Run with live reload
+
+Create a development environment file from the template and update the values described in [Quick Start](#quick-start-docker):
+
+```bash
+cp example.env .env.dev
+docker compose --env-file .env.dev -f dev-docker-compose.yml up --wait
+```
+
+This uses the development Compose configuration for editing the application with live reload.
+
+### Test a production build locally
+
+To build production images from your current checkout instead of pulling a published release:
+
+```bash
+cp example.env .env.build
+# Set SOCIALANIMAL_VERSION=local in .env.build
+docker compose --env-file .env.build -f build-docker-compose.yml up -d --build --wait
+```
+
+Use one mode at a time. Each Compose service reads its corresponding environment file, but the matching `--env-file` flag is still needed for Compose variable interpolation. If PostgreSQL reports a missing superuser password, verify `POSTGRES_PASSWORD` and `DATABASE_URL` rather than deleting your database directory.
+
+### Tech Stack
+
+- **Frontend:** Next.js, React, TypeScript
+- **Backend:** Node.js, Fastify, TypeScript
 - **Database:** PostgreSQL
 - **ORM:** Prisma
 - **Testing:** Vitest
-- **Containerization:** Docker, Docker Compose
-
-#### Backend API
-
-The backend is a modular monolith with feature modules and shared `core/` infrastructure. The frontend uses feature screens and a generated TypeScript API client. API routes live under `/api/v1`; [OpenAPI](docs/openapi.json) describes their contracts. Shared ICS subscriptions use opaque, revocable tokens rather than account credentials.
-
-### Development Setup
-
-To start a development instance use:
-
-```bash
-git clone https://github.com/NLion74/SocialAnimal.git
-cd SocialAnimal
-
-# Fill in POSTGRES_PASSWORD, JWT_SECRET and CREDENTIAL_ENCRYPTION_KEY.
-cp example.env .env
-
-node scripts/validate-compose.mjs development .env
-docker compose --env-file .env -f dev-docker-compose.yml up --wait
-```
-
-Development uses source mounts, dependency/cache volumes, and live reload. It always runs with `NODE_ENV=development`; `BACKEND_PORT` and `DB_PORT` select host ports. To reuse an existing development database, retain its current PostgreSQL credentials and set `DEV_DATABASE_VOLUME` to its existing Docker volume name.
-
-Follow backend logs with `docker compose -f dev-docker-compose.yml logs -f backend`. The backend writes structured startup, request, synchronization, and email-delivery logs to stdout. `LOG_LEVEL` defaults to `info`; use `debug` to include successful health checks. Request logs use route templates and omit credentials, query strings, and email contents. Recreate the backend container after changing environment settings.
-
-### Testing Production Build
-
-```bash
-git clone https://github.com/NLion74/SocialAnimal.git
-cd SocialAnimal
-
-# Configure secrets, PUBLIC_URL and SOCIALANIMAL_VERSION=local.
-cp example.env .env.build
-
-node scripts/validate-compose.mjs build .env.build
-docker compose --env-file .env.build -f build-docker-compose.yml up --build --wait
-```
-
-Build Compose runs the production Dockerfiles without source mounts and uses its own `socialanimal-build` project. Choose a different `FRONTEND_PORT` and matching `PUBLIC_URL` in `.env.build` when development is also running. Always pass `--env-file .env.build` to build-stack commands.
-
-`docker-compose.yml` pulls the published images tagged by `SOCIALANIMAL_VERSION`; it does not build source. `legacy-docker-compose.yml` is a compatibility filename for the same production services. Additional instances need a unique `-p NAME`, host ports, and `DATABASE_VOLUME` (or `DEV_DATABASE_VOLUME` for development). Build and production use separate database volumes by default; set `DATABASE_VOLUME` explicitly to reuse a database between them.
+- **Containerization:** Docker and Docker Compose
 
 ### Running Tests
 
@@ -241,25 +355,3 @@ npm test
 cd ../frontend
 npm test
 ```
-
-Backend integration tests use a disposable PostgreSQL database named with an `_test` suffix via `TEST_DATABASE_URL`. Browser coverage uses Playwright with Firefox. Tests are kept outside application source directories.
-
-### Password recovery
-
-Configure the SMTP settings in `example.env` to enable verification and password reset emails. Users can request a link from **Forgot password**; administrators can use **Send password reset email** when managing an account. The user chooses their password. Links expire after 30 minutes, and changing a password signs out existing sessions. Email delivery is queued and retried; the UI confirms the request, not delivery.
-
-`PUBLIC_URL` must be the externally reachable application origin. Keep `CREDENTIAL_ENCRYPTION_KEY` backed up: provider credentials, authenticator secrets, and queued email payloads depend on it. `CORS_ORIGINS` optionally allows additional browser origins. Only set `TRUSTED_PROXY_CIDRS` to proxy addresses you control; when empty, forwarded client IPs are ignored and clients behind a proxy share its request limits. Configure external access logs to omit feed tokens and OAuth callback query strings.
-
-### Email verification and two-factor authentication
-
-Configure SMTP using `example.env`. Unverified users always see a verification notice and resend action on their profile, even when verification is optional. Requests are queued; the administration page shows delivery attempts, retries, and failures. “Sent” means the SMTP server accepted the email. Completed email logs are kept for 30 days and can be cleared without cancelling pending deliveries.
-
-A user can enable one second factor: email codes sent to their verified address, or an authenticator app using a setup key. Recovery codes are displayed once after enrollment; store them privately. Changing methods requires a recent sign-in and confirmation of the new method. Password recovery does not disable two-factor authentication.
-
-Administrators can require two-factor authentication. New and unverified users must verify email before accessing the app. Verified users without a factor receive email authentication automatically; existing authenticator settings remain active. Administrators can reset another user's factor, which ends existing sessions and requires verification and setup again. At least one active administrator must remain when deleting or disabling accounts.
-
-### Sharing rules and expiration
-
-Each friend calendar grant selects an editable ruleset. Rules are evaluated in priority order; the first match determines full details, titles, busy, or hidden visibility, otherwise the ruleset fallback applies. AND, OR, and NOT groups can combine conditions. Date and time conditions match any overlap with the specified window in the calendar owner's timezone.
-
-Both friend grants and public sharing links can expire. Access is checked on each request, including ICS subscriptions. Multiple links can coexist with separate names, rulesets, and expiration dates. Revoked links can be permanently removed. Owner previews explain the matching rule and show hidden events for diagnosis; public previews never expose those explanations or hidden events.

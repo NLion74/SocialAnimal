@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, type Dispatch, type SetStateAction } from "react";
+import {
+	useState,
+	useEffect,
+	useMemo,
+	useRef,
+	type Dispatch,
+	type SetStateAction,
+} from "react";
 import {
 	ChevronLeft,
 	ChevronRight,
@@ -9,7 +16,9 @@ import {
 	Tag,
 	Calendar,
 	Check,
+	Star,
 } from "lucide-react";
+import { calendarStyle } from "./colors";
 import s from "./Calendar.module.css";
 import {
 	MONTHS,
@@ -29,7 +38,12 @@ import type {
 	EventLayout,
 	FirstDay,
 } from "../../lib/types";
-import { dayBounds, calendarToday, zonedParts } from "../../lib/calendar-dates";
+import {
+	dayBounds,
+	calendarToday,
+	zonedParts,
+	displaysAsAllDay,
+} from "../../lib/calendar-dates";
 import Modal from "../../components/Modal";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -43,6 +57,7 @@ export default function CalendarView({
 	firstDay,
 	timezone,
 	storageKey,
+	focusTime,
 }: {
 	events: CalEvent[];
 	sources?: CalSource[];
@@ -52,6 +67,7 @@ export default function CalendarView({
 	firstDay: FirstDay;
 	timezone: string;
 	storageKey?: string;
+	focusTime?: string;
 }) {
 	const [view, setView] = useState<"month" | "week" | "day">(() => {
 		const saved =
@@ -63,6 +79,21 @@ export default function CalendarView({
 	});
 
 	const [detail, setDetail] = useState<CalEvent | null>(null);
+	const timeScroll = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		if (loading || !focusTime || view === "month" || !timeScroll.current)
+			return;
+		const parts = zonedParts(new Date(focusTime), timezone);
+		const hour = timeScroll.current.querySelector<HTMLElement>(
+			`.${s.timeSlot}`,
+		);
+		if (hour)
+			timeScroll.current.scrollTop = Math.max(
+				0,
+				(parts.hour + parts.minute / 60 - 1) * hour.offsetHeight,
+			);
+	}, [loading, focusTime, timezone, view]);
 
 	const [hidden, setHidden] = useState<Set<string>>(() => {
 		try {
@@ -98,6 +129,16 @@ export default function CalendarView({
 			/* Browsing remains available when storage is blocked. */
 		}
 	}, [storageKey, view, date, hidden]);
+
+	const allDayIds = useMemo(
+		() =>
+			new Set(
+				events
+					.filter((event) => displaysAsAllDay(event, timezone))
+					.map((event) => event.id),
+			),
+		[events, timezone],
+	);
 
 	const allEvents = events.filter((event) => !hidden.has(event.calendar.id));
 
@@ -201,6 +242,12 @@ export default function CalendarView({
 		return `${MONTHS[days[0].getMonth()]} ${days[0].getDate()} - ${days[6].getDate()}, ${days[6].getFullYear()}`;
 	};
 
+	const eventStyle = (event: CalEvent) =>
+		calendarStyle(
+			sources.find((source) => source.id === event.calendar.id)?.color ||
+				event.calendar.color,
+		);
+
 	const renderEventPill = (l: EventLayout) => {
 		const dur = Math.max(l.event.endMinutes - l.event.startMinutes, 1);
 		const percent = 100 / l.cols;
@@ -208,13 +255,14 @@ export default function CalendarView({
 		return (
 			<span
 				key={l.event.id}
-				className={`${s.weekPill} ${l.event.orig.isFriend ? s.pillFriend : s.pillMine} ${s.eventAbsolute}`}
+				className={`${s.weekPill} ${s.calendarPill} ${l.event.orig.highlighted ? s.highlighted : ""} ${s.eventAbsolute}`}
 				onClick={(ev) => {
 					ev.stopPropagation();
 					setDetail(l.event.orig);
 				}}
 				title={l.event.orig.title}
 				style={{
+					...eventStyle(l.event.orig),
 					top: `calc(${l.event.startMinutes} * var(--sa-minute-height))`,
 					height: `calc(${dur} * var(--sa-minute-height))`,
 					left: `${percent * l.col}%`,
@@ -224,7 +272,12 @@ export default function CalendarView({
 				<span className={s.weekPillTime}>
 					{fmtTime(l.event.orig.startTime, timezone)}
 				</span>
-				<span className={s.weekPillTitle}>{l.event.orig.title}</span>
+				<span className={s.weekPillTitle}>
+					{l.event.orig.highlighted && (
+						<Star size={12} aria-label="Highlighted for you" />
+					)}{" "}
+					{l.event.orig.title}
+				</span>
 			</span>
 		);
 	};
@@ -236,7 +289,7 @@ export default function CalendarView({
 		const nowTz = getTimeParts(now);
 
 		return (
-			<div className={s.weekBodyScroll}>
+			<div className={s.weekBodyScroll} ref={timeScroll}>
 				<div className={s.weekBodyGrid}>
 					<div className={s.timeGutter}>
 						{HOURS.map((hour) => (
@@ -256,7 +309,7 @@ export default function CalendarView({
 							};
 
 							const dayTimed = eventsForDate(day)
-								.filter((e) => !e.allDay)
+								.filter((e) => !allDayIds.has(e.id))
 								.map((e) => {
 									const start = new Date(e.startTime);
 
@@ -364,18 +417,19 @@ export default function CalendarView({
 		const on = !hidden.has(src.id);
 
 		return (
-			<label
+			<button
 				key={src.id}
+				type="button"
 				className={`${s.calToggle} ${on ? s.calToggleOn : ""}`}
+				aria-pressed={on}
 				onClick={() => toggleSource(src.id)}
+				style={calendarStyle(src.color)}
 			>
-				<div
-					className={`${s.checkBox} ${on ? (src.isFriend ? s.checkBoxFriend : s.checkBoxMine) : ""}`}
-				>
-					{on && <Check size={9} color="#fff" />}
-				</div>
+				<span className={`${s.checkBox} ${on ? s.sourceChecked : ""}`}>
+					{on && <Check size={9} />}
+				</span>
 				<span className={s.calToggleName}>{src.name}</span>
-			</label>
+			</button>
 		);
 	};
 
@@ -391,7 +445,7 @@ export default function CalendarView({
 	const monthDayHeaders = getMonthDayHeaders(firstDay);
 	const weekDays = getWeekDays();
 	const dayEvents = eventsForDate(date);
-	const allDayEvents = dayEvents.filter((e) => e.allDay);
+	const allDayEvents = dayEvents.filter((e) => allDayIds.has(e.id));
 
 	return (
 		<div className={s.page}>
@@ -504,10 +558,11 @@ export default function CalendarView({
 											{visible.map((e) => (
 												<span
 													key={e.id}
-													className={`${s.pill} ${s.monthEvent} ${e.isFriend ? s.pillFriend : s.pillMine}`}
+													style={eventStyle(e)}
+													className={`${s.pill} ${s.monthEvent} ${s.calendarPill} ${e.highlighted ? s.highlighted : ""}`}
 													title={e.title}
 												>
-													{!e.allDay && (
+													{!allDayIds.has(e.id) && (
 														<span
 															className={
 																s.monthEventTime
@@ -519,6 +574,12 @@ export default function CalendarView({
 															)}{" "}
 														</span>
 													)}
+													{e.highlighted && (
+														<Star
+															size={12}
+															aria-label="Highlighted for you"
+														/>
+													)}{" "}
 													{e.title}
 												</span>
 											))}
@@ -562,8 +623,8 @@ export default function CalendarView({
 								</div>
 								{weekDays.some(
 									(day) =>
-										eventsForDate(day).filter(
-											(e) => e.allDay,
+										eventsForDate(day).filter((e) =>
+											allDayIds.has(e.id),
 										).length > 0,
 								) && (
 									<div className={s.weekAllDayRow}>
@@ -574,7 +635,8 @@ export default function CalendarView({
 											{weekDays.map((day) => {
 												const dayAllDayEvents =
 													eventsForDate(day).filter(
-														(e) => e.allDay,
+														(e) =>
+															allDayIds.has(e.id),
 													);
 
 												return (
@@ -595,7 +657,10 @@ export default function CalendarView({
 															(e) => (
 																<span
 																	key={e.id}
-																	className={`${s.pill} ${e.isFriend ? s.pillFriend : s.pillMine}`}
+																	style={eventStyle(
+																		e,
+																	)}
+																	className={`${s.pill} ${s.calendarPill} ${e.highlighted ? s.highlighted : ""}`}
 																	onClick={(
 																		ev,
 																	) => {
@@ -609,6 +674,14 @@ export default function CalendarView({
 																		e.title
 																	}
 																>
+																	{e.highlighted && (
+																		<Star
+																			size={
+																				12
+																			}
+																			aria-label="Highlighted for you"
+																		/>
+																	)}{" "}
 																	{e.title}
 																</span>
 															),
@@ -649,12 +722,20 @@ export default function CalendarView({
 											{allDayEvents.map((e) => (
 												<span
 													key={e.id}
-													className={`${s.pill} ${e.isFriend ? s.pillFriend : s.pillMine}`}
+													style={eventStyle(e)}
+													title={e.title}
+													className={`${s.pill} ${s.calendarPill} ${e.highlighted ? s.highlighted : ""}`}
 													onClick={(ev) => {
 														ev.stopPropagation();
 														setDetail(e);
 													}}
 												>
+													{e.highlighted && (
+														<Star
+															size={12}
+															aria-label="Highlighted for you"
+														/>
+													)}{" "}
 													{e.title}
 												</span>
 											))}
@@ -675,13 +756,18 @@ export default function CalendarView({
 					title={detail.title}
 				>
 					<div className={s.metaList}>
+						{detail.highlighted && (
+							<p className={s.highlightLabel}>
+								<Star size={16} /> Highlighted for you
+							</p>
+						)}
 						<div className={s.metaRow}>
 							<Clock size={14} className={s.metaIcon} />
 							<div>
 								<div className={s.metaLabel}>Time</div>
 								{detail.allDay
 									? "All day"
-									: `${fmtDateTime(detail.startTime, timezone)} - ${fmtTime(detail.endTime, timezone)}`}
+									: `${fmtDateTime(detail.startTime, timezone)} - ${allDayIds.has(detail.id) ? fmtDateTime(detail.endTime, timezone) : fmtTime(detail.endTime, timezone)}`}
 							</div>
 						</div>
 						{detail.location && (

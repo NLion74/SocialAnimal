@@ -11,6 +11,7 @@
 		"start": "node dist/index.js",
 		"lint": "eslint src --ext .ts",
 		"test": "vitest run",
+		"test:provider-runtime": "npm run build && node tests/modules/integrations/runtime.mjs",
 		"test:watch": "vitest --watch",
 		"test:coverage": "vitest --coverage",
 		"prisma:generate": "prisma generate",

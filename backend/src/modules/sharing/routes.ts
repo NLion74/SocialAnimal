@@ -177,9 +177,10 @@ const routes: FastifyPluginAsync = async (app) => {
 						calendarId: req.params.id,
 						issuerId: req.user.id,
 						tokenHash: tokenHash(token),
-						ceiling: req.body.rulesetId
-							? "full"
-							: ceiling(permission, req.body.ceiling || "full"),
+						ceiling: ceiling(
+							permission,
+							req.body.ceiling || "full",
+						),
 						name: req.body.name?.trim() || "Sharing link",
 						rulesetId: req.body.rulesetId,
 						expiresAt: expiration(req.body.expiresAt),
@@ -243,7 +244,6 @@ const routes: FastifyPluginAsync = async (app) => {
 						name: req.body.name?.trim() || undefined,
 						rulesetId: req.body.rulesetId,
 						expiresAt: expiration(req.body.expiresAt),
-						...(req.body.rulesetId ? { ceiling: "full" } : {}),
 						version: { increment: 1 },
 					},
 				});
@@ -311,6 +311,7 @@ const routes: FastifyPluginAsync = async (app) => {
 				"sharedCalendarPreview",
 				obj({
 					name: str,
+					color: str,
 					timezone: str,
 					firstDayOfWeek: {
 						type: "string",
@@ -373,6 +374,7 @@ const routes: FastifyPluginAsync = async (app) => {
 				where: { id: calendarId },
 				select: {
 					name: true,
+					color: true,
 					user: {
 						select: {
 							settings: {
@@ -392,6 +394,7 @@ const routes: FastifyPluginAsync = async (app) => {
 				permission,
 				undefined,
 				ruleset,
+				true,
 			);
 
 			const result = await visiblePage(
@@ -419,6 +422,7 @@ const routes: FastifyPluginAsync = async (app) => {
 					ruleset || permission === "busy"
 						? "Shared calendar"
 						: calendar.name,
+				color: calendar.color,
 				timezone: calendar.user.settings?.timezone || "UTC",
 				firstDayOfWeek:
 					calendar.user.settings?.firstDayOfWeek || "monday",
@@ -450,7 +454,26 @@ const routes: FastifyPluginAsync = async (app) => {
 					"Calendar contains too many events to export.",
 				);
 
-			const feed = ical({ name: "SocialAnimal" });
+			const calendar = await prisma.calendar.findUniqueOrThrow({
+				where: { id: calendarId },
+				select: { color: true },
+			});
+			const colors: Record<string, string> = {
+				blue: "#2563eb",
+				green: "#15803d",
+				teal: "#0f766e",
+				amber: "#a16207",
+				rose: "#be123c",
+				violet: "#7e22ce",
+				slate: "#475569",
+			};
+			const feed = ical({
+				name: "SocialAnimal",
+				x: {
+					"X-APPLE-CALENDAR-COLOR":
+						colors[calendar.color] || colors.blue,
+				},
+			});
 
 			const mask = await eventAccess(
 				calendarId,
@@ -458,6 +481,7 @@ const routes: FastifyPluginAsync = async (app) => {
 				permission,
 				undefined,
 				ruleset,
+				true,
 			);
 
 			for (const raw of events) {

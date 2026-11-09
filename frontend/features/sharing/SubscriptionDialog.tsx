@@ -1,5 +1,6 @@
 "use client";
 
+import { calendarsApi } from "../calendars/api";
 import ExpirationInput from "../../components/ExpirationInput";
 import CopyField from "../../components/CopyField";
 import Feedback from "../../components/Feedback";
@@ -37,13 +38,27 @@ export default function SubscriptionDialog({
 	const [notice, setNotice] = useState("");
 	const [pending, setPending] = useState(false);
 	const [loading, setLoading] = useState(true);
+	const [expirationValid, setExpirationValid] = useState(true);
+	const [ownerTimezone, setOwnerTimezone] = useState<string | null>(null);
 
 	useEffect(() => {
 		let active = true;
 
-		Promise.all([sharingApi.list(calendarId), permissionsApi.list()])
-			.then(([links, rules]) => {
+		Promise.all([
+			sharingApi.list(calendarId),
+			permissionsApi.list(),
+			calendarsApi.sources(),
+		])
+			.then(([links, rules, sources]) => {
 				if (!active) return;
+				const source = sources.find(
+					(calendar) => calendar.id === calendarId,
+				);
+				if (!source)
+					throw new Error(
+						"Calendar sharing settings could not be loaded.",
+					);
+				setOwnerTimezone(source.timezone);
 				setSubscriptions(links);
 				setRulesets(rules);
 
@@ -94,6 +109,7 @@ export default function SubscriptionDialog({
 				replace
 					? {
 							replaceId: replace.id,
+							ceiling: replace.ceiling,
 							name: replace.name,
 							expiresAt: replace.expiresAt,
 							...(replace.rulesetId
@@ -143,227 +159,260 @@ export default function SubscriptionDialog({
 	);
 
 	return (
-		<Modal isOpen title={title} onClose={onClose}>
-			<div className={s.dialog}>
-				<p className={s.description}>
-					Create independent sharing links for this calendar. Each
-					link has its own ruleset and works without an account.
-				</p>
-				<label className={s.linkField}>
-					Link name
-					<input
-						className={s.input}
-						maxLength={100}
-						value={name}
-						onChange={(e) => setName(e.target.value)}
-						placeholder="Family, work, or another audience"
+		<>
+			<Modal isOpen={!editor && !editing} title={title} onClose={onClose}>
+				<div className={s.dialog}>
+					<p className={s.description}>
+						Create independent sharing links for this calendar. Each
+						link has its own ruleset and works without an account.
+					</p>
+					<label className={s.linkField}>
+						Link name
+						<input
+							className={s.input}
+							maxLength={100}
+							value={name}
+							onChange={(e) => setName(e.target.value)}
+							placeholder="Family, work, or another audience"
+						/>
+					</label>
+					{rulesSelect(rulesetId, setRulesetId)}
+					<ExpirationInput
+						timezone={ownerTimezone || "UTC"}
+						onValidityChange={setExpirationValid}
+						value={expiresAt}
+						onChange={setExpiresAt}
+						disabled={pending || !ownerTimezone}
 					/>
-				</label>
-				{rulesSelect(rulesetId, setRulesetId)}
-				<ExpirationInput
-					value={expiresAt}
-					onChange={setExpiresAt}
-					disabled={pending}
-				/>
-				<div className={s.actions}>
-					<button
-						className={s.secondary}
-						disabled={pending}
-						onClick={() => setEditor("new")}
-					>
-						Add ruleset
-					</button>
-					<button
-						className={s.secondary}
-						disabled={pending || !rulesetId}
-						onClick={() =>
-							setEditor(
-								rulesets.find(
-									(rule) => rule.id === rulesetId,
-								) || null,
-							)
-						}
-					>
-						Edit ruleset
-					</button>
-				</div>
-				<p className={s.hint}>
-					Visitors are anonymous: friend attributes are unavailable
-					and comparisons on them do not match. Calendar, event, date
-					and time rules apply. Links never reveal more than your
-					current access allows.
-				</p>
-				<button
-					className={s.primary}
-					disabled={pending || loading || !rulesetId}
-					onClick={() => void create()}
-				>
-					{pending ? "Working…" : "Create subscription"}
-				</button>
-				{error && !editing && <Feedback focusOnMount>{error}</Feedback>}
-				{notice && <Feedback tone="success">{notice}</Feedback>}
-				{created.map((link) => (
-					<section
-						key={link.id}
-						className={s.links}
-						aria-label={`New sharing links: ${link.name}`}
-					>
-						<h3>{link.name}</h3>
-						<p className={s.hint}>
-							Copy these now. They cannot be retrieved after
-							closing this window.
-						</p>
-						{[
-							{ label: "Preview URL", value: link.previewUrl },
-							{ label: "Subscription URL", value: link.url },
-						].map(({ label, value }) => (
-							<CopyField
-								key={label}
-								label={
-									label === "Preview URL"
-										? "Web preview · no account needed"
-										: "Calendar app subscription"
-								}
-								accessibleName={label}
-								value={value}
-								actionLabel={`Copy ${label}`}
-								copiedLabel={
-									label === "Preview URL"
-										? "Preview link copied"
-										: "Subscription link copied"
-								}
-							/>
-						))}
-						<a
+					<div className={s.actions}>
+						<button
 							className={s.secondary}
-							href={link.previewUrl}
-							target="_blank"
-							rel="noopener noreferrer"
+							disabled={pending}
+							onClick={() => setEditor("new")}
 						>
-							<ExternalLink size={16} /> Open preview
-						</a>
-					</section>
-				))}
-				<section className={s.subscriptions} aria-label="Subscriptions">
-					<h3>Your subscriptions</h3>
-					{loading ? (
-						<p>Loading subscriptions…</p>
-					) : !subscriptions.length ? (
-						<p className={s.empty}>
-							No links yet. Create one to share this calendar.
-						</p>
-					) : (
-						<ul className={s.list}>
-							{subscriptions.map((row) => (
-								<li key={row.id} className={s.subscription}>
-									<div className={s.rowTitle}>
-										<strong>{row.name}</strong>
-										<span
-											className={
-												row.revokedAt
-													? s.revoked
-													: s.active
-											}
-										>
-											{row.revokedAt
-												? "Revoked"
-												: "Active"}
-										</span>
-									</div>
-									<p className={s.hint}>
-										{rulesets.find(
-											(rule) => rule.id === row.rulesetId,
-										)?.name ||
-											`Fixed visibility: ${row.ceiling}`}
-									</p>
-									{row.expiresAt && (
-										<p>
-											{new Date(row.expiresAt) <=
-											new Date()
-												? "Expired"
-												: "Expires"}
-											:{" "}
-											{new Date(
-												row.expiresAt,
-											).toLocaleString()}
+							Add ruleset
+						</button>
+						<button
+							className={s.secondary}
+							disabled={pending || !rulesetId}
+							onClick={() =>
+								setEditor(
+									rulesets.find(
+										(rule) => rule.id === rulesetId,
+									) || null,
+								)
+							}
+						>
+							Edit ruleset
+						</button>
+					</div>
+					<p className={s.hint}>
+						Visitors are anonymous: friend attributes are
+						unavailable and comparisons on them do not match.
+						Calendar, event, date and time rules apply. Links never
+						reveal more than your current access allows.
+					</p>
+					<button
+						className={s.primary}
+						disabled={
+							pending ||
+							loading ||
+							!rulesetId ||
+							!ownerTimezone ||
+							!expirationValid
+						}
+						onClick={() => void create()}
+					>
+						{pending ? "Working…" : "Create subscription"}
+					</button>
+					{error && !editing && (
+						<Feedback focusOnMount>{error}</Feedback>
+					)}
+					{notice && <Feedback tone="success">{notice}</Feedback>}
+					{created.map((link) => (
+						<section
+							key={link.id}
+							className={s.links}
+							aria-label={`New sharing links: ${link.name}`}
+						>
+							<h3>{link.name}</h3>
+							<p className={s.hint}>
+								Copy these now. They cannot be retrieved after
+								closing this window.
+							</p>
+							{[
+								{
+									label: "Preview URL",
+									value: link.previewUrl,
+								},
+								{ label: "Subscription URL", value: link.url },
+							].map(({ label, value }) => (
+								<CopyField
+									key={label}
+									label={
+										label === "Preview URL"
+											? "Web preview · no account needed"
+											: "Calendar app subscription"
+									}
+									accessibleName={label}
+									value={value}
+									actionLabel={`Copy ${label}`}
+									copiedLabel={
+										label === "Preview URL"
+											? "Preview link copied"
+											: "Subscription link copied"
+									}
+								/>
+							))}
+							<a
+								className={s.secondary}
+								href={link.previewUrl}
+								target="_blank"
+								rel="noopener noreferrer"
+							>
+								<ExternalLink size={16} /> Open preview
+							</a>
+						</section>
+					))}
+					<section
+						className={s.subscriptions}
+						aria-label="Subscriptions"
+					>
+						<h3>Your subscriptions</h3>
+						{loading ? (
+							<p>Loading subscriptions…</p>
+						) : !subscriptions.length ? (
+							<p className={s.empty}>
+								No links yet. Create one to share this calendar.
+							</p>
+						) : (
+							<ul className={s.list}>
+								{subscriptions.map((row) => (
+									<li key={row.id} className={s.subscription}>
+										<div className={s.rowTitle}>
+											<strong>{row.name}</strong>
+											<span
+												className={
+													row.revokedAt
+														? s.revoked
+														: s.active
+												}
+											>
+												{row.revokedAt
+													? "Revoked"
+													: "Active"}
+											</span>
+										</div>
+										<p className={s.hint}>
+											{rulesets.find(
+												(rule) =>
+													rule.id === row.rulesetId,
+											)?.name ||
+												`Fixed visibility: ${row.ceiling}`}
 										</p>
-									)}
-									{row.revokedAt && (
-										<button
-											className={s.danger}
-											disabled={pending}
-											onClick={() => {
-												if (
-													confirm(
-														"Permanently delete this revoked sharing link?",
-													)
-												)
-													void update(async () => {
-														await sharingApi.remove(
-															row.id,
-														);
-
-														setNotice(
-															"Revoked sharing link deleted.",
-														);
-													});
-											}}
-										>
-											Delete permanently
-										</button>
-									)}
-									{!row.revokedAt && (
-										<div className={s.actions}>
-											<button
-												className={s.secondary}
-												disabled={pending}
-												onClick={() => {
-													setError("");
-													setEditing(row);
-												}}
-											>
-												Edit link
-											</button>
-											<button
-												className={s.secondary}
-												disabled={pending}
-												onClick={() => void create(row)}
-											>
-												Replace URL
-											</button>
+										{row.expiresAt && (
+											<p>
+												{new Date(row.expiresAt) <=
+												new Date()
+													? "Expired"
+													: "Expires"}
+												:{" "}
+												{new Date(
+													row.expiresAt,
+												).toLocaleString(undefined, {
+													timeZone:
+														ownerTimezone || "UTC",
+												})}
+											</p>
+										)}
+										{row.revokedAt && (
 											<button
 												className={s.danger}
 												disabled={pending}
-												onClick={() =>
-													void update(async () => {
-														await sharingApi.revoke(
-															row.id,
-														);
-
-														setCreated((previous) =>
-															previous.filter(
-																(link) =>
-																	link.id !==
+												onClick={() => {
+													if (
+														confirm(
+															"Permanently delete this revoked sharing link?",
+														)
+													)
+														void update(
+															async () => {
+																await sharingApi.remove(
 																	row.id,
-															),
-														);
+																);
 
-														setNotice(
-															"Links revoked. They can no longer be used.",
+																setNotice(
+																	"Revoked sharing link deleted.",
+																);
+															},
 														);
-													})
-												}
+												}}
 											>
-												Revoke
+												Delete permanently
 											</button>
-										</div>
-									)}
-								</li>
-							))}
-						</ul>
-					)}
-				</section>
-			</div>
+										)}
+										{!row.revokedAt && (
+											<div className={s.actions}>
+												<button
+													className={s.secondary}
+													disabled={pending}
+													onClick={() => {
+														setError("");
+														setEditing(row);
+													}}
+												>
+													Edit link
+												</button>
+												<button
+													className={s.secondary}
+													disabled={pending}
+													onClick={() =>
+														void create(row)
+													}
+												>
+													Replace URL
+												</button>
+												<button
+													className={s.danger}
+													disabled={pending}
+													onClick={() =>
+														void update(
+															async () => {
+																await sharingApi.revoke(
+																	row.id,
+																);
+
+																setCreated(
+																	(
+																		previous,
+																	) =>
+																		previous.filter(
+																			(
+																				link,
+																			) =>
+																				link.id !==
+																				row.id,
+																		),
+																);
+
+																setNotice(
+																	"Links revoked. They can no longer be used.",
+																);
+															},
+														)
+													}
+												>
+													Revoke
+												</button>
+											</div>
+										)}
+									</li>
+								))}
+							</ul>
+						)}
+					</section>
+				</div>
+			</Modal>
 			{editing && (
 				<Modal
 					isOpen
@@ -378,7 +427,13 @@ export default function SubscriptionDialog({
 							void update(async () => {
 								await sharingApi.update(editing.id, {
 									name: editing.name,
-									expiresAt: editing.expiresAt,
+									expiresAt:
+										editing.expiresAt !==
+										subscriptions.find(
+											(row) => row.id === editing.id,
+										)?.expiresAt
+											? editing.expiresAt
+											: undefined,
 									...(editing.rulesetId
 										? { rulesetId: editing.rulesetId }
 										: {}),
@@ -405,6 +460,8 @@ export default function SubscriptionDialog({
 							/>
 						</label>
 						<ExpirationInput
+							timezone={ownerTimezone || "UTC"}
+							onValidityChange={setExpirationValid}
 							value={editing.expiresAt}
 							onChange={(value) =>
 								setEditing({ ...editing, expiresAt: value })
@@ -462,6 +519,6 @@ export default function SubscriptionDialog({
 					}}
 				/>
 			)}
-		</Modal>
+		</>
 	);
 }

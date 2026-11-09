@@ -1,0 +1,286 @@
+.launch {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	min-height: 44px;
+	padding: 0.65rem 1rem;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--bg-elevated);
+	color: var(--text-primary);
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
+	touch-action: manipulation;
+}
+
+.launch:hover:not(:disabled),
+.slot:hover,
+.choice:hover:not(:has(input:disabled)) {
+	background: var(--bg-hover);
+}
+
+.launch:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.primary {
+	background: var(--purple-500);
+	border-color: var(--purple-500);
+	color: white;
+}
+
+.primary:hover:not(:disabled) {
+	background: var(--purple-600);
+}
+
+.form,
+.fields,
+.results {
+	display: grid;
+	gap: 1rem;
+	min-width: 0;
+}
+
+.stepHeader {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 0.75rem;
+	flex-wrap: wrap;
+}
+
+.stepHeader h3 {
+	font-size: 1.125rem;
+	scroll-margin-top: 6rem;
+}
+
+.help {
+	color: var(--text-secondary);
+	font-size: 0.875rem;
+	line-height: 1.6;
+}
+
+.choices {
+	display: grid;
+	gap: 1.5rem;
+}
+
+.fields {
+	border: 0;
+	padding: 0;
+	margin: 0;
+	align-content: start;
+}
+
+.fields legend {
+	font-weight: 600;
+	margin-bottom: 0.75rem;
+}
+
+.choiceList {
+	display: grid;
+	max-height: 240px;
+	overflow: auto;
+	overscroll-behavior: contain;
+}
+
+.choice {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.75rem 0.5rem;
+	min-height: 48px;
+	border-bottom: 1px solid var(--border);
+	cursor: pointer;
+	font-size: 0.9375rem;
+	overflow-wrap: anywhere;
+}
+
+.choice:has(input:checked) {
+	background: var(--bg-hover);
+}
+
+.choice:has(input:disabled) {
+	cursor: default;
+	color: var(--text-muted);
+}
+
+.choice input {
+	width: 20px;
+	height: 20px;
+	flex-shrink: 0;
+	accent-color: var(--purple-500);
+}
+
+.choice > span {
+	display: grid;
+	gap: 0.3rem;
+	min-width: 0;
+}
+
+.choice strong {
+	font-weight: 500;
+}
+
+.choice span span {
+	font-size: 0.8125rem;
+	color: var(--text-secondary);
+	line-height: 1.5;
+}
+
+.selectionTools,
+.shortcuts {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+}
+
+.selectionTools > span {
+	margin-right: auto;
+	font-size: 0.8125rem;
+	color: var(--text-secondary);
+}
+
+.textButton {
+	min-height: 44px;
+	padding: 0.5rem;
+	border: 0;
+	background: transparent;
+	color: var(--text-primary);
+	font: inherit;
+	font-size: 0.875rem;
+	text-decoration: underline;
+	text-underline-offset: 3px;
+	cursor: pointer;
+}
+
+.selectionNote {
+	border-left: 3px solid var(--text-muted);
+	padding-left: 0.75rem;
+	font-size: 0.875rem;
+	line-height: 1.6;
+	color: var(--text-secondary);
+}
+
+.grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 1rem;
+}
+
+.grid label,
+.duration {
+	display: grid;
+	gap: 0.5rem;
+	font-size: 0.875rem;
+}
+
+.grid input,
+.duration select {
+	min-width: 0;
+	width: 100%;
+	min-height: 48px;
+	padding: 0.6rem;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--bg-surface);
+	color: var(--text-primary);
+	font: inherit;
+	font-size: 1rem;
+}
+
+.footer {
+	display: flex;
+	gap: 0.75rem;
+	width: 100%;
+	justify-content: flex-end;
+}
+
+.footer .primary {
+	flex: 1;
+}
+
+.slots {
+	display: grid;
+	gap: 0.75rem;
+}
+
+.slot {
+	display: flex;
+	align-items: center;
+	text-align: left;
+	gap: 0.75rem;
+	padding: 1rem;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--bg-surface);
+	color: var(--text-primary);
+	cursor: pointer;
+	font: inherit;
+}
+
+.slot > span:first-of-type {
+	display: grid;
+	gap: 0.4rem;
+	flex: 1;
+}
+
+.slot svg {
+	flex-shrink: 0;
+}
+
+.slot span span {
+	color: var(--text-secondary);
+	font-size: 0.875rem;
+}
+
+.empty {
+	display: grid;
+	gap: 1rem;
+	padding: 1rem 0;
+	line-height: 1.6;
+}
+
+.form :is(button, input, select):focus-visible,
+.launch:focus-visible {
+	outline: 2px solid var(--purple-400);
+	outline-offset: 3px;
+}
+
+.visuallyHidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+	.choices,
+	.slots {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 1.5rem;
+	}
+
+	.footer .primary {
+		flex: initial;
+	}
+}
+
+@media (max-width: 380px) {
+	.grid {
+		grid-template-columns: 1fr;
+	}
+
+	.footer .launch {
+		padding-inline: 0.65rem;
+		font-size: 0.875rem;
+	}
+}

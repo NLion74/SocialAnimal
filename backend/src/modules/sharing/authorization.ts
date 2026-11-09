@@ -56,7 +56,7 @@ export function permissionFor(
 			),
 		];
 
-		return outcomes.includes("full")
+		return outcomes.includes("full") || outcomes.includes("highlight")
 			? "full"
 			: outcomes.includes("titles")
 				? "titles"
@@ -144,7 +144,8 @@ export async function setGrant(
 			const permission: SharePermission =
 				ruleset.fallback === "titles"
 					? "titles"
-					: ruleset.fallback === "full"
+					: ruleset.fallback === "full" ||
+						  ruleset.fallback === "highlight"
 						? "full"
 						: "busy";
 

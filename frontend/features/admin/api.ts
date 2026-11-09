@@ -2,7 +2,12 @@ import * as client from "../../lib/generated/client";
 
 export const adminApi = {
 	stats: client.adminStats,
-	deleteUser: (id: string) => client.deleteAdminUser({ id }),
+	beginDeletion: (id: string, recovery = false) =>
+		client.beginAdminAccountDeletion({ id, body: { recovery } }),
+	deleteUser: (
+		id: string,
+		confirmation?: client.deleteMeInput["body"]["confirmation"],
+	) => client.deleteAdminUser({ id, body: { confirmation } }),
 	resetFactor: (id: string) => client.adminResetTwoFactor({ id }),
 	emailJobs: (input: client.adminEmailJobsInput = {}) =>
 		client.adminEmailJobs({ limit: 25, ...input }),

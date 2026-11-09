@@ -1,4 +1,5 @@
 import * as client from "../../lib/generated/client";
+import { waitForSync } from "./sync-status";
 import { allPages } from "../../lib/pages";
 
 export function eventInterval(date = new Date()) {
@@ -8,6 +9,13 @@ export function eventInterval(date = new Date()) {
 }
 
 export const calendarsApi = {
+	sources: () =>
+		allPages((cursor) => client.calendarSources({ cursor, limit: 500 })),
+	setColor: (
+		id: string,
+		color: client.setCalendarColorInput["body"]["color"],
+	) => client.setCalendarColor({ id, body: { color } }),
+	resetColor: (id: string) => client.resetCalendarColor({ id }),
 	list: () => allPages((cursor) => client.calendars({ cursor, limit: 500 })),
 	events: (scope: "mine" | "shared" | "all" = "mine", date?: Date) =>
 		allPages((cursor) =>
@@ -22,25 +30,7 @@ export const calendarsApi = {
 		client.updateCalendar({ id, body }),
 	remove: (id: string) => client.deleteCalendar({ id }),
 	sync: async (id: string) => {
-		let run = await client.submitSync({ id });
-
-		for (
-			let i = 0;
-			i < 180 && (run.status === "queued" || run.status === "running");
-			i++
-		) {
-			await new Promise((resolve) => setTimeout(resolve, 1000));
-			run = await client.syncRun({ id: run.id });
-		}
-
-		if (run.status === "failed")
-			throw new Error(run.error || "Sync failed");
-
-		if (run.status !== "succeeded")
-			throw new Error(
-				"Sync is still running. Check its status again shortly.",
-			);
-
-		return { success: true, eventsSynced: run.eventsSynced };
+		const run = await client.submitSync({ id });
+		return waitForSync(run, (runId) => client.syncRun({ id: runId }));
 	},
 };

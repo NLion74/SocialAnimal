@@ -1,5 +1,6 @@
-import { lookup } from "node:dns";
+import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import { setTimeout as delay } from "node:timers/promises";
 import { Agent } from "undici";
 import ipaddr from "ipaddr.js";
 
@@ -26,19 +27,44 @@ function checkUrl(url: URL) {
 	if (isIP(hostname)) assertProviderAddress(hostname, hostname);
 }
 
+export async function resolveProviderAddresses(hostname: string) {
+	// Retry DNS before opening a socket, so remote requests are never replayed.
+	// A resolver recovering after a network interruption may also report ENOTFOUND.
+	const retryDelays = [250, 750];
+
+	for (let attempt = 0; ; attempt++) {
+		try {
+			const addresses = await lookup(hostname, {
+				all: true,
+				verbatim: true,
+			});
+
+			for (const result of addresses)
+				assertProviderAddress(result.address, hostname);
+
+			return addresses;
+		} catch (error) {
+			const code = (error as NodeJS.ErrnoException).code;
+
+			if (
+				attempt >= retryDelays.length ||
+				!code ||
+				!["EAI_AGAIN", "ENOTFOUND"].includes(code)
+			)
+				throw error;
+
+			await delay(retryDelays[attempt]);
+		}
+	}
+}
+
 // Validate the addresses actually used by the socket, preventing DNS rebinding.
 const dispatcher = new Agent({
 	connect: {
 		lookup(hostname, options, callback) {
-			lookup(
-				hostname,
-				{ all: true, verbatim: true },
-				(error, addresses) => {
-					if (error) return callback(error, [], 0);
-
+			void resolveProviderAddresses(hostname).then(
+				(addresses) => {
 					try {
-						for (const result of addresses)
-							assertProviderAddress(result.address, hostname);
 						const family =
 							typeof options.family === "number"
 								? options.family
@@ -60,6 +86,7 @@ const dispatcher = new Agent({
 						callback(cause as Error, [], 0);
 					}
 				},
+				(error: Error) => callback(error, [], 0),
 			);
 		},
 	},

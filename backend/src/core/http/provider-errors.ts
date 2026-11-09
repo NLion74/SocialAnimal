@@ -1,4 +1,6 @@
 const messages: Record<string, string> = {
+	CALENDAR_PROCESSING_FAILED:
+		"Calendar processing failed on the server. Contact the administrator.",
 	PROVIDER_AUTH_FAILED:
 		"The provider rejected access. Check the credentials or sharing permissions.",
 	PROVIDER_ADDRESS_BLOCKED:

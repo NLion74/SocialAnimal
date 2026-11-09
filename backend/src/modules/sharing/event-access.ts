@@ -17,6 +17,7 @@ export async function eventAccess(
 	maximum: Visibility = "full",
 	previewRulesetId?: string,
 	linkRuleset?: { fallback: string; rules: unknown } | null,
+	publicDelivery = false,
 ) {
 	const [calendar, friend, settings] = await Promise.all([
 		prisma.calendar.findUnique({
@@ -169,7 +170,7 @@ export async function eventAccess(
 		>,
 	>(
 		event: T,
-	): (T & { visibility: Visibility }) | null => {
+	): (T & { visibility: Visibility; highlighted: boolean }) | null => {
 		let permission = stricter(
 			maximum,
 			evaluate.during(
@@ -214,7 +215,15 @@ export async function eventAccess(
 		}
 
 		if (permission === "hidden") return null;
-		return { ...maskEvent(event, permission), visibility: permission };
+		if (publicDelivery && permission === "highlight") permission = "full";
+		return {
+			...maskEvent(
+				event,
+				permission === "highlight" ? "full" : permission,
+			),
+			visibility: permission,
+			highlighted: permission === "highlight" && !linkRuleset,
+		};
 	};
 
 	return Object.assign(mask, {

@@ -10,6 +10,7 @@ interface ModalProps {
 	title: string;
 	children: React.ReactNode;
 	footer?: React.ReactNode;
+	size?: "default" | "wide";
 }
 
 export default function Modal({
@@ -18,6 +19,7 @@ export default function Modal({
 	title,
 	children,
 	footer,
+	size = "default",
 }: ModalProps) {
 	const dialog = useRef<HTMLDialogElement>(null);
 	const titleId = useId();
@@ -50,7 +52,10 @@ export default function Modal({
 			}}
 			onClick={onClose}
 		>
-			<div className={s.modal} onClick={(e) => e.stopPropagation()}>
+			<div
+				className={`${s.modal} ${size === "wide" ? s.wide : ""}`}
+				onClick={(e) => e.stopPropagation()}
+			>
 				<div className={s.header}>
 					<h2 id={titleId}>{title}</h2>
 					<button

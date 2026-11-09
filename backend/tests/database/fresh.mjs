@@ -35,7 +35,7 @@ assert.equal(
 			"SELECT to_regclass('public._prisma_migrations') AS history",
 		)
 	).rows[0].history,
-	null,
+	"_prisma_migrations",
 );
 
 await db.query(

@@ -36,3 +36,18 @@ export function describeCondition(
 
 	return `${attributes.find((attribute) => attribute.id === condition.attribute)?.label || condition.attribute} ${operators[condition.operator] || condition.operator} ${Array.isArray(condition.value) ? condition.value.join(" to ") : JSON.stringify(condition.value)}`;
 }
+
+export const operatorLabels: Record<string, string> = {
+	equals: "is exactly",
+	contains: "contains",
+	startsWith: "starts with",
+	endsWith: "ends with",
+	regex: "matches regex",
+	before: "is before",
+	after: "is after",
+	between: "is between",
+	greaterThan: "is greater than",
+	greaterOrEqual: "is at least",
+	lessThan: "is less than",
+	lessOrEqual: "is at most",
+};

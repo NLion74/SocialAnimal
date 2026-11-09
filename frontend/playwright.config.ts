@@ -33,13 +33,16 @@ export default defineConfig({
 		},
 		{ command: "node tests/e2e/feed.mjs", url: "http://127.0.0.1:4401" },
 		{
-			command: "npm run dev -- --port 3300",
+			command:
+				process.env.PLAYWRIGHT_PRODUCTION === "1"
+					? "npm run build && node tests/e2e/start-production.mjs"
+					: "npm run dev -- --port 3300",
 			url: "http://127.0.0.1:3300",
 			env: {
 				BACKEND_URL: "http://127.0.0.1:4400",
 				NEXT_DIST_DIR: ".next-e2e",
 			},
-			timeout: 120000,
+			timeout: 180000,
 		},
 	],
 });

@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect, adminSection } from "./fixtures";
 import { createRequire } from "node:module";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 
@@ -54,6 +54,7 @@ test("admin defaults, invitation links, verification refresh, and independent pu
 		);
 
 		await page.goto("/admin");
+		await adminSection(page, "Settings");
 
 		await page
 			.getByRole("combobox", { name: "Default timezone", exact: true })
@@ -70,6 +71,7 @@ test("admin defaults, invitation links, verification refresh, and independent pu
 			.click();
 
 		await expect(page.getByText("Instance settings saved.")).toBeVisible();
+		await adminSection(page, "Invitations");
 		await page.getByLabel("Invitation label").fill("Browser invitation");
 
 		await page
@@ -331,6 +333,7 @@ test("admin defaults, invitation links, verification refresh, and independent pu
 
 		await page.keyboard.press("Escape");
 		await page.goto("/admin");
+		await adminSection(page, "Sync logs");
 
 		await page
 			.getByRole("button", { name: "Clear all sync logs", exact: true })

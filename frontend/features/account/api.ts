@@ -1,3 +1,4 @@
+import { apiClient } from "../../lib/api";
 import * as client from "../../lib/generated/client";
 
 export const accountApi = {
@@ -5,7 +6,9 @@ export const accountApi = {
 	beginEnrollment: (method: "email" | "totp") =>
 		client.beginTwoFactorEnrollment({ body: { method } }),
 	completeEnrollment: (challenge: string, code: string) =>
-		client.completeTwoFactorEnrollment({ body: { challenge, code } }),
+		apiClient.rotateSession(() =>
+			client.completeTwoFactorEnrollment({ body: { challenge, code } }),
+		),
 	completeChallenge: (challenge: string, code: string) =>
 		client.completeLoginChallenge({ body: { challenge, code } }),
 	disableTwoFactor: client.disableTwoFactor,
@@ -56,5 +59,10 @@ export const accountApi = {
 				},
 			});
 	},
-	remove: (password: string) => client.deleteMe({ body: { password } }),
+	beginDeletion: (password: string, recovery = false) =>
+		client.beginMyAccountDeletion({ body: { password, recovery } }),
+	remove: (
+		password: string,
+		confirmation?: client.deleteMeInput["body"]["confirmation"],
+	) => client.deleteMe({ body: { password, confirmation } }),
 };

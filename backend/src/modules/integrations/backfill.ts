@@ -77,6 +77,7 @@ export async function backfillConnections(batchSize = 100) {
 					where: { id: calendar.id, connectionId: null },
 					data: {
 						connectionId: id,
+						updatedAt: calendar.updatedAt,
 						remoteId,
 						lastAttempt: calendar.lastSync,
 					},

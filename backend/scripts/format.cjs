@@ -34,8 +34,7 @@ async function main() {
 			!fs.statSync(absolute).isFile() ||
 			file.includes("tsbuildinfo") ||
 			file.endsWith("lib/generated/client.ts") ||
-			(file.includes("prisma/migrations/") &&
-				!file.includes("20260929120000_rest_v1")) ||
+			file.includes("prisma/migrations/") ||
 			file.endsWith("next-env.d.ts")
 		)
 			continue;
