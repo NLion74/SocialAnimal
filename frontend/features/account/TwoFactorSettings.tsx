@@ -7,6 +7,8 @@ import Feedback from "../../components/Feedback";
 import CopyField from "../../components/CopyField";
 import s from "../permissions/Permissions.module.css";
 
+import layout from "./TwoFactorSettings.module.css";
+
 type Enrollment = Awaited<ReturnType<typeof accountApi.beginEnrollment>>;
 
 export default function TwoFactorSettings() {
@@ -34,7 +36,10 @@ export default function TwoFactorSettings() {
 	}
 
 	return (
-		<section className={s.stack} aria-label="Two-factor authentication">
+		<section
+			className={`${s.stack} ${layout.section}`}
+			aria-label="Two-factor authentication"
+		>
 			<h2>Two-factor authentication</h2>
 			<p>
 				Current method:{" "}
@@ -59,7 +64,7 @@ export default function TwoFactorSettings() {
 			{error && <Feedback focusOnMount>{error}</Feedback>}
 			{notice && <Feedback tone="success">{notice}</Feedback>}
 			{!enrollment ? (
-				<div className={s.row}>
+				<div className={layout.controls}>
 					<label className={s.field}>
 						New method
 						<select
@@ -173,7 +178,7 @@ export default function TwoFactorSettings() {
 							required
 						/>
 					</label>
-					<div className={s.row}>
+					<div className={layout.controls}>
 						<button
 							className={`${s.button} ${s.primary}`}
 							disabled={busy}

@@ -121,19 +121,19 @@ export async function verifyUpgrade(db, decrypt) {
 	);
 }
 
-export function deployProductionBaseline(url) {
+export function deployProductionBaseline(
+	url,
+	cutoff = "20260305102000_add_default_tab_to_user_settings",
+) {
 	if (!new URL(url).pathname.endsWith("_test"))
 		throw new Error("Disposable *_test database required");
 	const work = mkdtempSync(process.cwd() + "/node_modules/.upgrade-");
 	try {
 		const historical = readdirSync("prisma/migrations")
-			.filter(
-				(name) =>
-					/^\d{14}_/.test(name) &&
-					name <= "20260305102000_add_default_tab_to_user_settings",
-			)
+			.filter((name) => /^\d{14}_/.test(name) && name <= cutoff)
 			.sort();
-		assert.equal(historical.length, 14, "Production migration count");
+		if (cutoff === "20260305102000_add_default_tab_to_user_settings")
+			assert.equal(historical.length, 14, "Production migration count");
 		mkdirSync(work + "/prisma/migrations", { recursive: true });
 		for (const file of [
 			"prisma.config.ts",

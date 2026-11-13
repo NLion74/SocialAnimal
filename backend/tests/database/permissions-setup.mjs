@@ -76,6 +76,25 @@ async function baseline(target) {
 	);
 }
 try {
+	const settingsUpgrade = await database();
+	deployProductionBaseline(settingsUpgrade.url, "20261113115959");
+	await settingsUpgrade.db.query(
+		`INSERT INTO "AppSettings" (id, "minSyncIntervalMinutes", "updatedAt") VALUES ('global', 7, NOW())`,
+	);
+	const settingsBefore = await snapshot(settingsUpgrade.db);
+	setup(settingsUpgrade.url, true, {
+		MIN_SYNC_INTERVAL_MINUTES: "9999",
+		SYNC_CONCURRENCY: "16",
+	});
+	await preserved(settingsUpgrade.db, settingsBefore);
+	assert.deepEqual(
+		(
+			await settingsUpgrade.db.query(
+				`SELECT "minSyncIntervalMinutes", "syncConcurrency" FROM "AppSettings" WHERE id = 'global'`,
+			)
+		).rows[0],
+		{ minSyncIntervalMinutes: 7, syncConcurrency: 3 },
+	);
 	const upgraded = await database();
 	await baseline(upgraded);
 	const before = await snapshot(upgraded.db);

@@ -72,6 +72,7 @@ model AppSettings {
 	requireEmailVerification Boolean @default(false)
 	maxCalendarsPerUser Int @default(25)
 	minSyncIntervalMinutes Int @default(15)
+	syncConcurrency Int @default(3)
 	syncPastDays Int @default(90)
 	syncFutureDays Int @default(365)
 	defaultTimezone String @default("UTC")

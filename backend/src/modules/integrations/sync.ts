@@ -1,7 +1,7 @@
 import { notify } from "../notifications";
 import { providerFailure } from "../../core/http/provider-errors";
 import type { JobLogger } from "../../core/jobs";
-import { effectiveMinimumInterval, registrationSettings } from "../settings";
+import { registrationSettings } from "../settings";
 import { randomUUID } from "node:crypto";
 import { prisma } from "../../core/database";
 import { decrypt, encrypt } from "../../core/secrets";
@@ -9,9 +9,6 @@ import { fail } from "../../core/http";
 import { provider, capability } from "./operations";
 import { type SyncWindow, maxSnapshotEvents } from "./adapters/window";
 import type { FetchResult } from "./adapters";
-
-export const minimumInterval = () =>
-	Math.max(1, Number(process.env.MIN_SYNC_INTERVAL_MINUTES) || 15);
 
 export async function submitSync(calendarId: string) {
 	const calendar = await prisma.calendar.findUniqueOrThrow({
@@ -396,17 +393,15 @@ export async function recoverLeases() {
 
 export async function runSyncTick(logger?: JobLogger) {
 	await recoverLeases();
+	const settings = await registrationSettings();
 
 	const due = await prisma.$queryRaw<
 		Array<{ id: string }>
-	>`SELECT "id" FROM "Calendar" WHERE "syncInterval" > 0 AND "connectionId" IS NOT NULL AND ("lastAttempt" IS NULL OR "lastAttempt" <= NOW() - (GREATEST("syncInterval", ${await effectiveMinimumInterval()}) * INTERVAL '1 minute')) ORDER BY "lastAttempt" ASC NULLS FIRST LIMIT 100`;
+	>`SELECT "id" FROM "Calendar" WHERE "syncInterval" > 0 AND "connectionId" IS NOT NULL AND ("lastAttempt" IS NULL OR "lastAttempt" <= NOW() - (GREATEST("syncInterval", ${settings.minSyncIntervalMinutes}) * INTERVAL '1 minute')) ORDER BY "lastAttempt" ASC NULLS FIRST LIMIT 100`;
 
 	for (const calendar of due) await submitSync(calendar.id);
 
-	const concurrency = Math.max(
-		1,
-		Math.min(16, Number(process.env.SYNC_CONCURRENCY) || 3),
-	);
+	const concurrency = settings.syncConcurrency;
 
 	const jobs = await prisma.syncRun.findMany({
 		where: { status: "queued" },

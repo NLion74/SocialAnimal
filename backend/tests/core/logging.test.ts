@@ -69,9 +69,11 @@ it.each(["production", "verbose"])(
 			return { ok: true };
 		});
 
-		app.get("/api/v1/connections/google/callback", async () => ({
-			ok: true,
-		}));
+		for (const path of [
+			"/api/v1/connections/google/callback",
+			"/api/providers/google/callback",
+		])
+			app.get(path, async () => ({ ok: true }));
 
 		try {
 			await app.inject({
@@ -85,9 +87,13 @@ it.each(["production", "verbose"])(
 				payload: { password: "private-password" },
 			});
 
-			await app.inject(
-				"/api/v1/connections/google/callback?code=private-code&state=private-state",
-			);
+			for (const path of [
+				"/api/v1/connections/google/callback",
+				"/api/providers/google/callback",
+			])
+				await app.inject(
+					`${path}?code=private-code&state=private-state`,
+				);
 
 			await app.inject("/unknown/private-path?token=private-token");
 

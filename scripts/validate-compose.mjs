@@ -193,22 +193,23 @@ if (env.GOOGLE_CLIENT_ID || env.GOOGLE_CLIENT_SECRET) {
 
 	check(
 		publicUrl &&
-			env.GOOGLE_REDIRECT_URI ===
-				`${publicUrl.origin}/api/v1/connections/google/callback`,
+			[
+				"/api/v1/connections/google/callback",
+				"/api/providers/google/callback",
+			].some(
+				(path) =>
+					env.GOOGLE_REDIRECT_URI === `${publicUrl.origin}${path}`,
+			),
 		"GOOGLE_REDIRECT_URI must use PUBLIC_URL and /api/v1/connections/google/callback.",
 	);
-}
-
-for (const [key, minimum, maximum] of [
-	["MIN_SYNC_INTERVAL_MINUTES", 1, 525600],
-	["SYNC_CONCURRENCY", 1, 16],
-]) {
-	const value = Number(env[key]);
-
-	check(
-		Number.isInteger(value) && value >= minimum && value <= maximum,
-		`${key} must be an integer from ${minimum} to ${maximum}.`,
-	);
+	if (
+		publicUrl &&
+		env.GOOGLE_REDIRECT_URI ===
+			`${publicUrl.origin}/api/providers/google/callback`
+	)
+		console.warn(
+			"Google uses the supported legacy callback. Migrate the authorized redirect URI in Google Cloud and GOOGLE_REDIRECT_URI together to /api/v1/connections/google/callback.",
+		);
 }
 
 check(

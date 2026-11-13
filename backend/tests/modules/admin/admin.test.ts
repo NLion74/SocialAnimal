@@ -73,6 +73,7 @@ describe.skipIf(!enabled)("Administration and account controls", () => {
 				requireEmailVerification: false,
 				maxCalendarsPerUser: 25,
 				minSyncIntervalMinutes: 15,
+				syncConcurrency: 3,
 			},
 		});
 
@@ -277,6 +278,65 @@ describe.skipIf(!enabled)("Administration and account controls", () => {
 				)
 			).statusCode,
 		).toBe(200);
+	});
+
+	it("persists administrator sync settings, rejects invalid values, and ignores obsolete environment values", async () => {
+		vi.stubEnv("MIN_SYNC_INTERVAL_MINUTES", "9999");
+		vi.stubEnv("SYNC_CONCURRENCY", "invalid");
+		try {
+			for (const value of [0, 17, 1.5, "invalid", null])
+				expect(
+					(
+						await request("PATCH", "/admin/settings", {
+							syncConcurrency: value,
+						})
+					).statusCode,
+				).toBe(400);
+			for (const id of [normal, moderator, demo]) {
+				expect(
+					(await request("GET", "/admin/settings", undefined, id))
+						.statusCode,
+				).toBe(403);
+				expect(
+					(
+						await request(
+							"PATCH",
+							"/admin/settings",
+							{ syncConcurrency: 2 },
+							id,
+						)
+					).statusCode,
+				).toBe(403);
+			}
+			expect(
+				(await app.inject("/api/v1/admin/settings")).statusCode,
+			).toBe(401);
+			for (const syncConcurrency of [1, 16, 3]) {
+				const saved = await request("PATCH", "/admin/settings", {
+					syncConcurrency,
+					minSyncIntervalMinutes: 2,
+				});
+				expect(saved.statusCode, saved.body).toBe(200);
+				expect(
+					(await request("GET", "/admin/settings")).json()
+						.syncConcurrency,
+				).toBe(syncConcurrency);
+				expect(
+					(
+						await prisma.appSettings.findUniqueOrThrow({
+							where: { id: "global" },
+						})
+					).syncConcurrency,
+				).toBe(syncConcurrency);
+			}
+			const publicSettings = (
+				await app.inject("/api/v1/settings/public")
+			).json();
+			expect(publicSettings.minSyncIntervalMinutes).toBe(2);
+			expect(publicSettings).not.toHaveProperty("syncConcurrency");
+		} finally {
+			vi.unstubAllEnvs();
+		}
 	});
 
 	it("seeds defaults atomically on registration", async () => {

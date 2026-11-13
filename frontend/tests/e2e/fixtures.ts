@@ -2,7 +2,24 @@ import { test as base, expect } from "@playwright/test";
 import { createHash } from "node:crypto";
 
 // Each scenario represents a separate client. Only the local test proxy is trusted.
-export const test = base.extend({
+export const test = base.extend<{ apiAudit: void }>({
+	apiAudit: [
+		async ({ page }, use) => {
+			const retired: string[] = [];
+			page.on("request", (request) => {
+				const path = new URL(request.url()).pathname;
+				if (
+					path.startsWith("/api/") &&
+					!path.startsWith("/api/v1/") &&
+					path !== "/api/providers/google/callback"
+				)
+					retired.push(path);
+			});
+			await use();
+			expect(retired).toEqual([]);
+		},
+		{ auto: true },
+	],
 	extraHTTPHeaders: async ({}, use, info) => {
 		const bytes = createHash("sha256").update(info.testId).digest();
 

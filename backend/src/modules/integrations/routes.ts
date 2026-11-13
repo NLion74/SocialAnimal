@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync } from "fastify";
+import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import type { CalendarType } from "@prisma/client";
 import { prisma } from "../../core/database";
 import {
@@ -325,10 +325,17 @@ const routes: FastifyPluginAsync = async (app) => {
 		},
 	);
 
+	registerGoogleCallback(app, "/connections/google/callback");
+};
+
+export default routes;
+
+// Both callback URLs share validation and atomic state consumption.
+export function registerGoogleCallback(app: FastifyInstance, path: string) {
 	app.get<{
 		Querystring: { state: string; code?: string; error?: string };
 	}>(
-		"/connections/google/callback",
+		path,
 		{
 			schema: {
 				querystring: {
@@ -458,6 +465,4 @@ const routes: FastifyPluginAsync = async (app) => {
 			);
 		},
 	);
-};
-
-export default routes;
+}

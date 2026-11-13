@@ -208,9 +208,6 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=
 
-MIN_SYNC_INTERVAL_MINUTES=15
-SYNC_CONCURRENCY=3
-
 # Optional exact hostnames/IPs for self-hosted providers on private networks.
 # Leave empty to block private network targets. Never use a wildcard.
 PRIVATE_PROVIDER_HOSTS=
@@ -254,8 +251,6 @@ Every variable in the template is described here. Port values refer to the host;
 | `GOOGLE_CLIENT_ID`          | OAuth client ID for Google Calendar imports. Optional; configure it together with the other two Google variables.                                                                                                                 |
 | `GOOGLE_CLIENT_SECRET`      | Secret belonging to that Google OAuth client. Leave all three Google variables blank if Google imports are not needed.                                                                                                            |
 | `GOOGLE_REDIRECT_URI`       | Google OAuth callback URL: `PUBLIC_URL` followed by `/api/v1/connections/google/callback`. It must exactly match an authorized redirect URI in Google Cloud.                                                                      |
-| `MIN_SYNC_INTERVAL_MINUTES` | Minimum interval between automatic calendar synchronizations, in minutes; defaults to `15`. Admin can raise the instance minimum above this value.                                                                                |
-| `SYNC_CONCURRENCY`          | Maximum number of calendar sync jobs processed concurrently; defaults to `3`, with a supported range of `1`–`16`.                                                                                                                 |
 | `PRIVATE_PROVIDER_HOSTS`    | Optional comma-separated exact hostnames or IP addresses allowed for calendar providers on private networks. Blank blocks private network targets; wildcards are not supported.                                                   |
 | `SMTP_HOST`                 | SMTP server for account and notification emails. Replace the example host with your mail provider's server; email requires both this value and `SMTP_FROM`.                                                                       |
 | `SMTP_PORT`                 | SMTP server port. The template uses `587` for STARTTLS; use `465` with `SMTP_SECURE=true` for TLS from the start.                                                                                                                 |
@@ -266,6 +261,8 @@ Every variable in the template is described here. Port values refer to the host;
 | `SMTP_FROM`                 | Sender address for outgoing mail, optionally with a display name such as `SocialAnimal <calendar@example.com>`. Use an address your SMTP server permits.                                                                          |
 | `CORS_ORIGINS`              | Optional comma-separated browser origins allowed to call the backend. Blank uses `PUBLIC_URL`.                                                                                                                                    |
 | `TRUSTED_PROXY_CIDRS`       | Optional comma-separated proxy addresses or subnets trusted to supply forwarded client IPs. Blank ignores forwarded IPs; include only proxies you control.                                                                        |
+
+Synchronization limits are stored in **Admin → Settings**. Fresh installations use a 15-minute minimum and 3 concurrent jobs (allowed range: 1–16). Changes apply on the next scheduler tick without a restart. Existing Admin minima are preserved, and obsolete environment overrides are ignored. Calendars with interval 0 remain manual-only.
 
 ### Google Calendar Setup (Optional)
 
@@ -282,6 +279,8 @@ To enable Google Calendar imports:
     ```
 
 6. Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` to your environment file, then restart SocialAnimal.
+
+Existing installations may keep the exact `/api/providers/google/callback` callback on the public origin. To migrate, register the v1 callback in Google Cloud and update `GOOGLE_REDIRECT_URI` together. Other retired API endpoints remain unavailable.
 
 For local installations, the redirect URI can be `http://localhost:3000/api/v1/connections/google/callback`.
 
@@ -333,12 +332,12 @@ All Compose files, including `legacy-docker-compose.yml`, declare an `app-networ
 
 Each mode uses its own PostgreSQL volume, even when the Compose project name is shared:
 
-| Compose file | Database volume key | Docker volume name |
-| --- | --- | --- |
-| `docker-compose.yml` | `release_postgres_data` | `<project>_release_postgres_data` |
-| `build-docker-compose.yml` | `build_postgres_data` | `<project>_build_postgres_data` |
-| `dev-docker-compose.yml` | `dev_postgres_data` | `<project>_dev_postgres_data` |
-| `legacy-docker-compose.yml` | `legacy_postgres_data` | `<project>_legacy_postgres_data` |
+| Compose file                | Database volume key     | Docker volume name                |
+| --------------------------- | ----------------------- | --------------------------------- |
+| `docker-compose.yml`        | `release_postgres_data` | `<project>_release_postgres_data` |
+| `build-docker-compose.yml`  | `build_postgres_data`   | `<project>_build_postgres_data`   |
+| `dev-docker-compose.yml`    | `dev_postgres_data`     | `<project>_dev_postgres_data`     |
+| `legacy-docker-compose.yml` | `legacy_postgres_data`  | `<project>_legacy_postgres_data`  |
 
 Build mode defaults to project `socialanimal-build`; the other modes use the directory's project name unless you set `-p` or `COMPOSE_PROJECT_NAME`. Use distinct project names and host ports to run modes simultaneously. Development also uses project-scoped `dev_backend_modules`, `dev_backend_dist`, `dev_frontend_modules`, and `dev_frontend_next` volumes. Source directories remain mounted for live reload.
 

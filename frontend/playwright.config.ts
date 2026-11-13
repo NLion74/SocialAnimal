@@ -15,11 +15,16 @@ export default defineConfig({
 	projects: [{ name: "firefox", use: { ...devices["Desktop Firefox"] } }],
 	webServer: [
 		{
-			command: "node ../backend/dist/index.js",
+			command:
+				"node --require ./tests/e2e/google-mock.cjs ../backend/dist/index.js",
 			url: "http://127.0.0.1:4400/ready",
 			env: {
 				DATABASE_URL: databaseUrl,
 				JWT_SECRET: "browser-test-secret",
+				GOOGLE_CLIENT_ID: "browser-google-client",
+				GOOGLE_CLIENT_SECRET: "browser-google-secret",
+				GOOGLE_REDIRECT_URI:
+					"http://127.0.0.1:3300/api/providers/google/callback",
 				CREDENTIAL_ENCRYPTION_KEY: "ab".repeat(32),
 				PORT: "4400",
 				TRUSTED_PROXY_CIDRS: "loopback",

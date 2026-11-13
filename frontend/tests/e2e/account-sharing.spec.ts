@@ -64,6 +64,8 @@ test("admin defaults, invitation links, verification refresh, and independent pu
 			.getByLabel("Default first day of the week")
 			.selectOption("sunday");
 
+		await page.getByLabel("Concurrent sync jobs").fill("4");
+		await page.getByLabel("Minimum sync interval (minutes)").fill("2");
 		await page.getByLabel("Require an invitation", { exact: true }).check();
 
 		await page
@@ -71,6 +73,17 @@ test("admin defaults, invitation links, verification refresh, and independent pu
 			.click();
 
 		await expect(page.getByText("Instance settings saved.")).toBeVisible();
+		expect(
+			(
+				await db.query(
+					'SELECT "syncConcurrency", "minSyncIntervalMinutes" FROM "AppSettings" WHERE id = $1',
+					["global"],
+				)
+			).rows[0],
+		).toEqual({ syncConcurrency: 4, minSyncIntervalMinutes: 2 });
+		await page.reload();
+		await adminSection(page, "Settings");
+		await expect(page.getByLabel("Concurrent sync jobs")).toHaveValue("4");
 		await adminSection(page, "Invitations");
 		await page.getByLabel("Invitation label").fill("Browser invitation");
 
@@ -363,7 +376,7 @@ test("admin defaults, invitation links, verification refresh, and independent pu
 		]);
 
 		await db.query(
-			'UPDATE "AppSettings" SET "registrationsOpen" = $1, "inviteOnly" = $2, "requireEmailVerification" = $3, "defaultTimezone" = $4, "defaultFirstDayOfWeek" = $5 WHERE id = $6',
+			'UPDATE "AppSettings" SET "registrationsOpen" = $1, "inviteOnly" = $2, "requireEmailVerification" = $3, "defaultTimezone" = $4, "defaultFirstDayOfWeek" = $5, "syncConcurrency" = $7, "minSyncIntervalMinutes" = $8 WHERE id = $6',
 			[
 				previous.registrationsOpen,
 				previous.inviteOnly,
@@ -371,6 +384,8 @@ test("admin defaults, invitation links, verification refresh, and independent pu
 				previous.defaultTimezone,
 				previous.defaultFirstDayOfWeek,
 				"global",
+				previous.syncConcurrency,
+				previous.minSyncIntervalMinutes,
 			],
 		);
 
