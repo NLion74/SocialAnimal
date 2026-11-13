@@ -105,6 +105,56 @@ test("optional verification, authenticator setup, recovery login, email switchin
 		}
 	}
 
+	async function checkSecurityLayout(state: string) {
+		const section = page.getByRole("region", {
+			name: "Two-factor authentication",
+			exact: true,
+		});
+		for (const width of [320, 375, 390, 1280]) {
+			await page.setViewportSize({ width, height: 900 });
+			await section.scrollIntoViewIfNeeded();
+			expect(
+				await page.evaluate(
+					() => document.documentElement.scrollWidth <= innerWidth,
+				),
+			).toBe(true);
+			const boxes = await section
+				.locator(
+					"button:visible, input:visible, select:visible, textarea:visible",
+				)
+				.evaluateAll((nodes) =>
+					nodes.map((node) => {
+						const r = node.getBoundingClientRect();
+						return {
+							left: r.left,
+							right: r.right,
+							top: r.top,
+							bottom: r.bottom,
+						};
+					}),
+				);
+			for (const box of boxes) {
+				expect(box.left).toBeGreaterThanOrEqual(0);
+				expect(box.right).toBeLessThanOrEqual(width);
+			}
+			for (let i = 0; i < boxes.length; i++)
+				for (let j = i + 1; j < boxes.length; j++) {
+					const a = boxes[i],
+						b = boxes[j];
+					expect(
+						a.left < b.right &&
+							b.left < a.right &&
+							a.top < b.bottom &&
+							b.top < a.bottom,
+						`${state} overlap at ${width}`,
+					).toBe(false);
+				}
+			await section.screenshot({
+				path: `/tmp/socialanimal-style-review/security-${state}-${width}.png`,
+			});
+		}
+	}
+
 	try {
 		await db.query(
 			'UPDATE "User" SET "isAdmin" = true, "accountRole" = \'admin\' WHERE id = $1',
@@ -134,6 +184,7 @@ test("optional verification, authenticator setup, recovery login, email switchin
 			page.getByRole("button", { name: "Resend verification email" }),
 		).toHaveCount(0);
 
+		await checkSecurityLayout("disabled");
 		await page.getByLabel("New method").selectOption("totp");
 		await page.getByRole("button", { name: "Set up method" }).click();
 
@@ -141,6 +192,12 @@ test("optional verification, authenticator setup, recovery login, email switchin
 			.getByLabel("Authenticator setup key")
 			.inputValue();
 
+		await checkSecurityLayout("enrollment");
+		await page.getByLabel("Confirmation code").focus();
+		await page.keyboard.press("Tab");
+		await expect(
+			page.getByRole("button", { name: "Confirm method" }),
+		).toBeFocused();
 		await page.getByLabel("Confirmation code").fill(codeFor(secret));
 		await page.getByRole("button", { name: "Confirm method" }).click();
 
@@ -157,6 +214,9 @@ test("optional verification, authenticator setup, recovery login, email switchin
 		).split(/\s+/);
 
 		expect(codes).toHaveLength(10);
+		await checkSecurityLayout("recovery");
+		await page.getByRole("button", { name: "I saved my codes" }).click();
+		await checkSecurityLayout("enabled");
 		await page.setViewportSize({ width: 390, height: 844 });
 
 		await page

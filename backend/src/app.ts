@@ -11,7 +11,7 @@ import invitations from "./modules/invitations";
 import settings from "./modules/settings";
 import social from "./modules/social";
 import calendars from "./modules/calendars";
-import integrations from "./modules/integrations";
+import integrations, { registerGoogleCallback } from "./modules/integrations";
 import notifications from "./modules/notifications";
 import availability from "./modules/availability";
 import admin from "./modules/admin";
@@ -130,6 +130,8 @@ export async function buildApp(): Promise<FastifyInstance> {
 			return reply.code(503).send({ status: "unavailable" });
 		}
 	});
+
+	registerGoogleCallback(app, "/api/providers/google/callback");
 
 	for (const root of [
 		"users",

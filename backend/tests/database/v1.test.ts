@@ -745,147 +745,188 @@ describe.skipIf(!enabled)("REST v1 with PostgreSQL", () => {
 		});
 	});
 
-	it("completes Google OAuth server-side with expiring single-use user-bound state", async () => {
-		Object.assign(env.google, {
-			clientId: "test-client",
-			clientSecret: "test-secret",
-			redirectUri: "http://localhost/api/v1/connections/google/callback",
-		});
+	it.each([
+		"/api/v1/connections/google/callback",
+		"/api/providers/google/callback",
+	])(
+		"completes Google OAuth at %s with single-use state",
+		async (callbackPath) => {
+			Object.assign(env.google, {
+				clientId: "test-client",
+				clientSecret: "test-secret",
+				redirectUri: `http://localhost${callbackPath}`,
+			});
 
-		const authorization = await app.inject({
-			method: "POST",
-			url: "/api/v1/connections/google/authorizations",
-			headers: auth(),
-		});
+			const authorization = await app.inject({
+				method: "POST",
+				url: "/api/v1/connections/google/authorizations",
+				headers: auth(),
+			});
 
-		expect(authorization.statusCode).toBe(200);
-
-		const state = new URL(authorization.json().url).searchParams.get(
-			"state",
-		)!;
-
-		const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			new Response(
-				JSON.stringify({
-					access_token: "google-private-access",
-					refresh_token: "google-private-refresh",
-				}),
-			),
-		);
-
-		const callback = await app.inject(
-			`/api/v1/connections/google/callback?${new URLSearchParams({
-				state,
-				code: "code",
-				iss: "https://accounts.google.com",
-				scope: "https://www.googleapis.com/auth/calendar.readonly",
-				authuser: "0",
-				prompt: "consent",
-				hd: "example.test",
-			})}`,
-		);
-
-		expect(callback.statusCode, callback.body).toBe(302);
-		expect(callback.headers.location).not.toContain("google-private");
-
-		const flow = new URL(callback.headers.location!).searchParams.get(
-			"flow",
-		)!;
-
-		expect(
-			(
-				await app.inject({
-					url: `/api/v1/connections?flow=${flow}`,
-					headers: auth(),
-				})
-			).statusCode,
-		).toBe(200);
-
-		expect(
-			(
-				await app.inject({
-					url: `/api/v1/connections?flow=${flow}`,
-					headers: auth(friend),
-				})
-			).statusCode,
-		).toBe(404);
-
-		expect(
-			(
-				await app.inject(
-					`/api/v1/connections/google/callback?state=${state}&code=code`,
-				)
-			).statusCode,
-		).toBe(400);
-
-		expect(fetch).toHaveBeenCalledTimes(1);
-		fetch.mockRestore();
-	});
-
-	it("validates Google callback metadata and consumes cancelled flows without exchanging credentials", async () => {
-		const state = `cancelled-google-${suffix}`;
-
-		const flow = await prisma.oAuthFlow.create({
-			data: {
-				userId: owner,
-				stateHash: tokenHash(state),
-				expiresAt: new Date(Date.now() + 600000),
-			},
-		});
-
-		const fetch = vi.spyOn(globalThis, "fetch");
-
-		try {
-			for (const params of [
-				{ code: "code", iss: "https://untrusted.example" },
-				{ code: "code", unexpected: "value" },
-				{ code: "code", error: "access_denied" },
-				{},
-			]) {
-				const query = new URLSearchParams({ state, ...params });
-
-				const response = await app.inject(
-					`/api/v1/connections/google/callback?${query}`,
-				);
-
-				expect(response.statusCode).toBe(400);
-				expect(response.json().code).toBe("INVALID_REQUEST");
-			}
-
+			expect(authorization.statusCode).toBe(200);
 			expect(
-				(
-					await prisma.oAuthFlow.findUniqueOrThrow({
-						where: { id: flow.id },
-					})
-				).consumedAt,
-			).toBeNull();
+				new URL(authorization.json().url).searchParams.get(
+					"redirect_uri",
+				),
+			).toBe(env.google.redirectUri);
 
-			const cancelled = await app.inject(
-				`/api/v1/connections/google/callback?${new URLSearchParams({
+			const state = new URL(authorization.json().url).searchParams.get(
+				"state",
+			)!;
+
+			const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+				new Response(
+					JSON.stringify({
+						access_token: "google-private-access",
+						refresh_token: "google-private-refresh",
+					}),
+				),
+			);
+
+			const callback = await app.inject(
+				`${callbackPath}?${new URLSearchParams({
 					state,
-					error: "access_denied",
-					error_description: "untrusted-provider-description",
+					code: "code",
+					iss: "https://accounts.google.com",
+					scope: "https://www.googleapis.com/auth/calendar.readonly",
+					authuser: "0",
+					prompt: "consent",
+					hd: "example.test",
 				})}`,
 			);
 
-			expect(cancelled.statusCode).toBe(400);
-			expect(cancelled.json().code).toBe("PROVIDER_AUTH_CANCELLED");
+			expect(callback.statusCode, callback.body).toBe(302);
+			expect(callback.headers.location).not.toContain("google-private");
 
-			expect(cancelled.body).not.toContain(
-				"untrusted-provider-description",
+			const flow = new URL(callback.headers.location!).searchParams.get(
+				"flow",
+			)!;
+
+			expect(
+				(
+					await app.inject({
+						url: `/api/v1/connections?flow=${flow}`,
+						headers: auth(),
+					})
+				).statusCode,
+			).toBe(200);
+
+			expect(
+				(
+					await app.inject({
+						url: `/api/v1/connections?flow=${flow}`,
+						headers: auth(friend),
+					})
+				).statusCode,
+			).toBe(404);
+
+			expect(
+				(await app.inject(`${callbackPath}?state=${state}&code=code`))
+					.statusCode,
+			).toBe(400);
+
+			expect(fetch).toHaveBeenCalledTimes(1);
+			expect(
+				(fetch.mock.calls[0][1]!.body as URLSearchParams).get(
+					"redirect_uri",
+				),
+			).toBe(env.google.redirectUri);
+			const invalid = await app.inject(
+				`${callbackPath}?state=unknown&code=code`,
 			);
-
-			expect(cancelled.headers["cache-control"]).toBe("no-store");
-			expect(cancelled.headers["referrer-policy"]).toBe("no-referrer");
-
-			const replay = await app.inject(
-				`/api/v1/connections/google/callback?state=${state}&code=code`,
-			);
-
-			expect(replay.json().code).toBe("INVALID_STATE");
-			expect(fetch).not.toHaveBeenCalled();
-		} finally {
+			expect(invalid.json().code).toBe("INVALID_STATE");
+			const expiredState = `expired-${suffix}-${callbackPath}`;
+			await prisma.oAuthFlow.create({
+				data: {
+					userId: owner,
+					stateHash: tokenHash(expiredState),
+					expiresAt: new Date(0),
+				},
+			});
+			expect(
+				(
+					await app.inject(
+						`${callbackPath}?state=${encodeURIComponent(expiredState)}&code=code`,
+					)
+				).json().code,
+			).toBe("INVALID_STATE");
+			expect(fetch).toHaveBeenCalledTimes(1);
 			fetch.mockRestore();
-		}
-	});
+		},
+	);
+
+	it.each([
+		"/api/v1/connections/google/callback",
+		"/api/providers/google/callback",
+	])(
+		"validates Google metadata and consumes cancelled flows at %s",
+		async (callbackPath) => {
+			const state = `cancelled-google-${suffix}-${callbackPath}`;
+
+			const flow = await prisma.oAuthFlow.create({
+				data: {
+					userId: owner,
+					stateHash: tokenHash(state),
+					expiresAt: new Date(Date.now() + 600000),
+				},
+			});
+
+			const fetch = vi.spyOn(globalThis, "fetch");
+
+			try {
+				for (const params of [
+					{ code: "code", iss: "https://untrusted.example" },
+					{ code: "code", unexpected: "value" },
+					{ code: "code", error: "access_denied" },
+					{},
+				]) {
+					const query = new URLSearchParams({ state, ...params });
+
+					const response = await app.inject(
+						`${callbackPath}?${query}`,
+					);
+
+					expect(response.statusCode).toBe(400);
+					expect(response.json().code).toBe("INVALID_REQUEST");
+				}
+
+				expect(
+					(
+						await prisma.oAuthFlow.findUniqueOrThrow({
+							where: { id: flow.id },
+						})
+					).consumedAt,
+				).toBeNull();
+
+				const cancelled = await app.inject(
+					`${callbackPath}?${new URLSearchParams({
+						state,
+						error: "access_denied",
+						error_description: "untrusted-provider-description",
+					})}`,
+				);
+
+				expect(cancelled.statusCode).toBe(400);
+				expect(cancelled.json().code).toBe("PROVIDER_AUTH_CANCELLED");
+
+				expect(cancelled.body).not.toContain(
+					"untrusted-provider-description",
+				);
+
+				expect(cancelled.headers["cache-control"]).toBe("no-store");
+				expect(cancelled.headers["referrer-policy"]).toBe(
+					"no-referrer",
+				);
+
+				const replay = await app.inject(
+					`${callbackPath}?state=${state}&code=code`,
+				);
+
+				expect(replay.json().code).toBe("INVALID_STATE");
+				expect(fetch).not.toHaveBeenCalled();
+			} finally {
+				fetch.mockRestore();
+			}
+		},
+	);
 });

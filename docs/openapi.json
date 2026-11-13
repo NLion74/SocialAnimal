@@ -8651,6 +8651,11 @@
 											"type": "string",
 											"enum": ["monday", "sunday"]
 										},
+										"syncConcurrency": {
+											"type": "integer",
+											"minimum": 1,
+											"maximum": 16
+										},
 										"smtpConfigured": { "type": "boolean" }
 									},
 									"required": [
@@ -8664,6 +8669,7 @@
 										"syncFutureDays",
 										"defaultTimezone",
 										"defaultFirstDayOfWeek",
+										"syncConcurrency",
 										"smtpConfigured"
 									]
 								}
@@ -8888,6 +8894,11 @@
 									"defaultFirstDayOfWeek": {
 										"type": "string",
 										"enum": ["monday", "sunday"]
+									},
+									"syncConcurrency": {
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 16
 									}
 								},
 								"required": []
@@ -8942,6 +8953,11 @@
 										"defaultFirstDayOfWeek": {
 											"type": "string",
 											"enum": ["monday", "sunday"]
+										},
+										"syncConcurrency": {
+											"type": "integer",
+											"minimum": 1,
+											"maximum": 16
 										}
 									},
 									"required": [
@@ -8954,7 +8970,8 @@
 										"syncPastDays",
 										"syncFutureDays",
 										"defaultTimezone",
-										"defaultFirstDayOfWeek"
+										"defaultFirstDayOfWeek",
+										"syncConcurrency"
 									]
 								}
 							}

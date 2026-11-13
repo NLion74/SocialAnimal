@@ -1,4 +1,4 @@
-export { default } from "./routes";
+export { default, registerGoogleCallback } from "./routes";
 
 export { runSyncTick, submitSync } from "./sync";
 

@@ -120,6 +120,72 @@ test("Compose volumes are isolated across modes and projects", (context) => {
 	}
 });
 
+test("all Compose modes accept supported Google callbacks and ignore obsolete sync overrides", (context) => {
+	const root = mkdtempSync(join(tmpdir(), "socialanimal-config-test-"));
+	context.after(() => rmSync(root, { recursive: true, force: true }));
+	mkdirSync(join(root, "scripts"));
+	copyFileSync(
+		new URL("../../scripts/validate-compose.mjs", import.meta.url),
+		join(root, "scripts/validate-compose.mjs"),
+	);
+	let template = readFileSync(
+		new URL("../../example.env", import.meta.url),
+		"utf8",
+	);
+	for (const [key, value] of Object.entries({
+		SOCIALANIMAL_VERSION: "test",
+		POSTGRES_PASSWORD: "fixture-password",
+		JWT_SECRET: "fixture-authentication-secret",
+		CREDENTIAL_ENCRYPTION_KEY: "ab".repeat(32),
+		GOOGLE_CLIENT_ID: "fixture-client",
+		GOOGLE_CLIENT_SECRET: "fixture-secret",
+	}))
+		template = template.replace(
+			new RegExp(`^${key}=.*$`, "m"),
+			`${key}=${value}`,
+		);
+	const origin = template.match(/^PUBLIC_URL=(.*)$/m)[1];
+	for (const [mode, file] of [
+		["development", "dev-docker-compose.yml"],
+		["build", "build-docker-compose.yml"],
+		["production", "docker-compose.yml"],
+		["legacy", "legacy-docker-compose.yml"],
+	]) {
+		copyFileSync(
+			new URL(`../../${file}`, import.meta.url),
+			join(root, file),
+		);
+		for (const [path, valid] of [
+			["/api/v1/connections/google/callback", true],
+			["/api/providers/google/callback", true],
+			["/api/providers/google/callback/", false],
+			["/api/providers/google/callback?extra=1", false],
+			["/api/providers/google/auth", false],
+		]) {
+			const env =
+				template.replace(
+					/^GOOGLE_REDIRECT_URI=.*$/m,
+					`GOOGLE_REDIRECT_URI=${origin}${path}`,
+				) +
+				"\nMIN_SYNC_INTERVAL_MINUTES=invalid\nSYNC_CONCURRENCY=999\n";
+			for (const name of [".env", ".env.dev", ".env.build"])
+				writeFileSync(join(root, name), env);
+			const result = spawnSync(
+				process.execPath,
+				[join(root, "scripts/validate-compose.mjs"), mode],
+				{ encoding: "utf8" },
+			);
+			assert.equal(
+				result.status,
+				valid ? 0 : 1,
+				`${mode} ${path}: ${result.stderr}`,
+			);
+			if (path === "/api/providers/google/callback")
+				assert.match(result.stderr, /Migrate.*Google Cloud/);
+		}
+	}
+});
+
 test("storage migration refuses an existing volume before stopping services", (context) => {
 	const { root, env } = fixture(context);
 	const script = join(root, "scripts/migrate-compose-storage.mjs");

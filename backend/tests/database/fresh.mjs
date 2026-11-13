@@ -28,6 +28,17 @@ const setup = () =>
 	});
 
 setup();
+await db.query(
+	`INSERT INTO "AppSettings" (id, "updatedAt") VALUES ('global', NOW()) ON CONFLICT (id) DO NOTHING`,
+);
+assert.deepEqual(
+	(
+		await db.query(
+			`SELECT "minSyncIntervalMinutes", "syncConcurrency" FROM "AppSettings" WHERE id = 'global'`,
+		)
+	).rows[0],
+	{ minSyncIntervalMinutes: 15, syncConcurrency: 3 },
+);
 
 assert.equal(
 	(

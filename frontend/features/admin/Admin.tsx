@@ -343,6 +343,8 @@ export default function Admin() {
 														settings.maxCalendarsPerUser,
 													minSyncIntervalMinutes:
 														settings.minSyncIntervalMinutes,
+													syncConcurrency:
+														settings.syncConcurrency,
 													syncPastDays:
 														settings.syncPastDays,
 													syncFutureDays:
@@ -520,14 +522,37 @@ export default function Admin() {
 														}
 													/>
 												</label>
+												<label className={f.field}>
+													Concurrent sync jobs
+													<input
+														className={f.input}
+														type="number"
+														min={1}
+														max={16}
+														step={1}
+														required
+														value={
+															settings.syncConcurrency
+														}
+														onChange={(e) =>
+															setSettings({
+																...settings,
+																syncConcurrency:
+																	Number(
+																		e.target
+																			.value,
+																	),
+															})
+														}
+													/>
+												</label>
 											</div>
 											<p className={f.hint}>
-												The server environment may
-												enforce a higher minimum.
-												Manual-only calendars keep
-												interval 0. Existing calendars
-												above the calendar limit remain
-												available.
+												Sync changes apply on the next
+												scheduler tick. Manual-only
+												calendars keep interval 0.
+												Existing calendars above the
+												calendar limit remain available.
 											</p>
 											<div className={f.row}>
 												{(

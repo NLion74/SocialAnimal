@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { GET as legacyCallback } from "../app/api/providers/google/callback/route";
+import { GET as v1Callback } from "../app/api/v1/connections/google/callback/route";
 import { proxySecretGet } from "../lib/secret-proxy";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -55,3 +57,26 @@ describe("Credential URL proxy", () => {
 		expect(response.headers.get("set-cookie")).toBeNull();
 	});
 });
+
+it.each([
+	["/api/providers/google/callback", legacyCallback],
+	["/api/v1/connections/google/callback", v1Callback],
+] as const)(
+	"proxies %s with the exact OAuth query and safe failure",
+	async (path, handler) => {
+		const fetch = vi
+			.fn()
+			.mockRejectedValue(new Error("private-code private-state"));
+		vi.stubGlobal("fetch", fetch);
+		const response = await handler(
+			new Request(
+				`https://app.example${path}?code=private-code&state=private-state`,
+			),
+		);
+		expect(String(fetch.mock.calls[0][0])).toContain(
+			`${path}?code=private-code&state=private-state`,
+		);
+		expect(response.status).toBe(502);
+		expect(await response.text()).not.toContain("private-");
+	},
+);

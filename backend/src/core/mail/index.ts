@@ -1,5 +1,18 @@
 import nodemailer from "nodemailer";
 
+const escapeHtml = (value: string) =>
+	value.replace(
+		/[&<>"']/g,
+		(char) =>
+			({
+				"&": "&amp;",
+				"<": "&lt;",
+				">": "&gt;",
+				"\"": "&quot;",
+				"'": "&#39;",
+			})[char]!,
+	);
+
 export function mailConfigured(): boolean {
 	return !!(process.env.SMTP_HOST && process.env.SMTP_FROM);
 }
@@ -65,12 +78,39 @@ export async function sendAccountEmail(
 						? "Your SocialAnimal password was changed and existing sessions were signed out. If this was not you, request a password reset or contact your administrator."
 						: `${kind === "reset" ? "Reset your password" : "Confirm your email address"} for SocialAnimal:\n\n${url.href}\n\nThis link expires in ${kind === "reset" ? "30 minutes" : "24 hours"} and can be used once. If you did not request this, ignore this email.`;
 
+	const destination = notification
+		? new URL(
+				notification.href,
+				process.env.PUBLIC_URL || "http://localhost:3000",
+			).href
+		: kind === "verify" || kind === "reset"
+			? url.href
+			: undefined;
+	const linkLabel = notification
+		? "View update"
+		: kind === "reset"
+			? "Reset your password"
+			: "Confirm your email address";
+	const html = text
+		.split("\n\n")
+		.map((paragraph) => {
+			if (
+				destination &&
+				paragraph === destination &&
+				["http:", "https:"].includes(new URL(destination).protocol)
+			)
+				return `<p><a href="${escapeHtml(destination)}">${linkLabel}</a></p>`;
+			return `<p>${escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`;
+		})
+		.join("\n");
+
 	try {
 		await transport.sendMail({
 			from: process.env.SMTP_FROM,
 			to: { address: email, name: "" },
 			subject,
 			text,
+			html,
 			disableFileAccess: true,
 			disableUrlAccess: true,
 		});

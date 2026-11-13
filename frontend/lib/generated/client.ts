@@ -858,6 +858,7 @@ export type adminSettingsResponse = {
 	syncFutureDays: number;
 	defaultTimezone: string;
 	defaultFirstDayOfWeek: "monday" | "sunday";
+	syncConcurrency: number;
 	smtpConfigured: boolean;
 };
 
@@ -883,6 +884,7 @@ export type updateAdminSettingsInput = {
 		syncFutureDays?: number;
 		defaultTimezone?: string;
 		defaultFirstDayOfWeek?: "monday" | "sunday";
+		syncConcurrency?: number;
 	};
 };
 
@@ -897,6 +899,7 @@ export type updateAdminSettingsResponse = {
 	syncFutureDays: number;
 	defaultTimezone: string;
 	defaultFirstDayOfWeek: "monday" | "sunday";
+	syncConcurrency: number;
 };
 
 export function updateAdminSettings(

@@ -28,16 +28,17 @@ const instance = obj({
 	defaultFirstDayOfWeek: { type: "string", enum: ["monday", "sunday"] },
 });
 
+const adminInstance = obj({
+	...instance.properties,
+	syncConcurrency: { type: "integer", minimum: 1, maximum: 16 },
+});
+
 export async function effectiveMinimumInterval(
 	tx: Prisma.TransactionClient = prisma,
 ) {
 	const settings = await registrationSettings(tx);
 
-	return Math.max(
-		1,
-		Number(process.env.MIN_SYNC_INTERVAL_MINUTES) || 15,
-		settings.minSyncIntervalMinutes,
-	);
+	return settings.minSyncIntervalMinutes;
 }
 
 export async function checkSyncInterval(
@@ -81,7 +82,7 @@ const routes: FastifyPluginAsync = async (app) => {
 			preHandler: authenticateToken,
 			schema: contract(
 				"adminSettings",
-				obj({ ...instance.properties, smtpConfigured: bool }),
+				obj({ ...adminInstance.properties, smtpConfigured: bool }),
 			),
 		},
 		async (req) => {
@@ -102,6 +103,7 @@ const routes: FastifyPluginAsync = async (app) => {
 			requireTwoFactor?: boolean;
 			maxCalendarsPerUser?: number;
 			minSyncIntervalMinutes?: number;
+			syncConcurrency?: number;
 			syncPastDays?: number;
 			syncFutureDays?: number;
 			defaultTimezone?: string;
@@ -111,8 +113,8 @@ const routes: FastifyPluginAsync = async (app) => {
 		"/admin/settings",
 		{
 			preHandler: authenticateToken,
-			schema: contract("updateAdminSettings", instance, {
-				body: obj(instance.properties, []),
+			schema: contract("updateAdminSettings", adminInstance, {
+				body: obj(adminInstance.properties, []),
 			}),
 		},
 		async (req) => {
