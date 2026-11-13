@@ -8,7 +8,7 @@ const escapeHtml = (value: string) =>
 				"&": "&amp;",
 				"<": "&lt;",
 				">": "&gt;",
-				'"': "&quot;",
+				"\"": "&quot;",
 				"'": "&#39;",
 			})[char]!,
 	);
